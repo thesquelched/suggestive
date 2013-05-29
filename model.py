@@ -12,21 +12,19 @@ class Artist(Base):
 
   id = Column(Integer, primary_key=True)
   name = Column(String)
-  url = Column(String)
+
+  def __init__(self, name):
+    self.name = name
 
 class Album(Base):
   __tablename__ = 'albums'
 
   id = Column(Integer, primary_key=True)
   name = Column(String)
-  url = Column(String)
+  playcount = Column(Integer)
   artist_id = Column(Integer, ForeignKey('artists.id'))
 
   artist = relationship('Artist', backref=backref('albums', order_by=id))
-
-  def __init__(self, name, url):
-    self.name = name
-    self.url = url
 
 class Scrobble(Base):
   __tablename__ = 'scrobbles'
