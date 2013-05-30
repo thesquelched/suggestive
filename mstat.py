@@ -34,7 +34,7 @@ def initialize_lastfm():
   return LastFM(APIKEY)
 
 def correct_artist(name, lastfm):
-  logger.info('Attempting to find a correction for {}'.format(name))
+  logger.debug('Attempting to find a correction for {}'.format(name))
 
   resp = lastfm.query('artist.getCorrection', artist=name)
   if 'corrections' in resp and isinstance(resp['corrections'], dict):
@@ -43,6 +43,7 @@ def correct_artist(name, lastfm):
       artist = Artist(name=correct['artist']['name'])
       corrected = ArtistCorrection(name=name)
 
+      logger.info("Corrected '{}' to '{}'".format(name, artist.name))
       return (artist, corrected)
 
   artist = Artist(name=name)
@@ -64,10 +65,11 @@ def most_likely_album(name, artist, lastfm):
   return None
 
 def correct_album(name, artist, lastfm, session):
-  logger.info('Attempt to find a correction for {}'.format(name))
+  logger.debug('Attempt to find a correction for {}'.format(name))
 
   likely_album = most_likely_album(name, artist, lastfm)
   if likely_album:
+    logger.info("Corrected '{}' to '{}'".format(name, likely_album))
     album = session.query(Album).filter_by(name=likely_album).first()
     if album:
       corrected = None
@@ -142,6 +144,11 @@ def insert_lastfm_albums(session, lastfm, user):
 
 def initialize_database(session, mpdclient, lastfm, user):
   insert_lastfm_albums(session, lastfm, user)
+
+  n_artists = session.query(func.count(Artist.id))
+  n_albums = session.query(func.count(Album.id))
+  logging.info('Inserted {} artists with {} albums from LastFM'.format(n_artists, n_albums))
+
   insert_mpd_albums(session, mpdclient, lastfm)
 
 def run():
