@@ -13,10 +13,10 @@ class CaseInsensitiveComparator(Comparator):
     return func.lower(self.__clause_element__()) == func.lower(other)
 
 class Artist(Base):
-  __tablename__ = 'artists'
+  __tablename__ = 'artist'
 
   id = Column(Integer, primary_key=True)
-  name = Column(String, nullable=False)
+  name = Column(String, nullable=False, unique=True)
 
   def __init__(self, name):
     self.name = name
@@ -30,12 +30,12 @@ class Artist(Base):
     return CaseInsensitiveComparator(cls.name)
 
 class Album(Base):
-  __tablename__ = 'albums'
+  __tablename__ = 'album'
 
   id = Column(Integer, primary_key=True)
-  name = Column(String, nullable=False)
+  name = Column(String, nullable=False, unique=True)
   playcount = Column(Integer)
-  artist_id = Column(Integer, ForeignKey('artists.id'))
+  artist_id = Column(Integer, ForeignKey('artist.id'))
 
   artist = relationship('Artist', backref=backref('albums', order_by=id))
 
@@ -48,28 +48,28 @@ class Album(Base):
     return CaseInsensitiveComparator(cls.name)
 
 class ArtistCorrection(Base):
-  __tablename__ = 'artist_corrections'
+  __tablename__ = 'artist_correction'
 
   id = Column(Integer, primary_key=True)
   name = Column(String)
-  artist_id = Column(Integer, ForeignKey('artists.id'))
+  artist_id = Column(Integer, ForeignKey('artist.id'))
 
   artist = relationship('Artist', backref=backref('corrections', order_by=id))
 
 class AlbumCorrection(Base):
-  __tablename__ = 'album_corrections'
+  __tablename__ = 'album_correction'
 
   id = Column(Integer, primary_key=True)
   name = Column(String)
-  album_id = Column(Integer, ForeignKey('albums.id'))
+  album_id = Column(Integer, ForeignKey('album.id'))
 
   album = relationship('Album', backref=backref('corrections', order_by=id))
 
 class Scrobble(Base):
-  __tablename__ = 'scrobbles'
+  __tablename__ = 'scrobble'
 
   id = Column(Integer, primary_key=True)
   time = Column(DateTime())
-  album_id = Column(Integer, ForeignKey('albums.id'))
+  album_id = Column(Integer, ForeignKey('album.id'))
 
   album = relationship('Album', backref=backref('scrobbles', order_by=id))

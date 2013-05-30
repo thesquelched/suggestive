@@ -2,7 +2,7 @@ from lastfm import LastFM, APIKEY
 from model import Artist, AlbumCorrection, ArtistCorrection, Album, Scrobble, Session, Base
 
 import mpd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 
 from collections import defaultdict
 from itertools import chain
@@ -11,8 +11,11 @@ import logging
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
+SQLITE_DB = './music.db'
+
 def initialize_sqlalchemy():
-  engine = create_engine('sqlite:///:memory:', echo=False)
+  path = 'sqlite:///{}'.format(SQLITE_DB)
+  engine = create_engine(path, echo=False)
   Session.configure(bind=engine)
 
   Base.metadata.create_all(engine)
@@ -121,9 +124,9 @@ def insert_lastfm_albums(session, lastfm, user):
   for resp in lastfm.query_all('library.getAlbums', 'albums', user=user):
     if 'albums' not in resp:
       continue
-    for album in resp['albums']['album']:
-      if 'artist' in album:
-        artist_name = album['artist']['name']
+    for album_resp in resp['albums']['album']:
+      if 'artist' in album_resp:
+        artist_name = album_resp['artist']['name']
       else:
         artist_name = 'Unknown'
 
@@ -132,12 +135,20 @@ def insert_lastfm_albums(session, lastfm, user):
         artist = Artist(artist_name)
         session.add(artist)
 
-      album = Album(
-        name = album['name'],
-        playcount = album['playcount'],
-      )
+      album_name = album_resp['name']
+      album_plays = album_resp['playcount']
 
-      artist.albums.append(album)
+      album = session.query(Album).join(Artist).\
+                      filter(Album.name==album_name).first()
+      if album:
+        album.playcount = album_plays
+      else:
+        album = Album(
+          name = album_resp['name'],
+          playcount = album_resp['playcount'],
+        )
+        artist.albums.append(album)
+
       session.add(album)
 
   session.commit()
@@ -145,8 +156,8 @@ def insert_lastfm_albums(session, lastfm, user):
 def initialize_database(session, mpdclient, lastfm, user):
   insert_lastfm_albums(session, lastfm, user)
 
-  n_artists = session.query(func.count(Artist.id))
-  n_albums = session.query(func.count(Album.id))
+  n_artists = session.query(Artist).count()
+  n_albums = session.query(Album).count()
   logging.info('Inserted {} artists with {} albums from LastFM'.format(n_artists, n_albums))
 
   insert_mpd_albums(session, mpdclient, lastfm)
@@ -159,3 +170,9 @@ def run():
   user = 'thesquelched'
 
   initialize_database(session, mpdclient, lastfm, user)
+
+if __name__ == '__main__':
+  logging.basicConfig(level=logging.DEBUG)
+  logging.getLogger('mpd').setLevel(logging.ERROR)
+  logging.getLogger('requests').setLevel(logging.ERROR)
+  run()
