@@ -237,13 +237,27 @@ def insert_recent_scrobbles(session, lastfm, user):
   session.commit()
 
 def initialize_database(session, mpdclient, lastfm, user):
-  insert_lastfm_albums(session, lastfm, user)
+  artists_start = session.query(Artist).count()
+  albums_start = session.query(Album).count()
 
-  n_artists = session.query(Artist).count()
-  n_albums = session.query(Album).count()
-  logging.info('Inserted {} artists with {} albums from LastFM'.format(n_artists, n_albums))
+  insert_lastfm_albums(session, lastfm, user)
+  
+  artists_after_lastfm = session.query(Artist).count()
+  albums_after_lastfm = session.query(Album).count()
+  logging.info('Inserted {} artists with {} albums from LastFM'.format(
+    artists_after_lastfm - artists_start,
+    albums_after_lastfm - albums_start
+  ))
 
   insert_mpd_albums(session, mpdclient, lastfm)
+
+  artists_after_mpd = session.query(Artist).count()
+  albums_after_mpd = session.query(Album).count()
+  logging.info('Inserted {} artists with {} albums from local machine'.format(
+    artists_after_mpd - artists_after_lastfm,
+    albums_after_mpd - albums_after_lastfm
+  ))
+
   insert_recent_scrobbles(session, lastfm, user)
 
 def run():
