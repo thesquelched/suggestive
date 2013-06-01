@@ -177,10 +177,12 @@ def delete_old_scrobbles(session):
 
 def insert_recent_scrobbles(session, lastfm, user):
   status = session.query(LoadStatus).first()
-  if not status:
-    since = retention(SCROBBLE_RETENTION_DAYS)
-  else:
+  if status:
     since = int(status.last_updated.timestamp())
+    logger.info('Last updated: {}'.format(status.last_updated))
+  else:
+    since = retention(SCROBBLE_RETENTION_DAYS)
+
 
   args = {
     'limit': 200,
