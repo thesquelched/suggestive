@@ -1,9 +1,12 @@
 from lastfm import LastFM, APIKEY
-from model import Artist, AlbumCorrection, ArtistCorrection, Album, Scrobble, Session, Base
+from model import (Artist, AlbumCorrection, ArtistCorrection, Album,
+  Scrobble, Session, Base, LoadStatus, Track)
 
 import mpd
 from sqlalchemy import create_engine, func
 
+from datetime import datetime
+from time import time
 from collections import defaultdict
 from itertools import chain
 import logging
@@ -12,6 +15,12 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 SQLITE_DB = './music.db'
+
+SCROBBLE_RETENTION_DAYS = 180
+SECONDS_IN_DAY = 24*3600
+
+def retention(days):
+  return int(time()) - days*SECONDS_IN_DAY
 
 def initialize_sqlalchemy():
   path = 'sqlite:///{}'.format(SQLITE_DB)
@@ -43,7 +52,11 @@ def correct_artist(name, lastfm):
   if 'corrections' in resp and isinstance(resp['corrections'], dict):
     correct = resp['corrections']['correction']
     if 'artist' in correct:
-      artist = Artist(name=correct['artist']['name'])
+      info = correct['artist']
+      artist = Artist(
+        name = info['name'],
+        mbid = info.get('mbid'),
+      )
       corrected = ArtistCorrection(name=name)
 
       logger.info("Corrected '{}' to '{}'".format(name, artist.name))
@@ -127,12 +140,17 @@ def insert_lastfm_albums(session, lastfm, user):
     for album_resp in resp['albums']['album']:
       if 'artist' in album_resp:
         artist_name = album_resp['artist']['name']
+        mbid = album_resp['artist'].get('mbid')
       else:
         artist_name = 'Unknown'
+        mbid = None
 
       artist = session.query(Artist).filter_by(name=artist_name).first()
       if artist is None:
-        artist = Artist(artist_name)
+        artist = Artist(
+          name = artist_name,
+          mbid = mbid,
+        )
         session.add(artist)
 
       album_name = album_resp['name']
@@ -153,6 +171,69 @@ def insert_lastfm_albums(session, lastfm, user):
 
   session.commit()
 
+def delete_old_scrobbles(session):
+  delete_before = datetime.fromtimestamp(retention(SCROBBLE_RETENTION_DAYS))
+  session.query(Scrobble).filter(Scrobble.date < delete_before).delete()
+
+def insert_recent_scrobbles(session, lastfm, user):
+  status = session.query(LoadStatus).first()
+  if not status:
+    since = retention(SCROBBLE_RETENTION_DAYS)
+  else:
+    since = int(status.last_updated.timestamp())
+
+  args = {
+    'limit': 200,
+    'user': user,
+    'from': since,
+    'extended': 1
+  }
+  for resp in lastfm.query_all('user.getRecentTracks', 'recenttracks', **args):
+    recent = resp['recenttracks']
+    if 'track' not in recent or not isinstance(recent['track'], list):
+      continue
+
+    for item in recent['track']:
+      artist = session.query(Artist).filter(
+        Artist.mbid == item['artist'].get('mbid') or
+        Artist.name_insensitive == item['artist']['name']).first()
+      if not artist:
+        continue
+
+      album_name = item['album'].get('#text') or item['album'].get('name')
+      album = session.query(Album).filter(
+        Album.mbid == item['album'].get('mbid') or
+        Album.name_insensitive == album_name).first()
+      if not album:
+        continue
+
+      track = session.query(Track).filter(
+        Track.mbid == item.get('mbid') or
+        Track.name_insensitive == item['name']).first()
+      if not track:
+        track = Track(
+          name=item['name'],
+          mbid=item.get('mbid'),
+          loved=bool(int(item['loved']))
+        )
+        artist.tracks.append(track)
+        album.tracks.append(track)
+        session.add(track)
+
+      when = datetime.fromtimestamp(int(item['date']['uts']))
+      scrobble = Scrobble(time=when)
+
+      track.scrobbles.append(scrobble)
+      session.add(scrobble)
+
+  if status:
+    status.time = datetime.now()
+  else:
+    status = LoadStatus(last_updated = datetime.now())
+
+  session.add(status)
+  session.commit()
+
 def initialize_database(session, mpdclient, lastfm, user):
   insert_lastfm_albums(session, lastfm, user)
 
@@ -161,6 +242,7 @@ def initialize_database(session, mpdclient, lastfm, user):
   logging.info('Inserted {} artists with {} albums from LastFM'.format(n_artists, n_albums))
 
   insert_mpd_albums(session, mpdclient, lastfm)
+  insert_recent_scrobbles(session, lastfm, user)
 
 def run():
   session = initialize_sqlalchemy()
