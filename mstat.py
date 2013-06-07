@@ -22,9 +22,9 @@ SECONDS_IN_DAY = 24*3600
 def retention(days):
   return int(time()) - days*SECONDS_IN_DAY
 
-def initialize_sqlalchemy():
+def initialize_sqlalchemy(echo = False):
   path = 'sqlite:///{}'.format(SQLITE_DB)
-  engine = create_engine(path, echo=False)
+  engine = create_engine(path, echo=bool(echo))
   Session.configure(bind=engine)
 
   Base.metadata.create_all(engine)
@@ -268,6 +268,8 @@ def run():
   user = 'thesquelched'
 
   initialize_database(session, mpdclient, lastfm, user)
+
+  return session
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)
