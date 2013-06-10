@@ -23,7 +23,7 @@ class Artist(Base):
   __tablename__ = 'artist'
 
   id = Column(Integer, primary_key=True)
-  name = Column(String, nullable=False, unique=True)
+  name = Column(String, nullable=False)
   mbid = Column(String, nullable=True)
 
   @hybrid_property
@@ -38,7 +38,7 @@ class Album(Base):
   __tablename__ = 'album'
 
   id = Column(Integer, primary_key=True)
-  name = Column(String, nullable=False, unique=True)
+  name = Column(String, nullable=False)
   mbid = Column(String, nullable=True)
   playcount = Column(Integer)
   artist_id = Column(Integer, ForeignKey('artist.id'))
@@ -57,7 +57,7 @@ class Track(Base):
   __tablename__ = 'track'
 
   id = Column(Integer, primary_key=True)
-  name = Column(String, nullable=False, unique=True)
+  name = Column(String, nullable=False)
   mbid = Column(String, nullable=True)
   loved = Column(Boolean)
 
