@@ -19,6 +19,19 @@ SQLITE_DB = './music.db'
 SCROBBLE_RETENTION_DAYS = 180
 SECONDS_IN_DAY = 24*3600
 
+def get(data, *keys, default = None):
+  if not keys:
+    return data
+
+  if not isinstance(data, dict):
+    raise TypeError('not a dictionary')
+
+  key, rest = keys[0], keys[1:]
+  if key not in data:
+    return default
+  
+  return get(data[key], rest, default = default)
+
 def retention(days):
   return int(time()) - days*SECONDS_IN_DAY
 
@@ -67,18 +80,22 @@ def correct_artist(name, lastfm):
 
 def most_likely_album(name, artist, lastfm):
   resp = lastfm.query('album.search', album=name)
-  if 'results' in resp and 'albummatches' in resp['results']:
-    albums = resp['results']['albummatches']['album']
 
-    albums_by_artist = defaultdict(list)
-    for album in albums:
-      if isinstance(album, dict):
-        albums_by_artist[album['artist']].append(album['name'])
+  try:
+    albums = get(resp, 'results', 'albummatches', 'album')
+  except TypeError:
+    return None
 
-    if artist.name in albums_by_artist:
-      return min(albums_by_artist[artist.name], key = lambda alb: len(alb))
+  if not isinstance(albums, list):
+    return None
 
-  return None
+  albums_by_artist = defaultdict(list)
+  for album in albums:
+    if isinstance(album, dict):
+      albums_by_artist[album['artist']].append(album['name'])
+
+  if artist.name in albums_by_artist:
+    return min(albums_by_artist[artist.name], key = lambda alb: len(alb))
 
 def correct_album(name, artist, lastfm, session):
   logger.debug('Attempt to find a correction for {}'.format(name))
