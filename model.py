@@ -109,15 +109,6 @@ class AlbumCorrection(Base):
   def name_insensitive(cls):
     return CaseInsensitiveComparator(cls.name)
 
-#class TrackCorrection(Base):
-#  __tablename__ = 'track_correction'
-#
-#  id = Column(Integer, primary_key=True)
-#  name = Column(String)
-#  track_id = Column(Integer, ForeignKey('track.id'))
-#
-#  track = relationship('Track', backref=backref('corrections', order_by=id))
-
 class Scrobble(Base):
   __tablename__ = 'scrobble'
 
