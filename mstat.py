@@ -1,4 +1,5 @@
 from lastfm import LastFM, APIKEY
+from config import Config
 from model import (Artist, AlbumCorrection, ArtistCorrection, Album,
   Scrobble, Session, Base, LoadStatus, Track)
 
@@ -14,11 +15,6 @@ import logging
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-SQLITE_DB = './music.db'
-
-SCROBBLE_RETENTION_DAYS = 180
-SECONDS_IN_DAY = 24*3600
-
 def get(data, *keys, default = None):
   if not keys:
     return data
@@ -32,11 +28,11 @@ def get(data, *keys, default = None):
   
   return get(data[key], rest, default = default)
 
-def retention(days):
-  return int(time()) - days*SECONDS_IN_DAY
+def configuration(self, path = None):
+  return Config(path = path)
 
-def initialize_sqlalchemy(echo = False):
-  path = 'sqlite:///{}'.format(SQLITE_DB)
+def initialize_sqlalchemy(config, echo = False):
+  path = 'sqlite:///{}'.format(config.database())
   engine = create_engine(path, echo=bool(echo))
   Session.configure(bind=engine)
 
@@ -44,19 +40,16 @@ def initialize_sqlalchemy(echo = False):
 
   return Session()
 
-def initialize_mpd(host=None, port=None):
-  if host is None:
-    host = 'localhost'
-  if port is None:
-    port = 6600
+def initialize_mpd(config):
+  host, port = config.mpd()
 
   client = mpd.MPDClient()
   client.connect(host, port)
 
   return client
 
-def initialize_lastfm():
-  return LastFM(APIKEY)
+def initialize_lastfm(config):
+  return LastFM(config.lastfm_apikey())
 
 def correct_artist(name, lastfm):
   logger.debug('Attempting to find a correction for {}'.format(name))
@@ -150,7 +143,8 @@ def insert_mpd_albums(session, mpdclient, lastfm):
 
   session.commit()
 
-def insert_lastfm_albums(session, lastfm, user):
+def insert_lastfm_albums(session, lastfm, config):
+  user = config.lastfm_user()
   for resp in lastfm.query_all('library.getAlbums', 'albums', user=user):
     if 'albums' not in resp:
       continue
@@ -188,17 +182,18 @@ def insert_lastfm_albums(session, lastfm, user):
 
   session.commit()
 
-def delete_old_scrobbles(session):
-  delete_before = datetime.fromtimestamp(retention(SCROBBLE_RETENTION_DAYS))
+def delete_old_scrobbles(session, config):
+  delete_before = datetime.fromtimestamp(config.scrobble_retention())
   session.query(Scrobble).filter(Scrobble.date < delete_before).delete()
 
-def insert_recent_scrobbles(session, lastfm, user):
+def insert_recent_scrobbles(session, lastfm, config):
+  user = config.lastfm_user()
   status = session.query(LoadStatus).first()
   if status:
     since = int(status.last_updated.timestamp())
     logger.info('Last updated: {}'.format(status.last_updated))
   else:
-    since = retention(SCROBBLE_RETENTION_DAYS)
+    since = config.scrobble_retention()
 
 
   args = {
@@ -253,11 +248,11 @@ def insert_recent_scrobbles(session, lastfm, user):
   session.add(status)
   session.commit()
 
-def initialize_database(session, mpdclient, lastfm, user):
+def initialize_database(session, mpdclient, lastfm, config):
   artists_start = session.query(Artist).count()
   albums_start = session.query(Album).count()
 
-  insert_lastfm_albums(session, lastfm, user)
+  insert_lastfm_albums(session, lastfm, config)
   
   artists_after_lastfm = session.query(Artist).count()
   albums_after_lastfm = session.query(Album).count()
@@ -275,16 +270,16 @@ def initialize_database(session, mpdclient, lastfm, user):
     albums_after_mpd - albums_after_lastfm
   ))
 
-  insert_recent_scrobbles(session, lastfm, user)
+  insert_recent_scrobbles(session, lastfm, config)
 
 def run():
-  session = initialize_sqlalchemy()
-  mpdclient = initialize_mpd()
-  lastfm = initialize_lastfm()
+  config = configuration()
 
-  user = 'thesquelched'
+  session = initialize_sqlalchemy(config)
+  mpdclient = initialize_mpd(config)
+  lastfm = initialize_lastfm(config)
 
-  initialize_database(session, mpdclient, lastfm, user)
+  initialize_database(session, mpdclient, lastfm, config)
 
   return session
 
