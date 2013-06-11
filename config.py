@@ -2,6 +2,7 @@ from configparser import ConfigParser
 from os.path import expanduser, expandvars
 
 
+SECONDS_IN_DAY = 24*3600
 CONFIG_PATHS = [
   '$HOME/.suggestive.conf',
   '/etc/suggestive.conf',
@@ -27,6 +28,7 @@ class Config(object):
     lastfm = dict(
       scrobble_days = 180,
       # user
+      # api_key
     ),
   )
 
@@ -50,13 +52,17 @@ class Config(object):
       mpd.getint('port'),
     )
 
-  def lastfm(self):
+  def lastfm_user(self):
     """Return (user, scrobble_days)"""
-    lastfm = sef.parser['lastfm']
-    return (
-      lastfm['user'],
-      lastfm.getint('scrobble_days'),
-    )
+    return self.parser['lastfm']['user']
+
+  def lastfm_apikey(self):
+    """Return LastFM API key"""
+    return self.parser['lastfm']['api_key']
+
+  def scrobble_retention(self):
+    """Return seconds to keep LastFM scrobbles"""
+    return self.parser['lastfm'].getint('scrobble_days') * SECONDS_IN_DAY
 
   def database(self):
     """Return the path to the database file"""
