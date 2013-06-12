@@ -185,117 +185,6 @@ def correct_artist(name, lastfm):
   artist = Artist(name=name)
   return (artist, None)
 
-def most_likely_album(name, artist, lastfm):
-  resp = lastfm.query('album.search', album=name)
-
-  try:
-    albums = get(resp, 'results', 'albummatches', 'album')
-  except TypeError:
-    return None
-
-  if not isinstance(albums, list):
-    return None
-
-  albums_by_artist = defaultdict(list)
-  for album in albums:
-    if isinstance(album, dict):
-      albums_by_artist[album['artist']].append(album['name'])
-
-  if artist.name in albums_by_artist:
-    return min(albums_by_artist[artist.name], key = lambda alb: len(alb))
-
-def correct_album(name, artist, lastfm, session):
-  logger.debug('Attempt to find a correction for {}'.format(name))
-
-  likely_album = most_likely_album(name, artist, lastfm)
-  if likely_album:
-    logger.info("Corrected '{}' to '{}'".format(name, likely_album))
-    album = session.query(Album).filter_by(name=likely_album).first()
-    if album:
-      corrected = None
-    else:
-      album = Album(name=likely_album, playcount=0)
-      corrected = AlbumCorrection(name=likely_album)
-  else:
-    album = Album(name=name, playcount=0)
-    corrected = None
-
-  return (album, corrected)
-
-def insert_mpd_albums(session, mpdclient, lastfm):
-  for artist_name in mpdclient.list('artist'):
-    artist = session.query(Artist).\
-                     filter_by(name_insensitive = artist_name).\
-                     first()
-    if artist is None:
-      artist = session.query(ArtistCorrection).\
-               filter_by(name_insensitive = artist_name).first()
-      if artist is None:
-        artist, correction = correct_artist(artist_name, lastfm)
-        session.add(artist)
-        if correction:
-          artist.corrections.append(correction)
-          session.add(correction)
-
-    for album_name in mpdclient.list('album', 'artist', artist_name):
-      # Look in database
-      album = session.query(Album).join(Artist).\
-                      filter(Album.name==album_name).first()
-      if album is None:
-        # try to find an existing correction for this name
-        correction = session.query(AlbumCorrection).\
-                     filter_by(name=album_name).first()
-        if correction is None:
-          # Try to find a correction from LastFM
-          album, correction = correct_album(album_name, artist, lastfm, session)
-          session.add(album)
-          if correction:
-            album.corrections.append(correction)
-            session.add(correction)
-
-          artist.albums.append(album)
-
-  session.commit()
-
-def insert_lastfm_albums(session, lastfm, config):
-  user = config.lastfm_user()
-  for resp in lastfm.query_all('library.getAlbums', 'albums', user=user):
-    if 'albums' not in resp:
-      continue
-    for album_resp in resp['albums']['album']:
-      if 'artist' in album_resp:
-        artist_name = album_resp['artist']['name']
-        mbid = album_resp['artist'].get('mbid')
-      else:
-        artist_name = 'Unknown'
-        mbid = None
-
-      artist = session.query(Artist).filter_by(name=artist_name).first()
-      if artist is None:
-        artist = Artist(
-          name = artist_name,
-          mbid = mbid,
-        )
-        session.add(artist)
-
-      album_name = album_resp['name']
-      album_plays = album_resp['playcount']
-
-      album = session.query(Album).join(Artist).\
-                      filter(Album.name==album_name).first()
-      if album:
-        album.playcount = album_plays
-      else:
-        album = Album(
-          name = album_resp['name'],
-          playcount = album_resp['playcount'],
-        )
-        artist.albums.append(album)
-
-      session.add(album)
-
-  session.commit()
-
 def delete_old_scrobbles(session, config):
   delete_before = datetime.fromtimestamp(config.scrobble_retention())
   session.query(Scrobble).filter(Scrobble.date < delete_before).delete()
@@ -307,54 +196,6 @@ def last_updated(session):
   else:
     return None
 
-def insert_recent_scrobbles(session, lastfm, config):
-  user = config.lastfm_user()
-
-  last_upd = last_updated(session)
-  if not last_upd:
-    last_upd = config.scrobble_retention()
-
-  logger.debug('Get scrobbles since {}'.format(
-    datetime.fromtimestamp(last_upd).strftime('%Y-%m-%d %H:%M')
-  ))
-
-  for item in lastfm.scrobbles(user, last_updated = last_upd):
-    artist = session.query(Artist).filter(
-      Artist.mbid == item['artist'].get('mbid') or
-      Artist.name_insensitive == item['artist']['name']).first()
-    if not artist:
-      continue
-
-    album_name = item['album'].get('#text') or item['album'].get('name')
-    album = session.query(Album).filter(
-      Album.mbid == item['album'].get('mbid') or
-      Album.name_insensitive == album_name).first()
-    if not album:
-      continue
-
-    track = session.query(Track).filter(
-      Track.mbid == item.get('mbid') or
-      Track.name_insensitive == item['name']).first()
-    if not track:
-      track = Track(
-        name=item['name'],
-        mbid=item.get('mbid'),
-        loved=bool(int(item['loved']))
-      )
-      artist.tracks.append(track)
-      album.tracks.append(track)
-      session.add(track)
-
-    when = datetime.fromtimestamp(int(item['date']['uts']))
-    scrobble = Scrobble(time=when)
-
-    track.scrobbles.append(scrobble)
-    session.add(scrobble)
-
-  session.commit()
-
-  set_last_updated(session)
-
 def set_last_updated(session):
   session.query(LoadStatus).delete()
   session.add(LoadStatus(last_updated = datetime.now()))
@@ -364,26 +205,28 @@ def set_last_updated(session):
 def initialize_database(session, mpdclient, lastfm, config):
   artists_start = session.query(Artist).count()
   albums_start = session.query(Album).count()
+  tracks_start = session.query(Track).count()
 
-  #insert_lastfm_albums(session, lastfm, config)
-  
-  artists_after_lastfm = session.query(Artist).count()
-  albums_after_lastfm = session.query(Album).count()
-  logging.info('Inserted {} artists with {} albums from LastFM'.format(
-    artists_after_lastfm - artists_start,
-    albums_after_lastfm - albums_start
-  ))
+  mpd_loader = MpdLoader(mpdclient)
+  mpd_loader.load(session)
 
-  insert_mpd_albums(session, mpdclient, lastfm)
+  new_artists = session.query(Artist).count() - artists_start
+  new_albums = session.query(Album).count() - albums_start
+  new_tracks = session.query(Track).count() - tracks_start
 
-  artists_after_mpd = session.query(Artist).count()
-  albums_after_mpd = session.query(Album).count()
-  logging.info('Inserted {} artists with {} albums from local machine'.format(
-    artists_after_mpd - artists_after_lastfm,
-    albums_after_mpd - albums_after_lastfm
-  ))
+  logger.info('Inserted {} artists'.format(new_artists))
+  logger.info('Inserted {} albums'.format(new_albums))
+  logger.info('Inserted {} tracks'.format(new_tracks))
 
-  insert_recent_scrobbles(session, lastfm, config)
+  # TODO: delete old scrobbles here
+  scrobbles_start = session.query(Scrobble).count()
+
+  scrobble_loader = ScrobbleLoader(lastfm, config)
+  scrobble_loader.load_recent_scrobbles(session)
+
+  new_scrobbles = session.query(Scrobble).count() - scrobbles_start
+
+  logger.info('Inserted {} scrobbles'.format(new_scrobbles))
 
 def run():
   parser = argparse.ArgumentParser(description='Suggest lastfm stuff')
