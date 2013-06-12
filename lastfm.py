@@ -10,6 +10,33 @@ logger.addHandler(logging.NullHandler())
 class LastfmError(Exception):
   pass
 
+def get(data, *keys, default = None):
+  if not keys:
+    return data
+
+  if not isinstance(data, dict):
+    raise TypeError('not a dictionary')
+
+  key, rest = keys[0], keys[1:]
+  if key not in data:
+    return default
+  
+  return get(data[key], rest, default = default)
+
+def retry(attempts = 2):
+  def retry_dec(func):
+    def wrapper(self, *args, **kwArgs):
+      last_error = ValueError('No attempts made')
+      for attempt in range(attempts):
+        try:
+          return func(self, *args, **kwArgs)
+        except LastfmError as error:
+          last_error = error
+
+      raise last_error
+    return wrapper
+  return retry_dec
+
 class LastFM(object):
   """
   Helper class for communicating with Last.FM servers
@@ -42,6 +69,7 @@ class LastFM(object):
       kwArgs.update({'page': pageno})
       yield self.query(method, **kwArgs)
 
+  @retry()
   def query(self, method, **kwArgs):
     """
     Send a Last.FM query for the given method, returing the parsed JSON
@@ -83,3 +111,39 @@ class LastFM(object):
 
       for track in recent['track']:
         yield track
+
+  def artist_correction(self, artist):
+    resp = self.query('artist.getCorrection', artist = artist)
+
+    if 'error' in resp or 'corrections' not in resp:
+      return None
+
+    corrections = resp['corrections']
+
+    if not isinstance(corrections, dict):
+      return None
+
+    return get(corrections, 'correction', 'artist', 'name')
+
+  def album_corrections(self, album, artist):
+    resp = self.query('album.search', album = album)
+
+    try:
+      albums = get(resp, 'results', 'albummatches', 'album')
+    except TypeError:
+      return []
+
+    if not isinstance(albums, list):
+      return []
+
+    albums_by_artist = defaultdict(list)
+    for item in albums:
+      if isinstance(item, dict):
+        albums_by_artist[item['artist']].append(item['name'])
+
+    if artist.name in albums_by_artist:
+      return albums_by_artist[artist.name]
+    elif artist.correction:
+      return albums_by_artist[artist.correction.name]
+    else:
+      return []
