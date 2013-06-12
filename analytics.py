@@ -7,9 +7,10 @@ class Analytics(object):
     self.session = session
 
   def not_recently_played(self):
-    return self.session.query(Album).outerjoin(Track, Scrobble).\
-      group_by(Album.playcount, Album.id).\
-      order_by(asc(Album.playcount)).\
+    return self.session.query(Album).\
+      outerjoin(Album.tracks).\
+      outerjoin(Track.scrobbles).\
+      group_by(Album.id).\
       having(func.count(Scrobble.id) == 0)
 
   def suggest_albums(self, n_albums):
