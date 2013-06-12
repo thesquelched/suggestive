@@ -69,8 +69,10 @@ class Track(Base):
   filename = Column(String, nullable = False, unique = True)
   lastfm_info = relationship("LastfmTrackInfo", uselist=False, backref="mpd_track")
   album_id = Column(Integer, ForeignKey('album.id'))
+  artist_id = Column(Integer, ForeignKey('artist.id'))
 
   album = relationship('Album', backref=backref('tracks', order_by=id))
+  artist = relationship('Artist', backref=backref('tracks', order_by=id))
 
   @hybrid_property
   def name_insensitive(self):
@@ -80,14 +82,25 @@ class Track(Base):
   def name_insensitive(cls):
     return CaseInsensitiveComparator(cls.name)
 
+class ScrobbleInfo(Base):
+  __tablename__ = 'scrobble_info'
+
+  id = Column(Integer, primary_key = True)
+  title = Column(String)
+  album = Column(String)
+  artist = Column(String)
+
 class Scrobble(Base):
   __tablename__ = 'scrobble'
 
   id = Column(Integer, primary_key=True)
   time = Column(DateTime())
+  loved = Column(Boolean, default = False)
   track_id = Column(Integer, ForeignKey('track.id'))
+  scrobble_info_id = Column(Integer, ForeignKey('scrobble_info.id'))
 
   track = relationship('Track', backref=backref('scrobbles', order_by=id))
+  scrobble_info = relationship('ScrobbleInfo', backref=backref('scrobbles', order_by=id))
 
 class ArtistCorrection(Base):
   __tablename__ = 'artist_correction'
