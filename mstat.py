@@ -1,7 +1,7 @@
 from lastfm import LastFM, APIKEY
 from config import Config
 from model import (Artist, AlbumCorrection, ArtistCorrection, Album,
-  Scrobble, Session, Base, LoadStatus, Track)
+  Scrobble, Session, Base, LoadStatus, Track, ScrobbleInfo)
 
 import mpd
 from sqlalchemy import create_engine, func
@@ -29,6 +29,76 @@ def get(data, *keys, default = None):
   
   return get(data[key], rest, default = default)
 
+class ScrobbleLoader(object):
+  def __init__(self, lastfm, config):
+    self.lastfm = lastfm
+    self.user = config.lastfm_user()
+    self.retention = config.scrobble_retention()
+
+  def scrobble_info(self, session, artist, album, track):
+
+    db_scrobble_info = session.query(ScrobbleInfo).\
+      filter(
+        ScrobbleInfo.title == track and
+        ScrobbleInfo.artist == artist and
+        ScrobbleInfo.album == album).\
+      first()
+
+    if not db_scrobble_info:
+      db_scrobble_info = ScrobbleInfo(
+        title = track,
+        artist = artist,
+        album = album
+      )
+      session.add(db_scrobble_info)
+
+    return db_scrobble_info
+
+  def load_scrobble(self, session, item):
+    if not ('artist' in item and 'album' in item and 'name' in item and
+            'date' in item):
+      return
+
+    artist = item['artist'].get('name')
+    album = item['album'].get('#text') or item['album'].get('name')
+    track = item['name']
+
+    db_scrobble_info = self.scrobble_info(session, artist, album, track)
+
+    when = datetime.fromtimestamp(int(item['date']['uts']))
+    scrobble = Scrobble(time = when)
+
+    db_scrobble_info.scrobbles.append(scrobble)
+    session.add(scrobble)
+
+    db_track = session.query(Track).\
+      join(Artist, Album).\
+      filter(Artist.name_insensitive == artist).\
+      filter(Album.name_insensitive == album).\
+      filter(Track.name_insensitive == track).\
+      first()
+
+    if db_track:
+      db_track.scrobbles.append(scrobble)
+
+  def load_recent_scrobbles(self, session):
+    user = self.user
+
+    last_upd = last_updated(session)
+    if not last_upd:
+      last_upd = self.retention
+
+    logger.debug('Get scrobbles since {}'.format(
+      datetime.fromtimestamp(last_upd).strftime('%Y-%m-%d %H:%M')
+    ))
+
+    for item in self.lastfm.scrobbles(user, last_updated = last_upd):
+      self.load_scrobble(session, item)
+
+    session.commit()
+
+    set_last_updated(session)
+
 class MpdLoader(object):
   def __init__(self, mpd):
     self.mpd = mpd
@@ -44,6 +114,7 @@ class MpdLoader(object):
         filename = filename,
       )
       db_album.tracks.append(db_track)
+      db_artist.tracks.append(db_track)
       session.add(db_track)
 
   def load_album(self, session, db_artist, album):
@@ -65,9 +136,11 @@ class MpdLoader(object):
     for album in self.mpd.list('album', 'artist', artist):
       self.load_album(session, db_artist, album)
 
-  def load_artists(self, session):
+  def load(self, session):
     for artist in self.mpd.list('artist'):
       self.load_artist(session, artist)
+
+    session.commit()
 
 def configuration(path = None):
   return Config(path = path)
