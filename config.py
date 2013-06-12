@@ -1,5 +1,6 @@
 from configparser import ConfigParser
 from os.path import expanduser, expandvars
+from time import time
 
 
 SECONDS_IN_DAY = 24*3600
@@ -53,7 +54,7 @@ class Config(object):
     )
 
   def lastfm_user(self):
-    """Return (user, scrobble_days)"""
+    """Return LastFM user name"""
     return self.parser['lastfm']['user']
 
   def lastfm_apikey(self):
@@ -62,7 +63,8 @@ class Config(object):
 
   def scrobble_retention(self):
     """Return seconds to keep LastFM scrobbles"""
-    return self.parser['lastfm'].getint('scrobble_days') * SECONDS_IN_DAY
+    ret = self.parser['lastfm'].getint('scrobble_days') * SECONDS_IN_DAY
+    return int(time() - ret)
 
   def database(self):
     """Return the path to the database file"""

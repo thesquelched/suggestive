@@ -33,6 +33,8 @@ class LastFM(object):
     attrs = data.get('@attr', {})
     n_pages = int(attrs.get('totalPages', 1))
 
+    logger.debug('Query pages: {}'.format(n_pages))
+
     # Start to yield responses
     yield resp
 
@@ -60,3 +62,24 @@ class LastFM(object):
     except (ValueError, requests.exceptions.RequestException) as error:
       logger.error('Query resulted in an error: {}', error)
       raise LastfmError("Query '{}' failed".format(method))
+
+  def scrobbles(self, user, last_updated = None):
+    args = {
+      'limit': 200,
+      'user': user,
+      'extended': 1
+    }
+
+    if last_updated:
+      args['from'] = last_updated
+
+    for resp in self.query_all('user.getRecentTracks', 'recenttracks', **args):
+      if 'recenttracks' not in resp:
+        continue
+
+      recent = resp['recenttracks']
+      if 'track' not in recent or not isinstance(recent['track'], list):
+        continue
+
+      for track in recent['track']:
+        yield track

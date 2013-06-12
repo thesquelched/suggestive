@@ -11,6 +11,7 @@ from time import time
 from collections import defaultdict
 from itertools import chain
 import logging
+import argparse
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -28,7 +29,7 @@ def get(data, *keys, default = None):
   
   return get(data[key], rest, default = default)
 
-def configuration(self, path = None):
+def configuration(path = None):
   return Config(path = path)
 
 def initialize_sqlalchemy(config, echo = False):
@@ -186,66 +187,65 @@ def delete_old_scrobbles(session, config):
   delete_before = datetime.fromtimestamp(config.scrobble_retention())
   session.query(Scrobble).filter(Scrobble.date < delete_before).delete()
 
-def insert_recent_scrobbles(session, lastfm, config):
-  user = config.lastfm_user()
+def last_updated(session):
   status = session.query(LoadStatus).first()
   if status:
-    since = int(status.last_updated.timestamp())
-    logger.info('Last updated: {}'.format(status.last_updated))
+    return int(status.last_updated.timestamp())
   else:
-    since = config.scrobble_retention()
+    return None
 
+def insert_recent_scrobbles(session, lastfm, config):
+  user = config.lastfm_user()
 
-  args = {
-    'limit': 200,
-    'user': user,
-    'from': since,
-    'extended': 1
-  }
-  for resp in lastfm.query_all('user.getRecentTracks', 'recenttracks', **args):
-    recent = resp['recenttracks']
-    if 'track' not in recent or not isinstance(recent['track'], list):
+  last_upd = last_updated(session)
+  if not last_upd:
+    last_upd = config.scrobble_retention()
+
+  logger.debug('Get scrobbles since {}'.format(
+    datetime.fromtimestamp(last_upd).strftime('%Y-%m-%d %H:%M')
+  ))
+
+  for item in lastfm.scrobbles(user, last_updated = last_upd):
+    artist = session.query(Artist).filter(
+      Artist.mbid == item['artist'].get('mbid') or
+      Artist.name_insensitive == item['artist']['name']).first()
+    if not artist:
       continue
 
-    for item in recent['track']:
-      artist = session.query(Artist).filter(
-        Artist.mbid == item['artist'].get('mbid') or
-        Artist.name_insensitive == item['artist']['name']).first()
-      if not artist:
-        continue
+    album_name = item['album'].get('#text') or item['album'].get('name')
+    album = session.query(Album).filter(
+      Album.mbid == item['album'].get('mbid') or
+      Album.name_insensitive == album_name).first()
+    if not album:
+      continue
 
-      album_name = item['album'].get('#text') or item['album'].get('name')
-      album = session.query(Album).filter(
-        Album.mbid == item['album'].get('mbid') or
-        Album.name_insensitive == album_name).first()
-      if not album:
-        continue
+    track = session.query(Track).filter(
+      Track.mbid == item.get('mbid') or
+      Track.name_insensitive == item['name']).first()
+    if not track:
+      track = Track(
+        name=item['name'],
+        mbid=item.get('mbid'),
+        loved=bool(int(item['loved']))
+      )
+      artist.tracks.append(track)
+      album.tracks.append(track)
+      session.add(track)
 
-      track = session.query(Track).filter(
-        Track.mbid == item.get('mbid') or
-        Track.name_insensitive == item['name']).first()
-      if not track:
-        track = Track(
-          name=item['name'],
-          mbid=item.get('mbid'),
-          loved=bool(int(item['loved']))
-        )
-        artist.tracks.append(track)
-        album.tracks.append(track)
-        session.add(track)
+    when = datetime.fromtimestamp(int(item['date']['uts']))
+    scrobble = Scrobble(time=when)
 
-      when = datetime.fromtimestamp(int(item['date']['uts']))
-      scrobble = Scrobble(time=when)
+    track.scrobbles.append(scrobble)
+    session.add(scrobble)
 
-      track.scrobbles.append(scrobble)
-      session.add(scrobble)
+  session.commit()
 
-  if status:
-    status.time = datetime.now()
-  else:
-    status = LoadStatus(last_updated = datetime.now())
+  set_last_updated(session)
 
-  session.add(status)
+def set_last_updated(session):
+  session.query(LoadStatus).delete()
+  session.add(LoadStatus(last_updated = datetime.now()))
+
   session.commit()
 
 def initialize_database(session, mpdclient, lastfm, config):
@@ -273,7 +273,12 @@ def initialize_database(session, mpdclient, lastfm, config):
   insert_recent_scrobbles(session, lastfm, config)
 
 def run():
-  config = configuration()
+  parser = argparse.ArgumentParser(description='Suggest lastfm stuff')
+  parser.add_argument('--config', '-c', help='Configuration file')
+
+  args = parser.parse_args()
+
+  config = configuration(path = args.config)
 
   session = initialize_sqlalchemy(config)
   mpdclient = initialize_mpd(config)
@@ -283,8 +288,11 @@ def run():
 
   return session
 
-if __name__ == '__main__':
+def init_logging():
   logging.basicConfig(level=logging.DEBUG)
   logging.getLogger('mpd').setLevel(logging.ERROR)
   logging.getLogger('requests').setLevel(logging.ERROR)
+
+if __name__ == '__main__':
+  init_logging()
   run()
