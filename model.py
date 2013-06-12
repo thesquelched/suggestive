@@ -24,7 +24,7 @@ class Artist(Base):
 
   id = Column(Integer, primary_key=True)
   name = Column(String, nullable=False)
-  mbid = Column(String, nullable=True)
+  correction = relationship("ArtistCorrection", uselist=False, backref="artist")
 
   @hybrid_property
   def name_insensitive(self):
@@ -39,8 +39,6 @@ class Album(Base):
 
   id = Column(Integer, primary_key=True)
   name = Column(String, nullable=False)
-  mbid = Column(String, nullable=True)
-  playcount = Column(Integer)
   artist_id = Column(Integer, ForeignKey('artist.id'))
 
   artist = relationship('Artist', backref=backref('albums', order_by=id))
@@ -53,18 +51,25 @@ class Album(Base):
   def name_insensitive(cls):
     return CaseInsensitiveComparator(cls.name)
 
+class LastfmTrackInfo(Base):
+  __tablename__ = 'lastfm_track_info'
+
+  id = Column(Integer, primary_key = True)
+  name = Column(String)
+  loved = Column(Boolean, default = False)
+  banned = Column(Boolean, default = False)
+
+  track_id = Column(Integer, ForeignKey('track.id'))
+
 class Track(Base):
   __tablename__ = 'track'
 
   id = Column(Integer, primary_key=True)
   name = Column(String, nullable=False)
-  mbid = Column(String, nullable=True)
-  loved = Column(Boolean)
-
-  artist_id = Column(Integer, ForeignKey('artist.id'))
+  filename = Column(String, nullable = False, unique = True)
+  lastfm_info = relationship("LastfmTrackInfo", uselist=False, backref="mpd_track")
   album_id = Column(Integer, ForeignKey('album.id'))
 
-  artist = relationship('Artist', backref=backref('tracks', order_by=id))
   album = relationship('Album', backref=backref('tracks', order_by=id))
 
   @hybrid_property
@@ -81,8 +86,6 @@ class ArtistCorrection(Base):
   id = Column(Integer, primary_key=True)
   name = Column(String)
   artist_id = Column(Integer, ForeignKey('artist.id'))
-
-  artist = relationship('Artist', backref=backref('corrections', order_by=id))
 
   @hybrid_property
   def name_insensitive(self):

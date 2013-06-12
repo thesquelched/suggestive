@@ -29,6 +29,46 @@ def get(data, *keys, default = None):
   
   return get(data[key], rest, default = default)
 
+class MpdLoader(object):
+  def __init__(self, mpd):
+    self.mpd = mpd
+
+  def load_track(self, session, db_artist, db_album, info):
+    filename = info['file']
+    if not session.query(Track).filter_by(filename = filename).first():
+      if 'title' not in info:
+        return
+
+      db_track = Track(
+        name = info['title'],
+        filename = filename,
+      )
+      db_album.tracks.append(db_track)
+      session.add(db_track)
+
+  def load_album(self, session, db_artist, album):
+    db_album = session.query(Album).filter_by(name = album).first()
+    if not db_album:
+      db_album = Album(name = album)
+      db_artist.albums.append(db_album)
+      session.add(db_album)
+
+    for info in self.mpd.search('artist', db_artist.name, 'album', album):
+      self.load_track(session, db_artist, db_album, info)
+
+  def load_artist(self, session, artist):
+    db_artist = session.query(Artist).filter_by(name = artist).first()
+    if not db_artist:
+      db_artist = Artist(name = artist)
+      session.add(db_artist)
+
+    for album in self.mpd.list('album', 'artist', artist):
+      self.load_album(session, db_artist, album)
+
+  def load_artists(self, session):
+    for artist in self.mpd.list('artist'):
+      self.load_artist(session, artist)
+
 def configuration(path = None):
   return Config(path = path)
 
@@ -252,7 +292,7 @@ def initialize_database(session, mpdclient, lastfm, config):
   artists_start = session.query(Artist).count()
   albums_start = session.query(Album).count()
 
-  insert_lastfm_albums(session, lastfm, config)
+  #insert_lastfm_albums(session, lastfm, config)
   
   artists_after_lastfm = session.query(Artist).count()
   albums_after_lastfm = session.query(Album).count()
