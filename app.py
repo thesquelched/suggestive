@@ -10,9 +10,6 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-EVENTS = queue.PriorityQueue()
-SUGGESTIONS = []
-PAGE = 0
 LAST_UPDATED = datetime.now()
 
 ######################################################################
@@ -43,7 +40,13 @@ class DatabaseUpdated(Event):
 ######################################################################
 # Threads
 ######################################################################
-class UserInputThread(threading.Thread):
+class AppThread(threading.Thread):
+  def __init__(self, events, *args, **kwArgs):
+    super(AppThread, self).__init__(*args, **kwArgs)
+    self.events = events
+    logger.debug(events)
+
+class UserInputThread(AppThread):
   def __init__(self, stdscr, *args, **kwArgs):
     super(UserInputThread, self).__init__(*args, **kwArgs)
     self.stdscr = stdscr
@@ -51,9 +54,9 @@ class UserInputThread(threading.Thread):
   def run(self):
     while True:
       key = self.stdscr.getkey()
-      EVENTS.put(KeyPressEvent(key))
+      self.events.put(KeyPressEvent(key))
 
-class DatabaseUpdateThread(threading.Thread):
+class DatabaseUpdateThread(AppThread):
   def __init__(self, conf, *args, **kwArgs):
     super(DatabaseUpdateThread, self).__init__(*args, **kwArgs)
     self.conf = conf
@@ -64,70 +67,71 @@ class DatabaseUpdateThread(threading.Thread):
 
   def run(self):
     mstat.update_database(self.session, self.mpd, self.lastfm, self.conf)
-    EVENTS.put(DatabaseUpdated(self.session))
+    self.events.put(DatabaseUpdated(self.session))
 
 ######################################################################
 # Main Functions
 ######################################################################
-def start_db_update(conf):
-  update_thread = DatabaseUpdateThread(conf)
+def start_db_update(conf, events):
+  update_thread = DatabaseUpdateThread(conf, events)
   update_thread.daemon = False
   update_thread.start()
 
 def main(stdscr):
-  global PAGE
   logging.basicConfig(level=logging.DEBUG, filename = 'log.txt', filemode = 'w')
   logger.info('Starting event loop')
 
+  events = queue.PriorityQueue()
+  page = 0
   conf = mstat.configuration(path = 'suggestive.conf')
   session = mstat.initialize_sqlalchemy(conf)
   anl = Analytics(session)
 
-  input_thread = UserInputThread(stdscr)
+  input_thread = UserInputThread(stdscr, events)
   input_thread.daemon = True
   input_thread.start()
 
   stdscr.clear()
-  update_suggestions(stdscr, anl)
+  suggestions = update_suggestions(stdscr, anl)
 
-  start_db_update(conf)
+  start_db_update(conf, events)
   
   while True:
-    event = EVENTS.get()
+    event = events.get()
 
     if isinstance(event, KeyPressEvent):
       if event.key == 'q':
         return
       elif event.key == 'u':
-        start_db_update(conf)
+        start_db_update(conf, events)
       elif event.key == 'j':
-        PAGE += 1
-        display_suggestions(stdscr)
+        page += 1
+        display_suggestions(suggestions, page, stdscr)
       elif event.key == 'k':
-        PAGE = max(PAGE-1, 0)
-        display_suggestions(stdscr)
+        page = max(page-1, 0)
+        display_suggestions(suggestions, page, stdscr)
     elif isinstance(event, DatabaseUpdated):
-      update_suggestions(stdscr, anl)
+      suggestions = update_suggestions(stdscr, anl)
 
-def display_suggestions(stdscr):
-  suggestions = SUGGESTIONS[PAGE*10:(PAGE+1)*10]
+def display_suggestions(suggestions, page, stdscr):
+  albums = suggestions[page*10:(page+1)*10]
 
   stdscr.clear()
   stdscr.addstr(0, 0, 'Last updated: {}'.format(LAST_UPDATED))
   stdscr.addstr(1, 0, '-'*80)
-  for i, suggestion in enumerate(suggestions, 2):
-    stdscr.addstr(i, 0, '{} - {}'.format(suggestion.artist.name, suggestion.name))
+  for i, album in enumerate(albums, 2):
+    stdscr.addstr(i, 0, '{} - {}'.format(album.artist.name, album.name))
   stdscr.refresh()
 
 def update_suggestions(stdscr, anl):
-  global PAGE
-  global SUGGESTIONS
   global LAST_UPDATED
+
   logger.info('Database updated')
   LAST_UPDATED = datetime.now()
-  SUGGESTIONS = anl.suggest_albums()
-  PAGE = 0
-  display_suggestions(stdscr)
+  suggestions = anl.suggest_albums()
+  display_suggestions(suggestions, 0, stdscr)
+
+  return suggestions
 
 if __name__ == '__main__':
   wrapper(main)
