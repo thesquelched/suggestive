@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 EVENTS = queue.PriorityQueue()
+SUGGESTIONS = []
+PAGE = 0
+LAST_UPDATED = datetime.now()
 
 ######################################################################
 # Events
@@ -72,6 +75,7 @@ def start_db_update(conf):
   update_thread.start()
 
 def main(stdscr):
+  global PAGE
   logging.basicConfig(level=logging.DEBUG, filename = 'log.txt', filemode = 'w')
   logger.info('Starting event loop')
 
@@ -96,20 +100,34 @@ def main(stdscr):
         return
       elif event.key == 'u':
         start_db_update(conf)
+      elif event.key == 'j':
+        PAGE += 1
+        display_suggestions(stdscr)
+      elif event.key == 'k':
+        PAGE = max(PAGE-1, 0)
+        display_suggestions(stdscr)
     elif isinstance(event, DatabaseUpdated):
       update_suggestions(stdscr, anl)
 
-def update_suggestions(stdscr, anl):
-  logger.info('Database updated')
-  suggestions = anl.suggest_albums(10)
+def display_suggestions(stdscr):
+  suggestions = SUGGESTIONS[PAGE*10:(PAGE+1)*10]
 
   stdscr.clear()
-  now = datetime.now()
-  stdscr.addstr(0, 0, 'Last updated: {}'.format(now))
+  stdscr.addstr(0, 0, 'Last updated: {}'.format(LAST_UPDATED))
   stdscr.addstr(1, 0, '-'*80)
   for i, suggestion in enumerate(suggestions, 2):
     stdscr.addstr(i, 0, '{} - {}'.format(suggestion.artist.name, suggestion.name))
   stdscr.refresh()
+
+def update_suggestions(stdscr, anl):
+  global PAGE
+  global SUGGESTIONS
+  global LAST_UPDATED
+  logger.info('Database updated')
+  LAST_UPDATED = datetime.now()
+  SUGGESTIONS = anl.suggest_albums()
+  PAGE = 0
+  display_suggestions(stdscr)
 
 if __name__ == '__main__':
   wrapper(main)
