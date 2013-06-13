@@ -13,6 +13,9 @@ class Analytics(object):
       group_by(Album.id).\
       having(func.count(Scrobble.id) == 0)
 
-  def suggest_albums(self, n_albums):
+  def suggest_albums(self, n_albums = None):
     not_played = self.not_recently_played()
-    return not_played.limit(n_albums).all()
+    if n_albums is None:
+      return not_played.all()
+    else:
+      return not_played.limit(n_albums).all()
