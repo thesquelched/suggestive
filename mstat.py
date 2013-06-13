@@ -7,7 +7,7 @@ import mpd
 from sqlalchemy import create_engine, func
 
 from datetime import datetime
-from time import time
+from time import time, mktime
 from collections import defaultdict
 from itertools import chain
 import logging
@@ -192,7 +192,8 @@ def delete_old_scrobbles(session, config):
 def last_updated(session):
   status = session.query(LoadStatus).first()
   if status:
-    return int(status.last_updated.timestamp())
+    #return int(status.last_updated.timestamp())
+    return int(mktime(status.last_updated.timetuple()))
   else:
     return None
 
@@ -202,7 +203,7 @@ def set_last_updated(session):
 
   session.commit()
 
-def initialize_database(session, mpdclient, lastfm, config):
+def update_database(session, mpdclient, lastfm, config):
   artists_start = session.query(Artist).count()
   albums_start = session.query(Album).count()
   tracks_start = session.query(Track).count()
@@ -228,19 +229,22 @@ def initialize_database(session, mpdclient, lastfm, config):
 
   logger.info('Inserted {} scrobbles'.format(new_scrobbles))
 
-def run():
+def main():
   parser = argparse.ArgumentParser(description='Suggest lastfm stuff')
   parser.add_argument('--config', '-c', help='Configuration file')
 
   args = parser.parse_args()
 
-  config = configuration(path = args.config)
+  run(args.config)
+
+def run(config_path = None):
+  config = configuration(path = config_path)
 
   session = initialize_sqlalchemy(config)
   mpdclient = initialize_mpd(config)
   lastfm = initialize_lastfm(config)
 
-  initialize_database(session, mpdclient, lastfm, config)
+  update_database(session, mpdclient, lastfm, config)
 
   return session
 
@@ -251,4 +255,4 @@ def init_logging():
 
 if __name__ == '__main__':
   init_logging()
-  run()
+  main()
