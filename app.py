@@ -63,14 +63,14 @@ class DatabaseUpdateThread(threading.Thread):
     mstat.update_database(self.session, self.mpd, self.lastfm, self.conf)
     EVENTS.put(DatabaseUpdated(self.session))
 
+######################################################################
+# Main Functions
+######################################################################
 def start_db_update(conf):
   update_thread = DatabaseUpdateThread(conf)
   update_thread.daemon = False
   update_thread.start()
 
-######################################################################
-# Main Function
-######################################################################
 def main(stdscr):
   logging.basicConfig(level=logging.DEBUG, filename = 'log.txt', filemode = 'w')
   logger.info('Starting event loop')
@@ -82,16 +82,6 @@ def main(stdscr):
   input_thread = UserInputThread(stdscr)
   input_thread.daemon = True
   input_thread.start()
-
-  #session = mstat.run('suggestive.conf')
-  #anl = Analytics(session)
-
-  #suggestions = anl.suggest_albums(10)
-  #for i, suggestion in enumerate(suggestions):
-  #  stdscr.addstr(i, 0, '{} - {}'.format(suggestion.artist.name, suggestion.name))
-  #stdscr.refresh()
-
-  #key = stdscr.getkey()
 
   stdscr.clear()
   update_suggestions(stdscr, anl)
