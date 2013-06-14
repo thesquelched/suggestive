@@ -78,7 +78,7 @@ class Application(object):
     self.page = 0
 
     # urwid stuff
-    self.list_view = suggestion_list(self.suggestions)
+    self.list_view = self.suggestion_list()
     self.header = urwid.Text('')
     self.status = urwid.Text('Idle')
 
@@ -101,9 +101,15 @@ class Application(object):
     self.last_updated = datetime.now()
 
     self.suggestions = self.anl.suggest_albums()
-    self.list_view = suggestion_list(self.suggestions)
+    self.list_view = self.suggestion_list()
     self.update_header()
     self.update_status('Idle')
+
+  def enqueue_album(self, widget_, album):
+    logger.info('Enqueue: {} - {}'.format(album.artist.name, album.name))
+
+  def play_album(self, widget_, album):
+    logger.info('Play: {} - {}'.format(album.artist.name, album.name))
 
   def update_header(self):
     timestamp = self.last_updated.strftime('%Y-%m-%d %H:%M:%S')
@@ -117,6 +123,23 @@ class Application(object):
       raise urwid.ExitMainLoop()
     elif key == 'u':
       self.start_db_update()
+
+  def suggestion_list(self):
+    if not self.suggestions:
+      body = [urwid.Text('MPD database is empty')]
+    else:
+      body = []
+      for suggestion in self.suggestions:
+        item = SelectableAlbum(suggestion)
+
+        urwid.connect_signal(item, 'enqueue', self.enqueue_album, item.album)
+        urwid.connect_signal(item, 'play', self.play_album, item.album)
+
+        body.append(urwid.AttrMap(item, None, focus_map = 'reversed'))
+
+    box = urwid.ListBox(urwid.SimpleFocusListWalker(body))
+    box._command_map = AlbumListCommands()
+    return box
 
   def run(self):
     logger.info('Starting event loop')
@@ -170,12 +193,6 @@ class AlbumListCommands(urwid.CommandMap):
     for key, command in bindings.items():
       self.__setitem__(key, command)
 
-def enqueue_album(widget_, album):
-  logger.info('Enqueue: {} - {}'.format(album.artist.name, album.name))
-
-def play_album(widget_, album):
-  logger.info('Play: {} - {}'.format(album.artist.name, album.name))
-
 class SelectableAlbum(urwid.WidgetWrap):
   __metaclass__ = urwid.signals.MetaSignals
   signals = ['enqueue', 'play']
@@ -187,8 +204,6 @@ class SelectableAlbum(urwid.WidgetWrap):
       urwid.SelectableIcon(text))
 
     self._command_map = AlbumListCommands()
-    urwid.connect_signal(self, 'enqueue', enqueue_album, self.album)
-    urwid.connect_signal(self, 'play', play_album, self.album)
 
   def keypress(self, size, key):
     if self._command_map[key] == ENQUEUE:
@@ -197,16 +212,6 @@ class SelectableAlbum(urwid.WidgetWrap):
       self._emit('play')
     else:
       return key
-
-def suggestion_list(suggestions):
-  body = []
-  for suggestion in suggestions:
-    item = SelectableAlbum(suggestion)
-    body.append(urwid.AttrMap(item, None, focus_map='reversed'))
-
-  box = urwid.ListBox(urwid.SimpleFocusListWalker(body))
-  box._command_map = AlbumListCommands()
-  return box
 
 def main():
   conf = mstat.configuration(path = 'suggestive.conf')
