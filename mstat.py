@@ -12,6 +12,7 @@ from collections import defaultdict
 from itertools import chain
 import logging
 import argparse
+from os.path import basename
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -106,37 +107,62 @@ class MpdLoader(object):
   def load_track(self, session, db_artist, db_album, info):
     filename = info['file']
     if not session.query(Track).filter_by(filename = filename).first():
-      if 'title' not in info:
-        return
+      title = info.get('title', basename(filename))
 
       db_track = Track(
-        name = info['title'],
+        name = title,
         filename = filename,
       )
       db_album.tracks.append(db_track)
       db_artist.tracks.append(db_track)
       session.add(db_track)
 
-  def load_album(self, session, db_artist, album):
-    db_album = session.query(Album).filter_by(name = album).first()
-    if not db_album:
-      db_album = Album(name = album)
-      db_artist.albums.append(db_album)
-      session.add(db_album)
+  def load_by_artist_album(self, session, by_artist_album):
+    for artist, albums in by_artist_album.items():
+      # ignore missing artists
+      if not artist:
+        continue
 
-    for info in self.mpd.search('artist', db_artist.name, 'album', album):
-      self.load_track(session, db_artist, db_album, info)
+      db_artist = session.query(Artist).filter_by(name = artist).first()
+      if not db_artist:
+        db_artist = Artist(name = artist)
+        session.add(db_artist)
 
-  def load_artist(self, session, artist):
-    db_artist = session.query(Artist).filter_by(name = artist).first()
-    if not db_artist:
-      db_artist = Artist(name = artist)
-      session.add(db_artist)
+      for album, info_list in albums.items():
+        # ignore missing albums
+        if not album:
+          continue
 
-    for album in self.mpd.list('album', 'artist', artist):
-      self.load_album(session, db_artist, album)
+        db_album = session.query(Album).filter_by(name = album).first()
+        if not db_album:
+          db_album = Album(name = album)
+          db_artist.albums.append(db_album)
+          session.add(db_album)
+
+        for info in info_list:
+          self.load_track(session, db_artist, db_album, info)
 
   def load(self, session):
+    files_in_mpd = set(self.mpd.list('file'))
+    files_in_db = set(item.filename for item in session.query(Track.filename).all())
+
+    missing = files_in_mpd - files_in_db
+    if missing:
+      missing_info = list(
+        chain.from_iterable(self.mpd.listallinfo(path) for path in missing))
+
+      by_artist = defaultdict(list)
+      for info in missing_info:
+        by_artist[info.get('artist')].append(info)
+
+      by_artist_album = defaultdict(lambda: defaultdict(list))
+      for artist, info_list in by_artist.items():
+        for info in info_list:
+          by_artist_album[artist][info.get('album')].append(info)
+
+      self.load_by_artist_album(session, by_artist_album)
+
+  def initialize(self, session):
     for artist in self.mpd.list('artist'):
       self.load_artist(session, artist)
 
