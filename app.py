@@ -194,6 +194,8 @@ class Application(object):
         self.update_suggestions()
 
 def main(stdscr):
+  curses.curs_set(0)
+
   conf = mstat.configuration(path = 'suggestive.conf')
   app = Application(stdscr, conf)
 
