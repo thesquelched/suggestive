@@ -1,28 +1,30 @@
 import queue
-import curses
+#import curses
+import urwid
 import logging
 import threading
 from time import sleep
 import mstat
-from analytics import Analytics
+from analytics import Analytics, Suggestion
 from datetime import datetime
 import copy
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-DEFAULT_KEYS = dict(
-  up = set(['k', curses.KEY_UP]),
-  down = set(['j', curses.KEY_DOWN]),
-  left = set(['h', curses.KEY_LEFT]),
-  right = set(['l', curses.KEY_RIGHT]),
-  page_up = set(['\x02', curses.KEY_PPAGE]),
-  page_down = set(['\x06', curses.KEY_NPAGE]),
-  top = set(['g', curses.KEY_HOME]),
-  bottom = set(['G', curses.KEY_END]),
-  quit = set(['q']),
-  update = set(['u']),
-)
+DEFAULT_KEYS = {}
+#DEFAULT_KEYS = dict(
+#  up = set(['k', curses.KEY_UP]),
+#  down = set(['j', curses.KEY_DOWN]),
+#  left = set(['h', curses.KEY_LEFT]),
+#  right = set(['l', curses.KEY_RIGHT]),
+#  page_up = set(['\x02', curses.KEY_PPAGE]),
+#  page_down = set(['\x06', curses.KEY_NPAGE]),
+#  top = set(['g', curses.KEY_HOME]),
+#  bottom = set(['G', curses.KEY_END]),
+#  quit = set(['q']),
+#  update = set(['u']),
+#)
 
 class KeyBindings(object):
   def __init__(self, user_bindings = None):
@@ -108,8 +110,7 @@ class DatabaseUpdateThread(AppThread):
 ######################################################################
 
 class Application(object):
-  def __init__(self, stdscr, conf):
-    self.stdscr = stdscr
+  def __init__(self, conf):
     self.conf = conf
 
     session = mstat.initialize_sqlalchemy(conf)
@@ -152,7 +153,7 @@ class Application(object):
     self.last_updated = datetime.now()
 
     self.suggestions = self.anl.suggest_albums()
-    self.display_suggestions()
+    #self.display_suggestions()
 
   def dispatch(self, key):
     keys = self.keys
@@ -169,35 +170,77 @@ class Application(object):
       logger.debug('Page: {}'.format(self.page))
       self.display_suggestions()
 
+  #def run2(self):
+  #  main = urwid.Padding(suggestion_list(datetime.now().strftime('%Y-%m-%d %H:%M'), ['foo', 'bar']), left=2, right=2)
+  #  top = urwid.Overlay(main, urwid.SolidFill(),
+  #    align = 'center', width=('relative', 60),
+  #    valign='middle', height=('relative', 60),
+  #    min_width=20, min_height=9)
+  #  urwid.MainLoop(top, palette = [('reversed', 'standout', '')]).run()
+
   def run(self):
     logger.info('Starting event loop')
 
-    input_thread = UserInputThread(self.stdscr, self.keys.quit, self.events)
-    input_thread.daemon = True
-    input_thread.start()
+    #input_thread = UserInputThread(self.stdscr, self.keys.quit, self.events)
+    #input_thread.daemon = True
+    #input_thread.start()
 
-    self.stdscr.clear()
+    #self.stdscr.clear()
     self.update_suggestions()
 
     self.start_db_update()
 
-    while True:
-      event = self.events.get()
+    event = self.events.get()
+    main = urwid.Padding(suggestion_list(datetime.now().strftime('%Y-%m-%d %H:%M'),  self.suggestions), left=2, right=2)
+    top = urwid.Overlay(main, urwid.SolidFill(),
+      align = 'center', width=('relative', 60),
+      valign='middle', height=('relative', 60),
+      min_width=20, min_height=9)
+    urwid.MainLoop(top, palette = [('reversed', 'standout', '')]).run()
+    #while True:
+    #  event = self.events.get()
 
-      if isinstance(event, KeyPressEvent):
-        try:
-          self.dispatch(event.key)
-        except QuitApplication:
-          return
-      elif isinstance(event, DatabaseUpdated):
-        self.page = 0
-        self.update_suggestions()
+    #  if isinstance(event, KeyPressEvent):
+    #    try:
+    #      self.dispatch(event.key)
+    #    except QuitApplication:
+    #      return
+    #  elif isinstance(event, DatabaseUpdated):
+    #    self.page = 0
+    #    self.update_suggestions()
 
-def main(stdscr):
-  curses.curs_set(0)
+class SelectableAlbum(urwid.SelectableIcon):
+  def __init__(self, selection):
+    self.selection = selection
+    album = selection.album
+    text = '{} - {}'.format(album.artist.name, album.name)
+    super(SelectableAlbum, self).__init__(text)
 
+  def keypress(self, size, key):
+    if key in (' ', 'enter'):
+      logger.info('selected')
+
+    return super(SelectableAlbum, self).keypress(size, key)
+
+def suggestion_list(updated, suggestions):
+  body = [urwid.Text(updated), urwid.Divider()]
+  for suggestion in suggestions:
+    item = SelectableAlbum(suggestion)
+    body.append(urwid.AttrMap(item, None, focus_map='reversed'))
+
+  return urwid.ListBox(urwid.SimpleFocusListWalker(body))
+
+#if __name__ == '__main__':
+#  main = urwid.Padding(suggestion_list(datetime.now().strftime('%Y-%m-%d %H:%M'), ['foo', 'bar']), left=2, right=2)
+#  top = urwid.Overlay(main, urwid.SolidFill(),
+#    align = 'center', width=('relative', 60),
+#    valign='middle', height=('relative', 60),
+#    min_width=20, min_height=9)
+#  urwid.MainLoop(top, palette = [('reversed', 'standout', '')]).run()
+
+def main():
   conf = mstat.configuration(path = 'suggestive.conf')
-  app = Application(stdscr, conf)
+  app = Application(conf)
 
   logging.basicConfig(level=logging.DEBUG, filename = 'log.txt', filemode = 'w')
   logger.info('Starting event loop')
@@ -205,4 +248,5 @@ def main(stdscr):
   app.run()
 
 if __name__ == '__main__':
-  curses.wrapper(main)
+  main()
+  #curses.wrapper(main)
