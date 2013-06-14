@@ -142,7 +142,8 @@ class Application(object):
     self.stdscr.addstr(1, 0, '-'*80)
 
     # Write albums
-    for i, album in enumerate(albums, 2):
+    for i, suggestion in enumerate(albums, 2):
+      album = suggestion.album
       self.stdscr.addstr(i, 0, '{} - {}'.format(album.artist.name, album.name))
 
     self.stdscr.refresh()
