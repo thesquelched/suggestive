@@ -2,11 +2,11 @@ import queue
 import urwid
 import logging
 import threading
-from time import sleep
 import mstat
 from analytics import Analytics, Suggestion
 from datetime import datetime
 import copy
+from subprocess import call
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -68,6 +68,7 @@ class Application(object):
   def __init__(self, conf):
     self.conf = conf
 
+    self.mpd = mstat.initialize_mpd(conf)
     session = mstat.initialize_sqlalchemy(conf)
     self.anl = Analytics(session)
 
@@ -82,7 +83,7 @@ class Application(object):
     self.header = urwid.Text('')
     self.status = urwid.Text('Idle')
 
-    self.event_loop = self.run()
+    self.event_loop = self.main_loop()
 
   def num_pages(self):
     return len(self.suggestions)//self.page_size
@@ -107,9 +108,15 @@ class Application(object):
 
   def enqueue_album(self, widget_, album):
     logger.info('Enqueue: {} - {}'.format(album.artist.name, album.name))
+    for track in album.tracks:
+      self.mpd.add(track.filename)
 
   def play_album(self, widget_, album):
     logger.info('Play: {} - {}'.format(album.artist.name, album.name))
+    self.mpd.clear()
+    ids = [self.mpd.addid(track.filename) for track in album.tracks]
+    if ids:
+      self.mpd.playid(ids[0])
 
   def update_header(self):
     timestamp = self.last_updated.strftime('%Y-%m-%d %H:%M:%S')
@@ -123,6 +130,10 @@ class Application(object):
       raise urwid.ExitMainLoop()
     elif key == 'u':
       self.start_db_update()
+    elif key == '~':
+      self.event_loop.screen.stop()
+      call('ncmpcpp', shell=True)
+      self.event_loop.screen.start()
 
   def suggestion_list(self):
     if not self.suggestions:
@@ -141,7 +152,7 @@ class Application(object):
     box._command_map = AlbumListCommands()
     return box
 
-  def run(self):
+  def main_loop(self):
     logger.info('Starting event loop')
 
     self.update_suggestions()
