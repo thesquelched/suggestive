@@ -141,8 +141,8 @@ class AlbumListCommands(urwid.CommandMap):
     'cursor max right': ('G', 'end'),
     'quit': ('q',),
     'update': ('u',),
-    'enqueue': (' ',),
-    'play': ('enter',),
+    ENQUEUE: (' ',),
+    PLAY: ('enter',),
   }
 
   @classmethod
@@ -167,12 +167,15 @@ class AlbumListCommands(urwid.CommandMap):
     for key, command in bindings.items():
       self.__setitem__(key, command)
 
-def enqueue(widget_, album):
+def enqueue_album(widget_, album):
   logger.info('Enqueue: {} - {}'.format(album.artist.name, album.name))
+
+def play_album(widget_, album):
+  logger.info('Play: {} - {}'.format(album.artist.name, album.name))
 
 class SelectableAlbum(urwid.WidgetWrap):
   __metaclass__ = urwid.signals.MetaSignals
-  signals = ['enqueue']
+  signals = ['enqueue', 'play']
 
   def __init__(self, suggestion):
     self.album = album = suggestion.album
@@ -181,11 +184,14 @@ class SelectableAlbum(urwid.WidgetWrap):
       urwid.SelectableIcon(text))
 
     self._command_map = AlbumListCommands()
-    urwid.connect_signal(self, 'enqueue', enqueue, self.album)
+    urwid.connect_signal(self, 'enqueue', enqueue_album, self.album)
+    urwid.connect_signal(self, 'play', play_album, self.album)
 
   def keypress(self, size, key):
     if self._command_map[key] == ENQUEUE:
       self._emit('enqueue')
+    elif self._command_map[key] == PLAY:
+      self._emit('play')
     else:
       return key
 
