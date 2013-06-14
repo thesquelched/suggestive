@@ -209,12 +209,13 @@ class Application(object):
     #    self.page = 0
     #    self.update_suggestions()
 
-class SelectableAlbum(urwid.SelectableIcon):
+class SelectableAlbum(urwid.WidgetWrap):
   def __init__(self, selection):
     self.selection = selection
     album = selection.album
     text = '{} - {}'.format(album.artist.name, album.name)
-    super(SelectableAlbum, self).__init__(text)
+    super(SelectableAlbum, self).__init__(
+      urwid.SelectableIcon(text))
 
   def keypress(self, size, key):
     if key in (' ', 'enter'):
