@@ -11,18 +11,21 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 KEYS = dict(
-  up = set( ['k', curses.KEY_UP] ),
-  down = set( ['j', curses.KEY_DOWN] ),
-  left = set( ['h', curses.KEY_LEFT] ),
-  right = set( ['l', curses.KEY_RIGHT] ),
-  page_up = set( ['\x02', curses.KEY_PPAGE] ),
-  page_down = set( ['\x06', curses.KEY_NPAGE] ),
-  top = set( ['g', curses.KEY_HOME] ),
-  bottom = set( ['G', curses.KEY_END] ),
-  quit = set( ['q'] ),
-  update = set( ['u'] ),
+  up = set(['k', curses.KEY_UP]),
+  down = set(['j', curses.KEY_DOWN]),
+  left = set(['h', curses.KEY_LEFT]),
+  right = set(['l', curses.KEY_RIGHT]),
+  page_up = set(['\x02', curses.KEY_PPAGE]),
+  page_down = set(['\x06', curses.KEY_NPAGE]),
+  top = set(['g', curses.KEY_HOME]),
+  bottom = set(['G', curses.KEY_END]),
+  quit = set(['q']),
+  update = set(['u']),
 )
 
+######################################################################
+# Exceptions
+######################################################################
 class QuitApplication(Exception):
   pass
 
