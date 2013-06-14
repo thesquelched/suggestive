@@ -11,6 +11,9 @@ import copy
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
+ENQUEUE = 'enqueue'
+PLAY = 'play'
+
 ######################################################################
 # Events
 ######################################################################
@@ -100,30 +103,11 @@ class Application(object):
     update_thread.daemon = False
     update_thread.start()
 
-  def display_suggestions(self):
-    pages = self.num_pages()
-    if self.page > pages:
-      albums = self.suggestions[:self.page_size]
-    else:
-      albums = self.suggestions[self.page*self.page_size:(self.page+1)*self.page_size]
-
-    self.stdscr.clear()
-    self.stdscr.addstr(0, 0, 'Last updated: {}'.format(self.last_updated))
-    self.stdscr.addstr(1, 0, '-'*80)
-
-    # Write albums
-    for i, suggestion in enumerate(albums, 2):
-      album = suggestion.album
-      self.stdscr.addstr(i, 0, '{} - {}'.format(album.artist.name, album.name))
-
-    self.stdscr.refresh()
-
   def update_suggestions(self):
     self.last_updated = datetime.now()
 
     self.suggestions = self.anl.suggest_albums()
     self.list_view = suggestion_list(datetime.now().strftime('%Y-%m-%d %H:%M'),  self.suggestions)
-    #self.display_suggestions()
 
   def dispatch(self, key):
     #keys = self.keys
@@ -183,23 +167,27 @@ class AlbumListCommands(urwid.CommandMap):
     for key, command in bindings.items():
       self.__setitem__(key, command)
 
+def enqueue(widget_, album):
+  logger.info('Enqueue: {} - {}'.format(album.artist.name, album.name))
+
 class SelectableAlbum(urwid.WidgetWrap):
-  def __init__(self, selection):
-    self.selection = selection
-    album = selection.album
+  __metaclass__ = urwid.signals.MetaSignals
+  signals = ['enqueue']
+
+  def __init__(self, suggestion):
+    self.album = album = suggestion.album
     text = '{} - {}'.format(album.artist.name, album.name)
     super(SelectableAlbum, self).__init__(
       urwid.SelectableIcon(text))
 
     self._command_map = AlbumListCommands()
+    urwid.connect_signal(self, 'enqueue', enqueue, self.album)
 
   def keypress(self, size, key):
-    if key in (' ',):
-      logger.info('Enqueue')
-    elif key in ('enter',):
-      logger.info('Play')
-
-    return super(SelectableAlbum, self).keypress(size, key)
+    if self._command_map[key] == ENQUEUE:
+      self._emit('enqueue')
+    else:
+      return key
 
 def suggestion_list(updated, suggestions):
   body = [urwid.Text(updated), urwid.Divider()]
