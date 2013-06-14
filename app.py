@@ -43,28 +43,12 @@ class DatabaseUpdated(Event):
 # Threads
 ######################################################################
 class AppThread(threading.Thread):
-  def __init__(self, events, *args, **kwArgs):
-    super(AppThread, self).__init__(*args, **kwArgs)
-    self.events = events
-    logger.debug(events)
-
-class UserInputThread(AppThread):
-  def __init__(self, stdscr, quit_keys, *args, **kwArgs):
-    super(UserInputThread, self).__init__(*args, **kwArgs)
-    self.stdscr = stdscr
-    self.quit_keys = quit_keys
-
-  def run(self):
-    while True:
-      key = self.stdscr.getkey()
-      self.events.put(KeyPressEvent(key))
-
-      if key in self.quit_keys:
-        return
+  pass
 
 class DatabaseUpdateThread(AppThread):
-  def __init__(self, conf, *args, **kwArgs):
+  def __init__(self, conf, callback, *args, **kwArgs):
     super(DatabaseUpdateThread, self).__init__(*args, **kwArgs)
+    self.callback = callback
     self.conf = conf
 
     self.session = mstat.initialize_sqlalchemy(conf)
@@ -73,7 +57,8 @@ class DatabaseUpdateThread(AppThread):
 
   def run(self):
     mstat.update_database(self.session, self.mpd, self.lastfm, self.conf)
-    self.events.put(DatabaseUpdated(self.session))
+    logger.info('Finished update')
+    (self.callback)()
 
 ######################################################################
 # Main Functions
@@ -93,21 +78,26 @@ class Application(object):
     self.page = 0
 
     # urwid stuff
-    self.list_view = suggestion_list(datetime.now().strftime('%Y-%m-%d %H:%M'),  self.suggestions)
+    self.list_view = suggestion_list(self.suggestions)
+    self.event_loop = self.run()
 
   def num_pages(self):
     return len(self.suggestions)//self.page_size
 
   def start_db_update(self):
-    update_thread = DatabaseUpdateThread(self.conf, self.events)
+    update_thread = DatabaseUpdateThread(self.conf, self.update_event)
     update_thread.daemon = False
     update_thread.start()
 
-  def update_suggestions(self):
+  def update_event(self):
+    self.event_loop.set_alarm_in(0, self.update_suggestions)
+
+  def update_suggestions(self, *_args):
+    logger.info('Update suggestions display')
     self.last_updated = datetime.now()
 
     self.suggestions = self.anl.suggest_albums()
-    self.list_view = suggestion_list(datetime.now().strftime('%Y-%m-%d %H:%M'),  self.suggestions)
+    self.list_view = suggestion_list(self.suggestions)
 
   def dispatch(self, key):
     #keys = self.keys
@@ -127,7 +117,7 @@ class Application(object):
       align = 'left', width=('relative', 60),
       valign='top', height=('relative', 60),
       min_width=20, min_height=9)
-    urwid.MainLoop(top, palette = [('reversed', 'standout', '')], unhandled_input = self.dispatch).run()
+    return urwid.MainLoop(top, palette = [('reversed', 'standout', '')], unhandled_input = self.dispatch)
 
 class AlbumListCommands(urwid.CommandMap):
   DEFAULT_BINDINGS = {
@@ -195,8 +185,8 @@ class SelectableAlbum(urwid.WidgetWrap):
     else:
       return key
 
-def suggestion_list(updated, suggestions):
-  body = [urwid.Text(updated), urwid.Divider()]
+def suggestion_list(suggestions):
+  body = []
   for suggestion in suggestions:
     item = SelectableAlbum(suggestion)
     body.append(urwid.AttrMap(item, None, focus_map='reversed'))
@@ -207,12 +197,13 @@ def suggestion_list(updated, suggestions):
 
 def main():
   conf = mstat.configuration(path = 'suggestive.conf')
-  app = Application(conf)
 
   logging.basicConfig(level=logging.DEBUG, filename = 'log.txt', filemode = 'w')
   logger.info('Starting event loop')
 
-  app.run()
+  app = Application(conf)
+
+  app.event_loop.run()
 
 if __name__ == '__main__':
   main()
