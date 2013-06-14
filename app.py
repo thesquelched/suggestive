@@ -1,5 +1,5 @@
 import queue
-from curses import wrapper
+import curses
 import logging
 import threading
 from time import sleep
@@ -9,6 +9,22 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
+
+KEYS = dict(
+  up = set( ['k', curses.KEY_UP] ),
+  down = set( ['j', curses.KEY_DOWN] ),
+  left = set( ['h', curses.KEY_LEFT] ),
+  right = set( ['l', curses.KEY_RIGHT] ),
+  page_up = set( ['\x02', curses.KEY_PPAGE] ),
+  page_down = set( ['\x06', curses.KEY_NPAGE] ),
+  top = set( ['g', curses.KEY_HOME] ),
+  bottom = set( ['G', curses.KEY_END] ),
+  quit = set( ['q'] ),
+  update = set( ['u'] ),
+)
+
+class QuitApplication(Exception):
+  pass
 
 ######################################################################
 # Events
@@ -79,23 +95,26 @@ class Application(object):
     session = mstat.initialize_sqlalchemy(conf)
     self.anl = Analytics(session)
 
+    self.suggestions = []
     self.events = queue.PriorityQueue()
     self.last_updated = datetime.now()
+    self.page_size = 10
+    self.page = 0
+
+  def num_pages(self, suggestions):
+    return len(suggestions)//self.page_size
 
   def start_db_update(self):
     update_thread = DatabaseUpdateThread(self.conf, self.events)
     update_thread.daemon = False
     update_thread.start()
 
-  def display_suggestions(self, suggestions, page = None):
-    if page is None:
-      page = 0
-
-    pages = len(suggestions)//10
-    if page > pages:
-      albums = suggestions[:10]
+  def display_suggestions(self):
+    pages = self.num_pages(self.suggestions)
+    if self.page > pages:
+      albums = self.suggestions[:self.page_size]
     else:
-      albums = suggestions[page*10:(page+1)*10]
+      albums = self.suggestions[self.page*self.page_size:(self.page+1)*self.page_size]
 
     self.stdscr.clear()
     self.stdscr.addstr(0, 0, 'Last updated: {}'.format(self.last_updated))
@@ -110,10 +129,22 @@ class Application(object):
   def update_suggestions(self):
     self.last_updated = datetime.now()
 
-    suggestions = self.anl.suggest_albums()
-    self.display_suggestions(suggestions)
+    self.suggestions = self.anl.suggest_albums()
+    self.display_suggestions()
 
-    return suggestions
+  def dispatch(self, key):
+    if key in KEYS['quit']:
+      raise QuitApplication
+    elif key in KEYS['update']:
+      self.start_db_update()
+    elif key in KEYS['page_down']:
+      self.page = min(self.page+1, self.num_pages())
+      logger.debug('Page: {}'.format(self.page))
+      self.display_suggestions()
+    elif key in KEYS['page_up']:
+      self.page = max(self.page-1, 0)
+      logger.debug('Page: {}'.format(self.page))
+      self.display_suggestions()
 
   def run(self):
     logger.info('Starting event loop')
@@ -123,31 +154,21 @@ class Application(object):
     input_thread.start()
 
     self.stdscr.clear()
-    suggestions = self.update_suggestions()
+    self.update_suggestions()
 
     self.start_db_update()
 
-    page = 0
-    
     while True:
       event = self.events.get()
 
       if isinstance(event, KeyPressEvent):
-        if event.key == 'q':
+        try:
+          self.dispatch(event.key)
+        except QuitApplication:
           return
-        elif event.key == 'u':
-          self.start_db_update()
-        elif event.key == 'j':
-          page = min(page+1, len(suggestions)//10)
-          logger.debug('Page: {}'.format(page))
-          self.display_suggestions(suggestions, page = page)
-        elif event.key == 'k':
-          page = max(page-1, 0)
-          logger.debug('Page: {}'.format(page))
-          self.display_suggestions(suggestions, page = page)
       elif isinstance(event, DatabaseUpdated):
-        page = 0
-        suggestions = self.update_suggestions()
+        self.page = 0
+        self.update_suggestions()
 
 def main(stdscr):
   conf = mstat.configuration(path = 'suggestive.conf')
@@ -159,4 +180,4 @@ def main(stdscr):
   app.run()
 
 if __name__ == '__main__':
-  wrapper(main)
+  curses.wrapper(main)
