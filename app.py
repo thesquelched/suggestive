@@ -1,5 +1,4 @@
 import queue
-import curses
 import urwid
 import logging
 import threading
@@ -11,33 +10,6 @@ import copy
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
-
-DEFAULT_KEYS = dict(
-  up = set(['k', curses.KEY_UP]),
-  down = set(['j', curses.KEY_DOWN]),
-  left = set(['h', curses.KEY_LEFT]),
-  right = set(['l', curses.KEY_RIGHT]),
-  page_up = set(['\x02', curses.KEY_PPAGE]),
-  page_down = set(['\x06', curses.KEY_NPAGE]),
-  top = set(['g', curses.KEY_HOME]),
-  bottom = set(['G', curses.KEY_END]),
-  quit = set(['q']),
-  update = set(['u']),
-  enqueue = set([' ']),
-  play = set([curses.KEY_ENTER]),
-)
-
-class KeyBindings(object):
-  def __init__(self, user_bindings = None):
-    if user_bindings is None:
-      user_bindings = {}
-
-    bindings = copy.copy(DEFAULT_KEYS)
-    bindings.update(user_bindings)
-
-    for name, keys in bindings.items():
-      if name in DEFAULT_KEYS:
-        setattr(self, name, keys)
 
 ######################################################################
 # Events
@@ -116,7 +88,9 @@ class Application(object):
     self.last_updated = datetime.now()
     self.page_size = 10
     self.page = 0
-    self.keys = KeyBindings()
+
+    # urwid stuff
+    self.list_view = suggestion_list(datetime.now().strftime('%Y-%m-%d %H:%M'),  self.suggestions)
 
   def num_pages(self):
     return len(self.suggestions)//self.page_size
@@ -148,22 +122,15 @@ class Application(object):
     self.last_updated = datetime.now()
 
     self.suggestions = self.anl.suggest_albums()
+    self.list_view = suggestion_list(datetime.now().strftime('%Y-%m-%d %H:%M'),  self.suggestions)
     #self.display_suggestions()
 
   def dispatch(self, key):
-    keys = self.keys
-    if key in keys.quit:
+    #keys = self.keys
+    if key == 'q':
       raise urwid.ExitMainLoop()
-    elif key in keys.update:
+    elif key == 'u':
       self.start_db_update()
-    elif key in keys.page_down:
-      self.page = min(self.page+1, self.num_pages())
-      logger.debug('Page: {}'.format(self.page))
-      self.display_suggestions()
-    elif key in keys.page_up:
-      self.page = max(self.page-1, 0)
-      logger.debug('Page: {}'.format(self.page))
-      self.display_suggestions()
 
   def run(self):
     logger.info('Starting event loop')
@@ -171,12 +138,50 @@ class Application(object):
     self.update_suggestions()
     #self.start_db_update()
 
-    main = urwid.Padding(suggestion_list(datetime.now().strftime('%Y-%m-%d %H:%M'),  self.suggestions), left=2, right=2)
+    main = urwid.Padding(self.list_view, left=2, right=2)
     top = urwid.Overlay(main, urwid.SolidFill(),
       align = 'left', width=('relative', 60),
       valign='top', height=('relative', 60),
       min_width=20, min_height=9)
     urwid.MainLoop(top, palette = [('reversed', 'standout', '')], unhandled_input = self.dispatch).run()
+
+class AlbumListCommands(urwid.CommandMap):
+  DEFAULT_BINDINGS = {
+    'cursor up': ('k', 'up'),
+    'cursor down': ('j', 'down'),
+    'cursor left': ('h', 'left'),
+    'cursor right': ('l', 'right'),
+    'cursor page up': ('ctrl b', 'page up'),
+    'cursor page down': ('ctrl f', 'page down'),
+    'cursor max left': ('g', 'home'),
+    'cursor max right': ('G', 'end'),
+    'quit': ('q',),
+    'update': ('u',),
+    'enqueue': (' ',),
+    'play': ('enter',),
+  }
+
+  @classmethod
+  def _flatten(cls, bindings):
+    flattened = {}
+    for action, keys in bindings.items():
+      flattened.update({key: action for key in keys})
+
+    return flattened
+
+  def __init__(self, *args, **kwArgs):
+    super(AlbumListCommands, self).__init__()
+    self.update(self._flatten(self.DEFAULT_BINDINGS))
+    self.update(*args, **kwArgs)
+
+  def update(self, *args, **kwArgs):
+    if args and isinstance(args[0], dict):
+      bindings = args[0]
+    else:
+      bindings = kwArgs
+
+    for key, command in bindings.items():
+      self.__setitem__(key, command)
 
 class SelectableAlbum(urwid.WidgetWrap):
   def __init__(self, selection):
@@ -185,6 +190,8 @@ class SelectableAlbum(urwid.WidgetWrap):
     text = '{} - {}'.format(album.artist.name, album.name)
     super(SelectableAlbum, self).__init__(
       urwid.SelectableIcon(text))
+
+    self._command_map = AlbumListCommands()
 
   def keypress(self, size, key):
     if key in (' ',):
@@ -200,7 +207,9 @@ def suggestion_list(updated, suggestions):
     item = SelectableAlbum(suggestion)
     body.append(urwid.AttrMap(item, None, focus_map='reversed'))
 
-  return urwid.ListBox(urwid.SimpleFocusListWalker(body))
+  box = urwid.ListBox(urwid.SimpleFocusListWalker(body))
+  box._command_map = AlbumListCommands()
+  return box
 
 def main():
   conf = mstat.configuration(path = 'suggestive.conf')
