@@ -1,11 +1,9 @@
-import queue
 import urwid
 import logging
 import threading
 import mstat
 from analytics import Analytics, Suggestion
 from datetime import datetime
-import copy
 from subprocess import call
 
 logger = logging.getLogger(__name__)
@@ -13,31 +11,6 @@ logger.addHandler(logging.NullHandler())
 
 ENQUEUE = 'enqueue'
 PLAY = 'play'
-
-######################################################################
-# Events
-######################################################################
-class Event(object):
-  def __init__(self, priority = None):
-    self.priority = None if priority is None else int(priority)
-
-  def __lt__(self, other):
-    if self.priority is None:
-      return False
-    elif other.priority is None:
-      return True
-    else:
-      return self.priority < other.priority
-
-class KeyPressEvent(Event):
-  def __init__(self, key_pressed):
-    super(KeyPressEvent, self).__init__(priority = 0)
-    self.key = key_pressed
-
-class DatabaseUpdated(Event):
-  def __init__(self, session):
-    super(DatabaseUpdated, self).__init__(priority = 1)
-    self.session = session
 
 ######################################################################
 # Threads
@@ -73,7 +46,6 @@ class Application(object):
     self.anl = Analytics(session)
 
     self.suggestions = []
-    self.events = queue.PriorityQueue()
     self.last_updated = datetime.now()
     self.page_size = 10
     self.page = 0
