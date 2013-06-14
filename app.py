@@ -79,12 +79,16 @@ class Application(object):
 
     # urwid stuff
     self.list_view = suggestion_list(self.suggestions)
+    self.header = urwid.Text('')
+    self.status = urwid.Text('Idle')
+
     self.event_loop = self.run()
 
   def num_pages(self):
     return len(self.suggestions)//self.page_size
 
   def start_db_update(self):
+    self.update_status('Updating database')
     update_thread = DatabaseUpdateThread(self.conf, self.update_event)
     update_thread.daemon = False
     update_thread.start()
@@ -98,9 +102,17 @@ class Application(object):
 
     self.suggestions = self.anl.suggest_albums()
     self.list_view = suggestion_list(self.suggestions)
+    self.update_header()
+    self.update_status('Idle')
+
+  def update_header(self):
+    timestamp = self.last_updated.strftime('%Y-%m-%d %H:%M:%S')
+    self.header.set_text('Last updated: {}'.format(timestamp))
+
+  def update_status(self, status):
+    self.status.set_text(status)
 
   def dispatch(self, key):
-    #keys = self.keys
     if key == 'q':
       raise urwid.ExitMainLoop()
     elif key == 'u':
@@ -110,13 +122,14 @@ class Application(object):
     logger.info('Starting event loop')
 
     self.update_suggestions()
+    self.update_header()
+    self.update_status('Idle')
     #self.start_db_update()
 
     main = urwid.Padding(self.list_view, left=2, right=2)
-    top = urwid.Overlay(main, urwid.SolidFill(),
-      align = 'left', width=('relative', 60),
-      valign='top', height=('relative', 60),
-      min_width=20, min_height=9)
+    middle = urwid.Filler(main, height=('relative', 100), valign='middle', top=1, bottom=1)
+    top = urwid.Frame(middle, header = self.header, footer = self.status)
+
     return urwid.MainLoop(top, palette = [('reversed', 'standout', '')], unhandled_input = self.dispatch)
 
 class AlbumListCommands(urwid.CommandMap):
