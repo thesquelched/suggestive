@@ -6,11 +6,12 @@ from time import sleep
 import mstat
 from analytics import Analytics
 from datetime import datetime
+import copy
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-KEYS = dict(
+DEFAULT_KEYS = dict(
   up = set(['k', curses.KEY_UP]),
   down = set(['j', curses.KEY_DOWN]),
   left = set(['h', curses.KEY_LEFT]),
@@ -22,6 +23,17 @@ KEYS = dict(
   quit = set(['q']),
   update = set(['u']),
 )
+
+class KeyBindings(object):
+  def __init__(self, user_bindings = None):
+    if user_bindings is None:
+      user_bindings = {}
+
+    bindings = copy.copy(DEFAULT_KEYS)
+    bindings.update(user_bindings)
+
+    for name, keys in bindings.items():
+      setattr(self, name, keys)
 
 ######################################################################
 # Exceptions
@@ -103,9 +115,10 @@ class Application(object):
     self.last_updated = datetime.now()
     self.page_size = 10
     self.page = 0
+    self.keys = KeyBindings()
 
-  def num_pages(self, suggestions):
-    return len(suggestions)//self.page_size
+  def num_pages(self):
+    return len(self.suggestions)//self.page_size
 
   def start_db_update(self):
     update_thread = DatabaseUpdateThread(self.conf, self.events)
@@ -113,7 +126,7 @@ class Application(object):
     update_thread.start()
 
   def display_suggestions(self):
-    pages = self.num_pages(self.suggestions)
+    pages = self.num_pages()
     if self.page > pages:
       albums = self.suggestions[:self.page_size]
     else:
@@ -136,15 +149,16 @@ class Application(object):
     self.display_suggestions()
 
   def dispatch(self, key):
-    if key in KEYS['quit']:
+    keys = self.keys
+    if key in keys.quit:
       raise QuitApplication
-    elif key in KEYS['update']:
+    elif key in keys.update:
       self.start_db_update()
-    elif key in KEYS['page_down']:
+    elif key in keys.page_down:
       self.page = min(self.page+1, self.num_pages())
       logger.debug('Page: {}'.format(self.page))
       self.display_suggestions()
-    elif key in KEYS['page_up']:
+    elif key in keys.page_up:
       self.page = max(self.page-1, 0)
       logger.debug('Page: {}'.format(self.page))
       self.display_suggestions()
