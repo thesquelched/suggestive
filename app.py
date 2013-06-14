@@ -33,7 +33,8 @@ class KeyBindings(object):
     bindings.update(user_bindings)
 
     for name, keys in bindings.items():
-      setattr(self, name, keys)
+      if name in DEFAULT_KEYS:
+        setattr(self, name, keys)
 
 ######################################################################
 # Exceptions
@@ -76,14 +77,18 @@ class AppThread(threading.Thread):
     logger.debug(events)
 
 class UserInputThread(AppThread):
-  def __init__(self, stdscr, *args, **kwArgs):
+  def __init__(self, stdscr, quit_keys, *args, **kwArgs):
     super(UserInputThread, self).__init__(*args, **kwArgs)
     self.stdscr = stdscr
+    self.quit_keys = quit_keys
 
   def run(self):
     while True:
       key = self.stdscr.getkey()
       self.events.put(KeyPressEvent(key))
+
+      if key in self.quit_keys:
+        return
 
 class DatabaseUpdateThread(AppThread):
   def __init__(self, conf, *args, **kwArgs):
@@ -166,7 +171,7 @@ class Application(object):
   def run(self):
     logger.info('Starting event loop')
 
-    input_thread = UserInputThread(self.stdscr, self.events)
+    input_thread = UserInputThread(self.stdscr, self.keys.quit, self.events)
     input_thread.daemon = True
     input_thread.start()
 
