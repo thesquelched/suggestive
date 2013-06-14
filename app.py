@@ -10,8 +10,6 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-LAST_UPDATED = datetime.now()
-
 ######################################################################
 # Events
 ######################################################################
@@ -72,66 +70,93 @@ class DatabaseUpdateThread(AppThread):
 ######################################################################
 # Main Functions
 ######################################################################
-def start_db_update(conf, events):
-  update_thread = DatabaseUpdateThread(conf, events)
-  update_thread.daemon = False
-  update_thread.start()
+
+class Application(object):
+  def __init__(self, stdscr, conf):
+    self.stdscr = stdscr
+    self.conf = conf
+
+    session = mstat.initialize_sqlalchemy(conf)
+    self.anl = Analytics(session)
+
+    self.events = queue.PriorityQueue()
+    self.last_updated = datetime.now()
+
+  def start_db_update(self):
+    update_thread = DatabaseUpdateThread(self.conf, self.events)
+    update_thread.daemon = False
+    update_thread.start()
+
+  def display_suggestions(self, suggestions, page = None):
+    if page is None:
+      page = 0
+
+    pages = len(suggestions)//10
+    if page > pages:
+      albums = suggestions[:10]
+    else:
+      albums = suggestions[page*10:(page+1)*10]
+
+    self.stdscr.clear()
+    self.stdscr.addstr(0, 0, 'Last updated: {}'.format(self.last_updated))
+    self.stdscr.addstr(1, 0, '-'*80)
+
+    # Write albums
+    for i, album in enumerate(albums, 2):
+      self.stdscr.addstr(i, 0, '{} - {}'.format(album.artist.name, album.name))
+
+    self.stdscr.refresh()
+
+  def update_suggestions(self):
+    self.last_updated = datetime.now()
+
+    suggestions = self.anl.suggest_albums()
+    self.display_suggestions(suggestions)
+
+    return suggestions
+
+  def run(self):
+    logger.info('Starting event loop')
+
+    input_thread = UserInputThread(self.stdscr, self.events)
+    input_thread.daemon = True
+    input_thread.start()
+
+    self.stdscr.clear()
+    suggestions = self.update_suggestions()
+
+    self.start_db_update()
+
+    page = 0
+    
+    while True:
+      event = self.events.get()
+
+      if isinstance(event, KeyPressEvent):
+        if event.key == 'q':
+          return
+        elif event.key == 'u':
+          self.start_db_update()
+        elif event.key == 'j':
+          page = min(page+1, len(suggestions)//10)
+          logger.debug('Page: {}'.format(page))
+          self.display_suggestions(suggestions, page = page)
+        elif event.key == 'k':
+          page = max(page-1, 0)
+          logger.debug('Page: {}'.format(page))
+          self.display_suggestions(suggestions, page = page)
+      elif isinstance(event, DatabaseUpdated):
+        page = 0
+        suggestions = self.update_suggestions()
 
 def main(stdscr):
+  conf = mstat.configuration(path = 'suggestive.conf')
+  app = Application(stdscr, conf)
+
   logging.basicConfig(level=logging.DEBUG, filename = 'log.txt', filemode = 'w')
   logger.info('Starting event loop')
 
-  events = queue.PriorityQueue()
-  page = 0
-  conf = mstat.configuration(path = 'suggestive.conf')
-  session = mstat.initialize_sqlalchemy(conf)
-  anl = Analytics(session)
-
-  input_thread = UserInputThread(stdscr, events)
-  input_thread.daemon = True
-  input_thread.start()
-
-  stdscr.clear()
-  suggestions = update_suggestions(stdscr, anl)
-
-  start_db_update(conf, events)
-  
-  while True:
-    event = events.get()
-
-    if isinstance(event, KeyPressEvent):
-      if event.key == 'q':
-        return
-      elif event.key == 'u':
-        start_db_update(conf, events)
-      elif event.key == 'j':
-        page += 1
-        display_suggestions(suggestions, page, stdscr)
-      elif event.key == 'k':
-        page = max(page-1, 0)
-        display_suggestions(suggestions, page, stdscr)
-    elif isinstance(event, DatabaseUpdated):
-      suggestions = update_suggestions(stdscr, anl)
-
-def display_suggestions(suggestions, page, stdscr):
-  albums = suggestions[page*10:(page+1)*10]
-
-  stdscr.clear()
-  stdscr.addstr(0, 0, 'Last updated: {}'.format(LAST_UPDATED))
-  stdscr.addstr(1, 0, '-'*80)
-  for i, album in enumerate(albums, 2):
-    stdscr.addstr(i, 0, '{} - {}'.format(album.artist.name, album.name))
-  stdscr.refresh()
-
-def update_suggestions(stdscr, anl):
-  global LAST_UPDATED
-
-  logger.info('Database updated')
-  LAST_UPDATED = datetime.now()
-  suggestions = anl.suggest_albums()
-  display_suggestions(suggestions, 0, stdscr)
-
-  return suggestions
+  app.run()
 
 if __name__ == '__main__':
   wrapper(main)
