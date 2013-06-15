@@ -1,7 +1,7 @@
 from lastfm import LastFM, APIKEY
 from config import Config
 from model import (Artist, AlbumCorrection, ArtistCorrection, Album,
-  Scrobble, Session, Base, LoadStatus, Track, ScrobbleInfo)
+  Scrobble, Session, Base, LoadStatus, Track, ScrobbleInfo, LastfmTrackInfo)
 
 import mpd
 from sqlalchemy import create_engine, func
@@ -40,9 +40,9 @@ class ScrobbleLoader(object):
 
     db_scrobble_info = session.query(ScrobbleInfo).\
       filter(
-        ScrobbleInfo.title == track and
-        ScrobbleInfo.artist == artist and
-        ScrobbleInfo.album == album).\
+        ScrobbleInfo.title_insensitive == track and
+        ScrobbleInfo.artist_insensitive == artist and
+        ScrobbleInfo.album_insensitive == album).\
       first()
 
     if not db_scrobble_info:
@@ -123,7 +123,7 @@ class MpdLoader(object):
       if not artist:
         continue
 
-      db_artist = session.query(Artist).filter_by(name = artist).first()
+      db_artist = session.query(Artist).filter_by(name_insensitive = artist).first()
       if not db_artist:
         db_artist = Artist(name = artist)
         session.add(db_artist)
@@ -133,7 +133,7 @@ class MpdLoader(object):
         if not album:
           continue
 
-        db_album = session.query(Album).filter_by(name = album).first()
+        db_album = session.query(Album).filter_by(name_insensitive = album).first()
         if not db_album:
           db_album = Album(name = album)
           db_artist.albums.append(db_album)
@@ -165,6 +165,81 @@ class MpdLoader(object):
   def initialize(self, session):
     for artist in self.mpd.list('artist'):
       self.load_artist(session, artist)
+
+    session.commit()
+
+class TrackInfoLoader(object):
+  def __init__(self, lastfm, config):
+    self.lastfm = lastfm
+    self.user = config.lastfm_user()
+
+  def update_track_info(self, session, db_track, loved, banned):
+    logger.debug('update_track_info: {}, {}, {}'.format(db_track.name, loved, banned))
+    db_track_info = db_track.lastfm_info
+    if not db_track_info:
+      logger.debug('New track info')
+      db_track_info = LastfmTrackInfo()
+      db_track.lastfm_info = db_track_info
+      session.add(db_track_info)
+    else:
+      logger.debug('Already had: {} {}'.format(db_track_info.loved, db_track_info.banned))
+
+    db_track_info.loved = loved
+    db_track_info.banned = banned
+
+  def load_track_info(self, session, artist, loved_tracks, banned_tracks):
+    all_tracks = loved_tracks.union(banned_tracks)
+
+    for track in all_tracks:
+      db_track = session.query(Track).\
+        join(Artist).\
+        filter(Track.name_insensitive == track).\
+        filter(Artist.name_insensitive == artist).\
+        first()
+
+      if db_track:
+        self.update_track_info(
+          session,
+          db_track,
+          track in loved_tracks,
+          track in banned_tracks
+        )
+
+  def get_loved_tracks(self, session):
+    loved_track_info = list(self.lastfm.loved_tracks(self.user))
+    loved_tracks = defaultdict(set)
+
+    for info in loved_track_info:
+      if not('name' in info and 'artist' in info and 'name' in info['artist']):
+        continue
+      loved_tracks[info['artist']['name']].add(info['name'])
+
+    return loved_tracks
+
+  def get_banned_tracks(self, session):
+    banned_track_info = list(self.lastfm.banned_tracks(self.user))
+    banned_tracks = defaultdict(set)
+
+    for info in banned_track_info:
+      if not('name' in info and 'artist' in info and 'name' in info['artist']):
+        continue
+      banned_tracks[info['artist']['name']].add(info['name'])
+
+    return banned_tracks
+
+  def load(self, session):
+    loved_tracks = self.get_loved_tracks(session)
+    banned_tracks = self.get_banned_tracks(session)
+
+    all_artists = set(loved_tracks.keys()).union(set(banned_tracks.keys()))
+
+    for artist in all_artists:
+      self.load_track_info(
+        session,
+        artist,
+        loved_tracks[artist],
+        banned_tracks[artist]
+      )
 
     session.commit()
 

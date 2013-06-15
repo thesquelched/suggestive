@@ -55,7 +55,6 @@ class LastfmTrackInfo(Base):
   __tablename__ = 'lastfm_track_info'
 
   id = Column(Integer, primary_key = True)
-  name = Column(String)
   loved = Column(Boolean, default = False)
   banned = Column(Boolean, default = False)
 
@@ -67,7 +66,7 @@ class Track(Base):
   id = Column(Integer, primary_key=True)
   name = Column(String, nullable=False)
   filename = Column(String, nullable = False, unique = True)
-  lastfm_info = relationship("LastfmTrackInfo", uselist=False, backref="mpd_track")
+  lastfm_info = relationship("LastfmTrackInfo", uselist=False, backref="track")
   album_id = Column(Integer, ForeignKey('album.id'))
   artist_id = Column(Integer, ForeignKey('artist.id'))
 
@@ -89,6 +88,30 @@ class ScrobbleInfo(Base):
   title = Column(String)
   album = Column(String)
   artist = Column(String)
+
+  @hybrid_property
+  def title_insensitive(self):
+    return self.title.lower()
+
+  @title_insensitive.comparator
+  def title_insensitive(cls):
+    return CaseInsensitiveComparator(cls.title)
+
+  @hybrid_property
+  def artist_insensitive(self):
+    return self.artist.lower()
+
+  @artist_insensitive.comparator
+  def artist_insensitive(cls):
+    return CaseInsensitiveComparator(cls.artist)
+
+  @hybrid_property
+  def album_insensitive(self):
+    return self.album.lower()
+
+  @album_insensitive.comparator
+  def album_insensitive(cls):
+    return CaseInsensitiveComparator(cls.album)
 
 class Scrobble(Base):
   __tablename__ = 'scrobble'
