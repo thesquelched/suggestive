@@ -112,6 +112,30 @@ class LastFM(object):
       for track in recent['track']:
         yield track
 
+  def loved_tracks(self, user):
+    for resp in self.query_all('user.getLovedTracks', 'lovedtracks', user = user):
+      if 'lovedtracks' not in resp:
+        continue
+      
+      loved = resp['lovedtracks']
+      if 'track' not in loved or not isinstance(loved['track'], list):
+        continue
+
+      for track in loved['track']:
+        yield track
+
+  def banned_tracks(self, user):
+    for resp in self.query_all('user.getBannedTracks', 'bannedtracks', user = user):
+      if 'bannedtracks' not in resp:
+        continue
+      
+      banned = resp['bannedtracks']
+      if 'track' not in banned or not isinstance(banned['track'], list):
+        continue
+
+      for track in banned['track']:
+        yield track
+
   def artist_correction(self, artist):
     resp = self.query('artist.getCorrection', artist = artist)
 
