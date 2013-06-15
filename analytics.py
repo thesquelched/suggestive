@@ -6,6 +6,8 @@ from sqlalchemy import func, desc, asc
 class Suggestion(object):
   def __init__(self, album, reasons):
     self.album = album
+    self.loved = [track for track in album.tracks
+                  if track.lastfm_info and track.lastfm_info.loved]
     self.reasons = set(reasons)
 
 class Reason(object):
@@ -66,11 +68,14 @@ class Analytics(object):
       group_by(Album.id).\
       all()
 
-    p_love_album = dict()
+    p_love_album = list()
     for album, n_tracks, n_loved in results:
-      p_love_album[album] = 1 - choose(n_tracks, n_loved) * p_loved**n_loved * (1-p_loved)**(n_tracks-n_loved)
+      p_loved = 1 - choose(n_tracks, n_loved) * p_loved**n_loved * (1-p_loved)**(n_tracks-n_loved)
 
-    return sorted(list(p_love_album.items()), key = lambda p: p[1])
+      p_love_album.append((album, p_loved))
+
+    ordered = sorted(p_love_album, key = lambda p: p[1])
+    return [Suggestion(album, []) for album, _prob in ordered]
 
   def p_loved(self):
     n_tracks = self.session.query(Track).count()

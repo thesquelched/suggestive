@@ -73,7 +73,7 @@ class Application(object):
     logger.info('Update suggestions display')
     self.last_updated = datetime.now()
 
-    self.suggestions = self.anl.suggest_albums()
+    self.suggestions = self.anl.loved_order()
     self.list_view = self.suggestion_list()
     self.update_header()
     self.update_status('Idle')
@@ -182,7 +182,7 @@ class SelectableAlbum(urwid.WidgetWrap):
 
   def __init__(self, suggestion):
     self.album = album = suggestion.album
-    text = '{} - {}'.format(album.artist.name, album.name)
+    text = '{} - {} ({}/{} loved)'.format(album.artist.name, album.name, len(suggestion.loved), len(album.tracks))
     super(SelectableAlbum, self).__init__(
       urwid.SelectableIcon(text))
 
