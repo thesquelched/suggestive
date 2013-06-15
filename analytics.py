@@ -1,5 +1,5 @@
 from mstat import run
-from model import Album, Track, Scrobble
+from model import Artist, Album, Track, Scrobble, LastfmTrackInfo
 from sqlalchemy import func, desc, asc
 
 
@@ -23,6 +23,18 @@ class HasLovedTracks(Reason):
 NOT_PLAYED_RECENTLY = NotPlayedRecently()
 HAS_LOVED_TRACKS = HasLovedTracks()
 
+def choose(n, k):
+  if 0 <= k <= n:
+    ntok = 1
+    ktok = 1
+    for t in range(1, min(k, n-k)+1):
+      ntok *= n
+      ktok *= k
+      n -= 1
+    return ntok
+  else:
+    return 0
+
 class Analytics(object):
   def __init__(self, session):
     self.session = session
@@ -43,3 +55,27 @@ class Analytics(object):
       albums = not_played.limit(n_albums).all()
 
     return [Suggestion(album, [NOT_PLAYED_RECENTLY]) for album in albums]
+
+  def loved_order(self):
+    p_loved = self.p_loved()
+
+    results = self.session.query(Album).\
+      join(Track).\
+      outerjoin(LastfmTrackInfo).\
+      add_columns(func.count(Track.id), func.count(LastfmTrackInfo.id)).\
+      group_by(Album.id).\
+      all()
+
+    p_love_album = dict()
+    for album, n_tracks, n_loved in results:
+      p_love_album[album] = 1 - choose(n_tracks, n_loved) * p_loved**n_loved * (1-p_loved)**(n_tracks-n_loved)
+
+    return sorted(list(p_love_album.items()), key = lambda p: p[1])
+
+  def p_loved(self):
+    n_tracks = self.session.query(Track).count()
+    n_loved = self.session.query(LastfmTrackInfo).\
+      filter_by(loved = True).\
+      count()
+
+    return n_loved/n_tracks
