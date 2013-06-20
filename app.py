@@ -61,6 +61,7 @@ class Application(object):
         self.list_view = self.suggestion_list()
         self.header = urwid.Text('')
         self.status = urwid.Text('Idle')
+        self.footer = urwid.Pile([urwid.Divider('\u2500'), self.status])
 
         self.event_loop = self.main_loop()
 
@@ -113,12 +114,15 @@ class Application(object):
 
     def update_status(self, status):
         self.status.set_text(status)
+        self.footer = urwid.Pile([urwid.Divider('\u2500'), self.status])
 
     def dispatch(self, key):
         if key == 'q':
             raise urwid.ExitMainLoop()
         elif key == 'u':
             self.start_db_update()
+        elif key == 'r':
+            self.update_suggestions()
         elif key == '~':
             self.event_loop.screen.stop()
             call('ncmpcpp', shell=True)
@@ -154,7 +158,7 @@ class Application(object):
         main = urwid.Padding(self.list_view, left=2, right=2)
         middle = urwid.Filler(main, height=('relative', 100), valign='middle',
                               top=1, bottom=1)
-        top = urwid.Frame(middle, header=self.header, footer=self.status)
+        top = urwid.Frame(middle, header=self.header, footer=self.footer)
 
         return urwid.MainLoop(top, palette=[('reversed', 'standout', '')],
                               unhandled_input=self.dispatch)
@@ -172,6 +176,7 @@ class AlbumListCommands(urwid.CommandMap):
         'cursor max right': ('G', 'end'),
         'quit': ('q',),
         'update': ('u',),
+        'reload': ('r',),
         ENQUEUE: (' ',),
         PLAY: ('enter',),
     }
