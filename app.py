@@ -5,6 +5,8 @@ import mstat
 from analytics import Analytics, Suggestion
 from datetime import datetime
 from subprocess import call
+from itertools import chain
+import re
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -80,13 +82,21 @@ class Application(object):
 
   def enqueue_album(self, widget_, album):
     logger.info('Enqueue: {} - {}'.format(album.artist.name, album.name))
-    for track in album.tracks:
-      self.mpd.add(track.filename)
+    mpd_tracks = list(chain.from_iterable(self.mpd.listallinfo(track.filename)
+                                          for track in album.tracks))
+    for i, track in enumerate(mpd_tracks):
+        trackno = str(track.get('track', i))
+        trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
+        track['track'] = int(trackno)
+
+    sorted_tracks = sorted(mpd_tracks, key = lambda track: track['track'])
+    ids = [self.mpd.addid(track['file']) for track in sorted_tracks]
+    return ids
 
   def play_album(self, widget_, album):
     logger.info('Play: {} - {}'.format(album.artist.name, album.name))
     self.mpd.clear()
-    ids = [self.mpd.addid(track.filename) for track in album.tracks]
+    ids = self.enqueue_album(widget_, album)
     if ids:
       self.mpd.playid(ids[0])
 
