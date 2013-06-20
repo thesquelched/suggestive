@@ -27,7 +27,7 @@ def get(data, *keys, default = None):
   key, rest = keys[0], keys[1:]
   if key not in data:
     return default
-  
+
   return get(data[key], rest, default = default)
 
 class ScrobbleLoader(object):
@@ -320,7 +320,6 @@ def update_database(session, mpdclient, lastfm, config):
   logger.info('Inserted {} albums'.format(new_albums))
   logger.info('Inserted {} tracks'.format(new_tracks))
 
-  # TODO: delete old scrobbles here
   scrobbles_start = session.query(Scrobble).count()
 
   scrobble_loader = ScrobbleLoader(lastfm, config)
@@ -329,6 +328,9 @@ def update_database(session, mpdclient, lastfm, config):
   new_scrobbles = session.query(Scrobble).count() - scrobbles_start
 
   logger.info('Inserted {} scrobbles'.format(new_scrobbles))
+
+  info_loader = TrackInfoLoader(lastfm, config)
+  info_loader.load(session)
 
 def main():
   parser = argparse.ArgumentParser(description='Suggest lastfm stuff')
