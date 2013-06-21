@@ -4,26 +4,11 @@ from sqlalchemy import func, desc, asc
 
 
 class Suggestion(object):
-  def __init__(self, album, reasons):
+  def __init__(self, album):
     self.album = album
     self.loved = [track for track in album.tracks
                   if track.lastfm_info and track.lastfm_info.loved]
-    self.reasons = set(reasons)
 
-class Reason(object):
-  def __str__(self):
-    return self.__class__.__doc__
-
-class NotPlayedRecently(Reason):
-  """Album was not played recently"""
-  pass
-
-class HasLovedTracks(Reason):
-  """Album has loved tracks"""
-  pass
-
-NOT_PLAYED_RECENTLY = NotPlayedRecently()
-HAS_LOVED_TRACKS = HasLovedTracks()
 
 def choose(n, k):
   if 0 <= k <= n:
@@ -36,6 +21,7 @@ def choose(n, k):
     return ntok
   else:
     return 0
+
 
 class Analytics(object):
   def __init__(self, session):
@@ -56,7 +42,7 @@ class Analytics(object):
     else:
       albums = not_played.limit(n_albums).all()
 
-    return [Suggestion(album, [NOT_PLAYED_RECENTLY]) for album in albums]
+    return [Suggestion(album) for album in albums]
 
   def loved_order(self):
     p_loved = self.p_loved()
@@ -75,7 +61,7 @@ class Analytics(object):
       p_love_album.append((album, p_loved))
 
     ordered = sorted(p_love_album, key = lambda p: p[1])
-    return [Suggestion(album, []) for album, _prob in ordered]
+    return [Suggestion(album) for album, _prob in ordered]
 
   def p_loved(self):
     n_tracks = self.session.query(Track).count()
