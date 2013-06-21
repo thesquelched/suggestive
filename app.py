@@ -81,8 +81,8 @@ class Application(object):
         logger.info('Update suggestions display')
         self.last_updated = datetime.now()
 
-        #self.suggestions = self.anl.loved_order()
-        self.suggestions = self.anl.suggest_albums()
+        self.suggestions = self.anl.loved_order()
+        #self.suggestions = self.anl.suggest_albums()
         self.list_view = self.suggestion_list()
         self.update_header()
         self.update_status('Idle')

@@ -1,5 +1,10 @@
 from model import Album, Track, Scrobble, LastfmTrackInfo
 from sqlalchemy import func
+import logging
+
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class Suggestion(object):
@@ -19,9 +24,25 @@ def choose(n, k):
             ntok *= n
             ktok *= k
             n -= 1
-        return ntok
+        return ntok // ktok
     else:
         return 0
+
+
+def comb(N, k):
+    if (k > N) or (N < 0) or (k < 0):
+        return 0
+    N, k = map(long, (N, k))
+    top = N
+    val = 1
+    while (top > (N - k)):
+        val *= top
+        top -= 1
+    n = 1
+    while (n < k + 1):
+        val /= n
+        n += 1
+    return val
 
 
 class Analytics(object):
@@ -63,6 +84,9 @@ class Analytics(object):
             p_love_album.append((album, p_loved))
 
         ordered = sorted(p_love_album, key=lambda p: p[1])
+        with open('ordered.csv', 'w') as handle:
+            for album, prob in ordered:
+                handle.write('"{} - {}",{}\n'.format(album.artist.name, album.name, prob))
         return [Suggestion(album) for album, _prob in ordered]
 
     def p_loved(self):
