@@ -259,19 +259,26 @@ class AlbumListCommands(urwid.CommandMap):
 
 class AlbumSearcher(object):
 
-    def __init__(self, pattern, items, current, reverse=False):
+    def __init__(self, pattern, items, current):
         self.pattern = pattern
-        self.reverse = bool(reverse)
 
         self.matches, self.match_index = self.search(items, current)
+
+    def _order_items(self, items):
+        raise NotImplementedError
+
+    def _current_position(self, items, current):
+        raise NotImplementedError
+
+    def _indices(items):
+        raise NotImplementedError
 
     def current_match(self):
         return self.matches[self.match_index]
 
     def search(self, items, current):
-        if self.reverse:
-            items = list(reversed(items))
-            current = len(items) - current - 1
+        current = self._current_position(items, current)
+        items = self._order_items(items)
 
         ordered = chain(
             islice(items, current, None),
@@ -282,23 +289,15 @@ class AlbumSearcher(object):
         search_items = ('{} - {}'.format(album.artist.name, album.name)
                         for album in albums)
 
-        indices = [
-            i for i, item in enumerate(search_items)
-            if re.search(self.pattern, item, re.I) is not None
-        ]
-
-        if self.reverse:
-            indices = [len(items) - index - 1 for index in indices]
-
+        indices = self._indices(search_items)
         matches = [
-            (current + index) % len(items)
-            for index in indices
+            (current + index) % len(items) for index in indices
         ]
 
         if not matches:
             raise ValueError('No matches found')
 
-        if matches[0] == current and len(self.matches) > 1:
+        if matches[0] == current and len(matches) > 1:
             match_index = 1
         else:
             match_index = 0
@@ -347,6 +346,41 @@ class AlbumSearcher(object):
         #self.match_index = index
 
 
+class ForwardAlbumSearcher(AlbumSearcher):
+
+    @classmethod
+    def _order_items(self, items):
+        return list(items)
+
+    @classmethod
+    def _current_position(self, _items, current):
+        return current
+
+    def _indices(self, items):
+        return [
+            i for i, item in enumerate(items)
+            if re.search(self.pattern, item, re.I) is not None
+        ]
+
+
+class ReverseAlbumSearcher(AlbumSearcher):
+
+    @classmethod
+    def _order_items(self, items):
+        return list(reversed(items))
+
+    @classmethod
+    def _current_position(self, items, current):
+        return len(items) - current - 1
+
+    def _indices(self, items):
+        n_items = len(items)
+        return [
+            (n_items - i - 1) for i, item in enumerate(items)
+            if re.search(self.pattern, item, re.I) is not None
+        ]
+
+
 class AlbumList(urwid.ListBox):
 
     def __init__(self, *args, **kwArgs):
@@ -358,9 +392,11 @@ class AlbumList(urwid.ListBox):
     def search(self, pattern, reverse=False):
         self.searcher = None
 
+        searcher = ReverseAlbumSearcher if reverse else ForwardAlbumSearcher
+
         try:
-            self.searcher = AlbumSearcher(
-                pattern, self.body, self.focus_position, reverse=reverse)
+            self.searcher = searcher(
+                pattern, self.body, self.focus_position)
             self.set_focus(self.searcher.current_match())
             return len(self.searcher.matches)
         except ValueError as err:
