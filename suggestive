@@ -312,10 +312,10 @@ class AlbumList(urwid.ListBox):
 
         return len(self.matches)
 
-    def find_closest_match(self, reverse=False):
+    def find_closest_match(self, backward=False):
         current = self.focus_position
 
-        if reverse:
+        if backward:
             return next(
                 (len(self.matches) - idx - 1 for idx, position
                  in enumerate(reversed(self.matches))
@@ -329,13 +329,13 @@ class AlbumList(urwid.ListBox):
                 0
             )
 
-    def next_match(self, reverse=False):
+    def next_match(self, backward=False):
         current = self.focus_position
 
         if current != self.matches[self.match_index]:
-            index = self.find_closest_match(reverse=reverse)
+            index = self.find_closest_match(backward=backward)
         else:
-            index = self.match_index + (-1 if reverse else 1)
+            index = self.match_index + (-1 if backward else 1)
 
         if index < 0:
             return len(self.matches) - 1
@@ -344,12 +344,12 @@ class AlbumList(urwid.ListBox):
         else:
             return index
 
-    def next_search_item(self, reverse=False):
+    def next_search_item(self, backward=False):
         if not self.matches or self.match_index is None:
             logger.debug('No search found')
             return False
 
-        index = self.next_match(reverse=reverse)
+        index = self.next_match(backward=backward)
 
         self.set_focus(self.matches[index])
         self.match_index = index
@@ -357,8 +357,8 @@ class AlbumList(urwid.ListBox):
     def keypress(self, size, key):
         cmd = self._command_map[key]
         if cmd in (SEARCH_NEXT, SEARCH_PREV):
-            reverse = (cmd == SEARCH_PREV)
-            self.next_search_item(reverse=reverse)
+            backward = (cmd == SEARCH_PREV)
+            self.next_search_item(backward=backward)
         elif cmd in (GO_TO_TOP, GO_TO_BOTTOM):
             self.set_focus(0 if cmd == GO_TO_TOP else len(self.body) - 1)
         else:
