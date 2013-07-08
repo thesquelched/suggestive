@@ -257,64 +257,57 @@ class AlbumListCommands(urwid.CommandMap):
             self.__setitem__(key, command)
 
 
-class AlbumList(urwid.ListBox):
+class AlbumSearcher(object):
 
-    def __init__(self, *args, **kwArgs):
-        super(AlbumList, self).__init__(*args, **kwArgs)
-        self._command_map = AlbumListCommands()
+    def __init__(self, pattern, items, current, reverse=False):
+        self.pattern = pattern
+        self.reverse = bool(reverse)
 
-        self.matches = []
-        self.match_index = 0
+        self.matches, self.match_index = self.search(items, current)
 
-    def search(self, pattern, reverse=False):
-        current = self.focus_position
+    def current_match(self):
+        return self.matches[self.match_index]
 
-        if reverse:
-            body = list(reversed(self.body))
-            current = len(self.body) - current - 1
-        else:
-            body = self.body
+    def search(self, items, current):
+        if self.reverse:
+            items = list(reversed(items))
+            current = len(items) - current - 1
 
         ordered = chain(
-            islice(body, current, None),
-            islice(body, 0, current)
+            islice(items, current, None),
+            islice(items, 0, current)
         )
 
         albums = (item.original_widget.album for item in ordered)
-
-        items = ('{} - {}'.format(album.artist.name, album.name)
-                 for album in albums)
+        search_items = ('{} - {}'.format(album.artist.name, album.name)
+                        for album in albums)
 
         indices = [
-            i for i, item in enumerate(items)
-            if re.search(pattern, item, re.I) is not None
+            i for i, item in enumerate(search_items)
+            if re.search(self.pattern, item, re.I) is not None
         ]
 
-        if reverse:
-            indices = [len(body) - index - 1 for index in indices]
+        if self.reverse:
+            indices = [len(items) - index - 1 for index in indices]
 
-        self.matches = [
-            (current + index) % len(body)
+        matches = [
+            (current + index) % len(items)
             for index in indices
         ]
 
-        if self.matches:
-            index = self.matches[0]
-            self.match_index = 0
+        if not matches:
+            raise ValueError('No matches found')
 
-            if index == current and len(self.matches) > 1:
-                index = self.matches[1]
-                self.match_index = 1
+        if matches[0] == current and len(self.matches) > 1:
+            match_index = 1
+        else:
+            match_index = 0
 
-            self.set_focus(index)
+        logger.debug('{} matches found'.format(len(matches)))
 
-        logger.debug('{} matches found'.format(len(self.matches)))
+        return matches, match_index
 
-        return len(self.matches)
-
-    def find_closest_match(self, backward=False):
-        current = self.focus_position
-
+    def find_closest_match(self, current, backward=False):
         if backward:
             return next(
                 (len(self.matches) - idx - 1 for idx, position
@@ -329,11 +322,9 @@ class AlbumList(urwid.ListBox):
                 0
             )
 
-    def next_match(self, backward=False):
-        current = self.focus_position
-
+    def next_match(self, current, backward=False):
         if current != self.matches[self.match_index]:
-            index = self.find_closest_match(backward=backward)
+            index = self.find_closest_match(current, backward=backward)
         else:
             index = self.match_index + (-1 if backward else 1)
 
@@ -344,15 +335,48 @@ class AlbumList(urwid.ListBox):
         else:
             return index
 
-    def next_search_item(self, backward=False):
+    def next_search_item(self, current, backward=False):
         if not self.matches or self.match_index is None:
             logger.debug('No search found')
-            return False
+            return None
 
-        index = self.next_match(backward=backward)
+        index = self.next_match(current, backward=backward)
+        return self.matches[index]
 
-        self.set_focus(self.matches[index])
-        self.match_index = index
+        #self.set_focus(self.matches[index])
+        #self.match_index = index
+
+
+class AlbumList(urwid.ListBox):
+
+    def __init__(self, *args, **kwArgs):
+        super(AlbumList, self).__init__(*args, **kwArgs)
+        self._command_map = AlbumListCommands()
+
+        self.searcher = None
+
+    def search(self, pattern, reverse=False):
+        self.searcher = None
+
+        try:
+            self.searcher = AlbumSearcher(
+                pattern, self.body, self.focus_position, reverse=reverse)
+            self.set_focus(self.searcher.current_match())
+            return len(self.searcher.matches)
+        except ValueError as err:
+            logger.info('No matches found')
+            logger.debug('Exception: {}'.format(err))
+            return 0
+
+    def next_search_item(self, backward=False):
+        if self.searcher is None:
+            logger.debug('No search found')
+            return
+
+        index = self.searcher.next_search_item(
+            self.focus_position, backward=backward)
+
+        self.set_focus(index)
 
     def keypress(self, size, key):
         cmd = self._command_map[key]
