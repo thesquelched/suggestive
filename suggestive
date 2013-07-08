@@ -351,8 +351,8 @@ class AlbumList(urwid.ListBox):
 
     def __init__(self, *args, **kwArgs):
         super(AlbumList, self).__init__(*args, **kwArgs)
-        self._command_map = AlbumListCommands()
 
+        self._command_map = AlbumListCommands()
         self.searcher = None
 
     def search(self, pattern, reverse=False):
