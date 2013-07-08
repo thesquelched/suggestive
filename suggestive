@@ -58,8 +58,6 @@ class Application(object):
 
         self.suggestions = []
         self.last_updated = datetime.now()
-        self.page_size = 10
-        self.page = 0
 
         # urwid stuff
         self.list_view = self.suggestion_list()
@@ -70,9 +68,6 @@ class Application(object):
         self.top = urwid.Frame(self.content)
 
         self.event_loop = self.main_loop()
-
-    def num_pages(self):
-        return len(self.suggestions) // self.page_size
 
     def start_db_update(self):
         self.update_status('Updating database')
