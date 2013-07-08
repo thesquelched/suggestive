@@ -17,6 +17,8 @@ ENQUEUE = 'enqueue'
 PLAY = 'play'
 SEARCH_NEXT = 'search_next'
 SEARCH_PREV = 'search_prev'
+GO_TO_TOP = 'cursor max left'
+GO_TO_BOTTOM = 'cursor max right'
 
 #
 # Threads
@@ -219,11 +221,11 @@ class AlbumListCommands(urwid.CommandMap):
         'cursor right': ('l', 'right'),
         'cursor page up': ('ctrl b', 'page up'),
         'cursor page down': ('ctrl f', 'page down'),
-        'cursor max left': ('g', 'home'),
-        'cursor max right': ('G', 'end'),
         'quit': ('q',),
         'update': ('u',),
         'reload': ('r',),
+        GO_TO_TOP: ('g', 'home'),
+        GO_TO_BOTTOM: ('G', 'end'),
         SEARCH_NEXT: ('n',),
         SEARCH_PREV: ('N',),
         ENQUEUE: (' ',),
@@ -326,10 +328,11 @@ class AlbumList(urwid.ListBox):
         self.match_index = index
 
     def keypress(self, size, key):
-        if self._command_map[key] == SEARCH_NEXT:
-            self.next_search_item()
-        elif self._command_map[key] == SEARCH_PREV:
-            self.next_search_item(reverse=True)
+        cmd = self._command_map[key]
+        if cmd in (SEARCH_NEXT, SEARCH_PREV):
+            self.next_search_item(reverse=(cmd == SEARCH_PREV))
+        elif cmd in (GO_TO_TOP, GO_TO_BOTTOM):
+            self.set_focus(0 if cmd == GO_TO_TOP else len(self.body) - 1)
         else:
             return super(AlbumList, self).keypress(size, key)
 
