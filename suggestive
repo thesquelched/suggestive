@@ -63,9 +63,11 @@ class Application(object):
 
         # urwid stuff
         self.list_view = self.suggestion_list()
-        self.header = urwid.Text('')
-        self.status = urwid.Text('Idle')
-        self.footer = urwid.Pile([urwid.Divider('\u2500'), self.status])
+
+        main = urwid.Padding(self.list_view, left=2, right=2)
+        self.content = urwid.Filler(main, height=('relative', 100),
+                                    valign='middle', top=1, bottom=1)
+        self.top = urwid.Frame(self.content)
 
         self.event_loop = self.main_loop()
 
@@ -84,12 +86,19 @@ class Application(object):
     def update_suggestions(self, *_args):
         logger.info('Update suggestions display')
         self.last_updated = datetime.now()
+        self.suggestions = self.get_suggestions()
 
-        self.suggestions = self.anl.loved_order()
-        # self.suggestions = self.anl.suggest_albums()
         self.list_view = self.suggestion_list()
-        self.update_header()
-        self.update_status('Idle')
+        padded = urwid.Padding(self.list_view, left=2, right=2)
+        self.content.set_body(padded)
+
+    def get_suggestions(self):
+        return self.anl.loved_order()
+
+        # self.suggestions = self.anl.suggest_albums()
+        #self.list_view = self.suggestion_list()
+        #self.update_header()
+        #self.update_status('Idle')
 
     def enqueue_album(self, widget_, album):
         logger.info('Enqueue: {} - {}'.format(album.artist.name, album.name))
@@ -114,11 +123,18 @@ class Application(object):
 
     def update_header(self):
         timestamp = self.last_updated.strftime('%Y-%m-%d %H:%M:%S')
-        self.header.set_text('Last updated: {}'.format(timestamp))
+        upd = urwid.Text('Last updated: {}'.format(timestamp))
+        header = urwid.Pile([upd, urwid.Divider('\u2500')])
+        self.top.set_header(header)
+
+        return header
 
     def update_status(self, status):
-        self.status.set_text(status)
-        self.footer = urwid.Pile([urwid.Divider('\u2500'), self.status])
+        status = urwid.Text(status)
+        footer = urwid.Pile([urwid.Divider('\u2500'), status])
+        self.top.set_footer(footer)
+
+        return footer
 
     def dispatch(self, key):
         if key == 'q':
@@ -159,12 +175,7 @@ class Application(object):
         self.update_status('Idle')
         # self.start_db_update()
 
-        main = urwid.Padding(self.list_view, left=2, right=2)
-        middle = urwid.Filler(main, height=('relative', 100), valign='middle',
-                              top=1, bottom=1)
-        top = urwid.Frame(middle, header=self.header, footer=self.footer)
-
-        return urwid.MainLoop(top, palette=[('reversed', 'standout', '')],
+        return urwid.MainLoop(self.top, palette=[('reversed', 'standout', '')],
                               unhandled_input=self.dispatch)
 
 
