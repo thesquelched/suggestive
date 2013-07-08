@@ -15,6 +15,8 @@ logger.addHandler(logging.NullHandler())
 
 ENQUEUE = 'enqueue'
 PLAY = 'play'
+SEARCH_NEXT = 'search_next'
+SEARCH_PREV = 'search_prev'
 
 #
 # Threads
@@ -58,6 +60,9 @@ class Application(object):
 
         self.suggestions = []
         self.last_updated = datetime.now()
+
+        self.search_matches = []
+        self.current_search_index = None
 
         # urwid stuff
         self.list_view = self.suggestion_list()
@@ -147,9 +152,13 @@ class Application(object):
             self.event_loop.screen.start()
         elif key == '/':
             self.start_search()
+        else:
+            return False
+
+        return True
 
     def start_search(self):
-        self.edit = ListSearcher('Search:')
+        self.edit = ListSearcher('Search: ')
         urwid.connect_signal(self.edit, 'done', self.search_done)
         footer = urwid.Pile([urwid.Divider('\u2500'), self.edit])
         self.top.set_footer(footer)
@@ -161,55 +170,19 @@ class Application(object):
 
         if pattern is not None:
             logger.info('SEARCH FOR: {}'.format(pattern))
-            self.search(pattern)
+            found = self.list_view.search(pattern)
 
-        self.update_status('Idle')
+            if found:
+                status = 'Found {} matches'.format(found)
+            else:
+                status = 'No items matching {}'.format(pattern)
 
-    def search(self, pattern, reverse=False):
-        current = self.list_view.focus_position
-        logger.debug('Current position: {}'.format(current))
-        if reverse:
-            logger.debug('Reverse search')
-            suggestions = reversed(self.suggestions)
-            current = len(self.suggestions) - current
+            self.update_status(status)
         else:
-            suggestions = self.suggestions
-
-        ordered = chain(
-            islice(suggestions, current, None),
-            islice(suggestions, 0, current)
-        )
-
-        items = ('{} - {}'.format(sug.album.artist.name, sug.album.name)
-                 for sug in ordered)
-
-        indices = [
-            i for i, item in enumerate(items)
-            if re.search(pattern, item, re.I) is not None
-        ]
-
-        if reverse:
-            indices = [len(self.suggestions) - index for index in indices]
-
-        self.search_matches = [
-            (current + index) % len(self.suggestions)
-            for index in indices
-        ]
-
-        if self.search_matches:
-            index = self.search_matches[0]
-            if index == current and len(self.search_matches) > 1:
-                index = self.search_matches[1]
-
-            logger.debug('Found item at index {}'.format(index))
-            self.list_view.set_focus(index)
+            self.update_status('Idle')
 
     def suggestion_list(self):
-        if not self.suggestions:
-            body = [urwid.Text('MPD database is empty')]
-        else:
-            body = []
-
+        body = []
         for suggestion in self.suggestions:
             item = SelectableAlbum(suggestion)
 
@@ -219,9 +192,14 @@ class Application(object):
 
             body.append(urwid.AttrMap(item, None, focus_map='reversed'))
 
-        box = urwid.ListBox(urwid.SimpleFocusListWalker(body))
-        box._command_map = AlbumListCommands()
-        return box
+        if not body:
+            body = [urwid.Text('MPD database is empty')]
+
+        albumlist = AlbumList(urwid.SimpleFocusListWalker(body))
+        return albumlist
+        #box = urwid.ListBox(urwid.SimpleFocusListWalker(body))
+        #box._command_map = AlbumListCommands()
+        #return box
 
     def main_loop(self):
         logger.info('Starting event loop')
@@ -246,6 +224,8 @@ class AlbumListCommands(urwid.CommandMap):
         'quit': ('q',),
         'update': ('u',),
         'reload': ('r',),
+        SEARCH_NEXT: ('n',),
+        SEARCH_PREV: ('N',),
         ENQUEUE: (' ',),
         PLAY: ('enter',),
     }
@@ -271,6 +251,92 @@ class AlbumListCommands(urwid.CommandMap):
 
         for key, command in bindings.items():
             self.__setitem__(key, command)
+
+
+class AlbumList(urwid.ListBox):
+
+    def __init__(self, *args, **kwArgs):
+        super(AlbumList, self).__init__(*args, **kwArgs)
+        self._command_map = AlbumListCommands()
+
+        self.matches = []
+        self.match_index = 0
+
+    def search(self, pattern, reverse=False):
+        current = self.focus_position
+
+        if reverse:
+            body = reversed(self.body)
+            current = len(self.body) - current
+        else:
+            body = self.body
+
+        ordered = chain(
+            islice(body, current, None),
+            islice(body, 0, current)
+        )
+
+        albums = (item.original_widget.album for item in ordered)
+
+        items = ('{} - {}'.format(album.artist.name, album.name)
+                 for album in albums)
+
+        indices = [
+            i for i, item in enumerate(items)
+            if re.search(pattern, item, re.I) is not None
+        ]
+
+        if reverse:
+            indices = [len(body) - index for index in indices]
+
+        self.matches = [
+            (current + index) % len(body)
+            for index in indices
+        ]
+
+        if self.matches:
+            index = self.matches[0]
+            self.match_index = 0
+
+            if index == current and len(self.matches) > 1:
+                index = self.matches[1]
+                self.match_index = 1
+
+            self.set_focus(index)
+
+        logger.debug('{} matches found'.format(len(self.matches)))
+
+        return len(self.matches)
+
+    def next_search_item(self, reverse=False):
+        if not self.matches or self.match_index is None:
+            logger.debug('No search found')
+            return False
+
+        if reverse:
+            index = self.match_index - 1
+            if index < 0:
+                index = len(self.matches) - 1
+        else:
+            index = self.match_index + 1
+            if index >= len(self.matches):
+                index = 0
+
+        self.set_focus(self.matches[index])
+        self.match_index = index
+
+    def keypress(self, size, key):
+        if self._command_map[key] == SEARCH_NEXT:
+            self.next_search_item()
+        elif self._command_map[key] == SEARCH_PREV:
+            self.next_search_item(reverse=True)
+        else:
+            return super(AlbumList, self).keypress(size, key)
+
+        # Necessary to get list focus to redraw
+        super(AlbumList, self).keypress(size, None)
+
+        return True
 
 
 class SelectableAlbum(urwid.WidgetWrap):
