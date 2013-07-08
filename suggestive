@@ -152,25 +152,27 @@ class Application(object):
             self.event_loop.screen.stop()
             call('ncmpcpp', shell=True)
             self.event_loop.screen.start()
-        elif key == '/':
-            self.start_search()
+        elif key in ('/', '?'):
+            reverse = (key == '?')
+            self.start_search(reverse=reverse)
         else:
             return False
 
         return True
 
-    def start_search(self):
+    def start_search(self, reverse=False):
         self.edit = ListSearcher('Search: ')
-        urwid.connect_signal(self.edit, 'done', self.search_done)
+        urwid.connect_signal(self.edit, 'done', self.search_done, reverse)
         footer = urwid.Pile([urwid.Divider('\u2500'), self.edit])
         self.top.set_footer(footer)
         self.top.set_focus('footer')
 
-    def search_done(self, pattern):
+    def search_done(self, pattern, reverse=False):
+        logger.debug('Reverse: {}'.format(reverse))
         self.top.set_focus('body')
         urwid.disconnect_signal(self, self.edit, 'done', self.search_done)
 
-        if pattern is not None:
+        if pattern:
             logger.info('SEARCH FOR: {}'.format(pattern))
             found = self.list_view.search(pattern)
 
@@ -397,12 +399,12 @@ class ListSearcher(urwid.Edit):
     def keypress(self, size, key):
         if key == 'enter':
             urwid.emit_signal(self, 'done', self.get_edit_text())
-            return
         elif key == 'esc':
             urwid.emit_signal(self, 'done', None)
-            return
+        else:
+            super(ListSearcher, self).keypress(size, key)
 
-        super(ListSearcher, self).keypress(size, key)
+        return True
 
 
 def main():
