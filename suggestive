@@ -16,9 +16,9 @@ logger.addHandler(logging.NullHandler())
 ENQUEUE = 'enqueue'
 PLAY = 'play'
 
-######################################################################
+#
 # Threads
-######################################################################
+#
 
 
 class AppThread(threading.Thread):
@@ -26,6 +26,7 @@ class AppThread(threading.Thread):
 
 
 class DatabaseUpdateThread(AppThread):
+
     def __init__(self, conf, callback, *args, **kwArgs):
         super(DatabaseUpdateThread, self).__init__(*args, **kwArgs)
         self.callback = callback
@@ -41,12 +42,13 @@ class DatabaseUpdateThread(AppThread):
         (self.callback)()
 
 
-######################################################################
+#
 # Main Functions
-######################################################################
+#
 
 
 class Application(object):
+
     def __init__(self, conf):
         self.conf = conf
 
@@ -84,7 +86,7 @@ class Application(object):
         self.last_updated = datetime.now()
 
         self.suggestions = self.anl.loved_order()
-        #self.suggestions = self.anl.suggest_albums()
+        # self.suggestions = self.anl.suggest_albums()
         self.list_view = self.suggestion_list()
         self.update_header()
         self.update_status('Idle')
@@ -155,7 +157,7 @@ class Application(object):
         self.update_suggestions()
         self.update_header()
         self.update_status('Idle')
-        #self.start_db_update()
+        # self.start_db_update()
 
         main = urwid.Padding(self.list_view, left=2, right=2)
         middle = urwid.Filler(main, height=('relative', 100), valign='middle',
