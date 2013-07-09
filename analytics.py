@@ -56,7 +56,7 @@ class Analytics(object):
         return [Suggestion(album) for album in albums]
 
     def loved_order(self):
-        p_loved = self.p_loved()
+        pct_loved = self.p_loved()
 
         results = self.session.query(Album).\
             join(Track).\
@@ -66,17 +66,24 @@ class Analytics(object):
             all()
 
         p_love_album = list()
+        handle = open('loved.csv', 'w')
         for album, n_tracks, n_loved in results:
-            p_loved = (1 - choose(n_tracks, n_loved) * p_loved ** n_loved
-                       * (1 - p_loved) ** (n_tracks - n_loved))
+            p_loved = (choose(n_tracks, n_loved) * pct_loved ** n_loved
+                       * (1 - pct_loved) ** (n_tracks - n_loved))
+            handle.write('"{} - {}",{},{},{}\n'.format(
+                album.artist.name, album.name, n_tracks, n_loved, p_loved))
 
             p_love_album.append((album, p_loved))
 
+        handle.close()
         ordered = sorted(p_love_album, key=lambda p: p[1])
-        with open('ordered.csv', 'w') as handle:
-            for album, prob in ordered:
-                handle.write('"{} - {}",{}\n'.format(
-                    album.artist.name, album.name, prob))
+
+        # TODO: Remove this
+        #with open('ordered.csv', 'w') as handle:
+        #    for album, prob in ordered:
+        #        handle.write('"{} - {}",{}\n'.format(
+        #            album.artist.name, album.name, prob))
+
         return [Suggestion(album) for album, _prob in ordered]
 
     def p_loved(self):
