@@ -1,11 +1,10 @@
-from sqlalchemy import (create_engine, func, Column, Integer, String,
+from sqlalchemy import (func, Column, Integer, String,
                         ForeignKey, DateTime, Boolean)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, backref
 from sqlalchemy.ext.hybrid import hybrid_property, Comparator
 
 Base = declarative_base()
-engine = create_engine('sqlite:///:memory:', echo=False)
 Session = sessionmaker()
 
 
