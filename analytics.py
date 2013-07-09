@@ -8,6 +8,7 @@ logger.addHandler(logging.NullHandler())
 
 
 class Suggestion(object):
+
     def __init__(self, album):
         self.album = album
         self.loved = [
@@ -16,23 +17,10 @@ class Suggestion(object):
         ]
 
 
-def choose(n, k):
-    if 0 <= k <= n:
-        ntok = 1
-        ktok = 1
-        for t in range(1, min(k, n - k) + 1):
-            ntok *= n
-            ktok *= k
-            n -= 1
-        return ntok // ktok
-    else:
-        return 0
-
-
-def comb(N, k):
+def choose(N, k):
     if (k > N) or (N < 0) or (k < 0):
         return 0
-    N, k = map(long, (N, k))
+    N, k = (int(N), int(k))
     top = N
     val = 1
     while (top > (N - k)):
@@ -46,6 +34,7 @@ def comb(N, k):
 
 
 class Analytics(object):
+
     def __init__(self, session):
         self.session = session
 
@@ -86,7 +75,8 @@ class Analytics(object):
         ordered = sorted(p_love_album, key=lambda p: p[1])
         with open('ordered.csv', 'w') as handle:
             for album, prob in ordered:
-                handle.write('"{} - {}",{}\n'.format(album.artist.name, album.name, prob))
+                handle.write('"{} - {}",{}\n'.format(
+                    album.artist.name, album.name, prob))
         return [Suggestion(album) for album, _prob in ordered]
 
     def p_loved(self):
