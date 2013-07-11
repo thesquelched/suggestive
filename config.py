@@ -35,14 +35,16 @@ class Config(object):
             # api_key
         ),
         appearance=dict(
-          album_fg='black',
-          album_bg='white',
-          album_focus_fg='white',
-          album_focus_bg='light blue',
-          status_fg='bold,white',
-          status_bg='black',
-          header_fg='bold,black',
-          header_bg='light green',
+            album_fg='black',
+            album_bg='white',
+
+            album_focus_bg='#0ff',
+            album_focus_fg='#000',
+
+            header_fg='#000',
+            header_bg='#08f',
+            status_fg='#000',
+            status_bg='#08f',
         ),
     )
 
