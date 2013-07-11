@@ -227,7 +227,8 @@ class Application(object):
         mainloop = urwid.MainLoop(
             self.top,
             palette=self.setup_palette(),
-            unhandled_input=self.dispatch
+            unhandled_input=self.dispatch,
+            handle_mouse=False,
         )
 
         self.setup_term(mainloop.screen)
