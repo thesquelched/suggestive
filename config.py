@@ -9,29 +9,14 @@ CONFIG_PATHS = [
     '/etc/suggestive.conf',
 ]
 
-FOREGROUND_COLORS = [
-    'black',
-    'dark red',
-    'dark green',
-    'brown',
-    'dark blue',
-    'dark magenta',
-    'dark cyan',
-    'light gray',
-    'dark gray',
-    'light red',
-    'light green',
-    'yellow',
-    'light blue',
-    'light magenta',
-    'light cyan',
-    'white',
-]
-
 
 def expand(path):
     """Expand a unix path"""
     return expanduser(expandvars(path))
+
+
+def palette(name, color):
+    return (name, color[0], color[1], '', color[0], color[1])
 
 
 class Config(object):
@@ -54,6 +39,14 @@ class Config(object):
             # api_key
         ),
         appearance=dict(
+          album_fg='black',
+          album_bg='white',
+          album_focus_fg='white',
+          album_focus_bg='light blue',
+          status_fg='bold,white',
+          status_bg='black',
+          header_fg='bold,black',
+          header_bg='light green',
         ),
     )
 
@@ -97,3 +90,20 @@ class Config(object):
     def use_256_colors(self):
         """Return True if the terminal should be set to 256 colors"""
         return self.parser.getboolean('general', 'highcolor')
+
+    def palette(self):
+        """Return the terminal color palette"""
+        colors = self.parser['appearance']
+
+        album = (colors['album_fg'], colors['album_bg'])
+        album_focus = (colors['album_focus_fg'], colors['album_focus_bg'])
+        header = (colors['header_fg'], colors['header_bg'])
+        status = (colors['status_fg'], colors['status_bg'])
+
+        return [
+            palette(None, album),
+            palette('album', album),
+            palette('focus album', album_focus),
+            palette('status', status),
+            palette('header', header),
+        ]

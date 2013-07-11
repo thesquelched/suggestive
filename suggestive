@@ -1,4 +1,4 @@
-#! /usr/bin/python3.2
+#! /usr/bin/python3
 
 import urwid
 import logging
@@ -205,19 +205,9 @@ class Application(object):
 
         albumlist = AlbumList(urwid.SimpleFocusListWalker(body))
         return albumlist
-        #box = urwid.ListBox(urwid.SimpleFocusListWalker(body))
-        #box._command_map = AlbumListCommands()
-        #return box
 
     def setup_palette(self):
-        palette = [
-            ('album', 'black', 'white', '', 'black', 'white'),
-            ('focus album', 'black', 'yellow', '', 'black', 'yellow'),
-            ('status', 'bold,white', 'black', '', 'bold,white', 'black'),
-            ('header', 'bold,black', 'light green', '', 'bold,black', 'light green'),
-        ]
-
-        return palette
+        return self.conf.palette()
 
     def setup_term(self, screen):
         colormode = 256 if self.conf.use_256_colors() else 88
@@ -251,6 +241,7 @@ class AlbumListCommands(urwid.CommandMap):
         'quit': ('q',),
         'update': ('u',),
         'reload': ('r',),
+
         GO_TO_TOP: ('g', 'home'),
         GO_TO_BOTTOM: ('G', 'end'),
         SEARCH_NEXT: ('n',),
