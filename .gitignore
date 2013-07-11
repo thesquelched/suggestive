@@ -5,3 +5,4 @@ test.py
 *.txt
 .ropeproject
 *.csv
+!albums.csv
