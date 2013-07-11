@@ -4,7 +4,7 @@ import urwid
 import logging
 import threading
 import mstat
-from analytics import Analytics
+from analytics import Analytics, FractionLovedOrder, BannedOrder
 from datetime import datetime
 from subprocess import call
 from itertools import chain, islice
@@ -98,7 +98,11 @@ class Application(object):
         self.update_header()
 
     def get_suggestions(self):
-        return self.anl.loved_order()
+        return self.anl.order_albums([
+            FractionLovedOrder(),
+            BannedOrder(),
+        ])
+        #return self.anl.loved_order()
         # return []
         #return self.anl.suggest_albums()
 
@@ -433,9 +437,11 @@ class SelectableAlbum(urwid.WidgetWrap):
 
     def __init__(self, suggestion):
         self.album = album = suggestion.album
-        text = '{} - {} ({}/{} loved)'.format(
-            album.artist.name, album.name, len(suggestion.loved),
-            len(album.tracks))
+        #text = '{} - {} ({}/{} loved)'.format(
+        #    album.artist.name, album.name, len(suggestion.loved),
+        #    len(album.tracks))
+        text = '{} - {}'.format(
+            album.artist.name, album.name)
         super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
 
         self._command_map = AlbumListCommands()
