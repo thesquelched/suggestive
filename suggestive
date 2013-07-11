@@ -206,14 +206,25 @@ class Application(object):
         #box._command_map = AlbumListCommands()
         #return box
 
+    def setup_term(self, screen):
+        colormode = 256 if self.conf.use_256_colors() else 88
+        screen.set_terminal_properties(colors=colormode)
+
     def main_loop(self):
         logger.info('Starting event loop')
 
         self.update_suggestions()
         # self.start_db_update()
 
-        return urwid.MainLoop(self.top, palette=[('reversed', 'standout', '')],
-                              unhandled_input=self.dispatch)
+        mainloop = urwid.MainLoop(
+            self.top,
+            palette=[('reversed', 'standout', '')],
+            unhandled_input=self.dispatch
+        )
+
+        self.setup_term(mainloop.screen)
+
+        return mainloop
 
 
 class AlbumListCommands(urwid.CommandMap):
