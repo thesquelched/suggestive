@@ -46,6 +46,7 @@ class DatabaseUpdateThread(AppThread):
 
     def run(self):
         mstat.update_database(self.session, self.mpd, self.lastfm, self.conf)
+        self.session.close()
         logger.info('Finished update')
         (self.callback)()
 
