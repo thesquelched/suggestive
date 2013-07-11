@@ -4,7 +4,8 @@ import urwid
 import logging
 import threading
 import mstat
-from analytics import Analytics, FractionLovedOrder, BannedOrder
+from analytics import (
+    Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter)
 from datetime import datetime
 from subprocess import call
 from itertools import chain, islice
@@ -56,6 +57,8 @@ class Application(object):
 
     def __init__(self, conf):
         self.conf = conf
+        self.base_orderers = [FractionLovedOrder(), BannedOrder()]
+        self.additional_orderers = []
 
         self.mpd = mstat.initialize_mpd(conf)
         session = mstat.initialize_sqlalchemy(conf)
@@ -101,10 +104,8 @@ class Application(object):
         self.update_header()
 
     def get_suggestions(self):
-        return self.anl.order_albums([
-            FractionLovedOrder(),
-            BannedOrder(),
-        ])
+        orderers = self.base_orderers + self.additional_orderers
+        return self.anl.order_albums(orderers)
         #return self.anl.loved_order()
         # return []
         #return self.anl.suggest_albums()
@@ -163,7 +164,7 @@ class Application(object):
         elif key == ':':
             self.start_command()
         elif key == 'esc':
-            self.clear_modes()
+            self.reset_orderers()
         else:
             return False
 
@@ -211,11 +212,17 @@ class Application(object):
         command, args = command.split(' ', maxsplit=1)
 
         if command == 'artist':
-            pass
+            self.additional_orderers.append(ArtistFilter(args))
+        elif command == 'album':
+            self.additional_orderers.append(AlbumFilter(args))
 
-    def clear_modes(self):
+        self.update_suggestions()
+
+    def reset_orderers(self):
         logger.info('Clear modes')
-        self.modes = []
+        self.additional_orderers = []
+
+        self.update_suggestions()
 
     def suggestion_list(self):
         body = []

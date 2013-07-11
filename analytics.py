@@ -4,6 +4,7 @@ import logging
 from itertools import repeat
 from collections import defaultdict
 from operator import itemgetter
+import re
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,28 @@ class BaseOrder(OrderDecorator):
             lambda: 1.0,
             zip(session.query(Album).all(), repeat(1.0))
         )
+
+
+class AlbumFilter(OrderDecorator):
+    def __init__(self, name):
+        self.name_rgx = re.compile(name, re.I)
+
+    def order(self, albums, session):
+        return {
+            album: order for album, order in albums.items()
+            if re.search(self.name_rgx, album.name) is not None
+        }
+
+
+class ArtistFilter(OrderDecorator):
+    def __init__(self, name):
+        self.name_rgx = re.compile(name, re.I)
+
+    def order(self, albums, session):
+        return {
+            album: order for album, order in albums.items()
+            if re.search(self.name_rgx, album.artist.name) is not None
+        }
 
 
 class BannedOrder(OrderDecorator):
