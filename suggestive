@@ -64,8 +64,8 @@ class Application(object):
 
     def __init__(self, conf):
         self.conf = conf
-        self.base_orderers = [FractionLovedOrder(), BannedOrder()]
-        self.additional_orderers = []
+        self.default_orderers = [FractionLovedOrder(), BannedOrder()]
+        self.orderers = list(self.default_orderers)
 
         self.mpd = mstat.initialize_mpd(conf)
         session = mstat.initialize_sqlalchemy(conf)
@@ -111,8 +111,7 @@ class Application(object):
         self.update_header()
 
     def get_suggestions(self):
-        orderers = self.base_orderers + self.additional_orderers
-        return self.anl.order_albums(orderers)
+        return self.anl.order_albums(self.orderers)
         #return self.anl.loved_order()
         # return []
         #return self.anl.suggest_albums()
@@ -220,13 +219,13 @@ class Application(object):
 
         if command in FILTER_COMMANDS:
             orderer = FILTERS[command]
-            self.additional_orderers.append(orderer(args))
+            self.orderers.append(orderer(args))
 
         self.update_suggestions()
 
     def reset_orderers(self):
         logger.info('Clear modes')
-        self.additional_orderers = []
+        self.orderers = list(self.default_orderers)
 
         self.update_suggestions()
 
