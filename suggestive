@@ -26,6 +26,13 @@ SEARCH_PREV = 'search_prev'
 GO_TO_TOP = 'cursor max left'
 GO_TO_BOTTOM = 'cursor max right'
 
+# Commands
+FILTER_COMMANDS = ('artist', 'album')
+FILTERS = {
+    'artist': ArtistFilter,
+    'album': AlbumFilter,
+}
+
 #
 # Threads
 #
@@ -211,10 +218,9 @@ class Application(object):
         logger.info('COMMAND: {}'.format(command))
         command, args = command.split(' ', maxsplit=1)
 
-        if command == 'artist':
-            self.additional_orderers.append(ArtistFilter(args))
-        elif command == 'album':
-            self.additional_orderers.append(AlbumFilter(args))
+        if command in FILTER_COMMANDS:
+            orderer = FILTERS[command]
+            self.additional_orderers.append(orderer(args))
 
         self.update_suggestions()
 
