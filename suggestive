@@ -449,11 +449,7 @@ class SelectableAlbum(urwid.WidgetWrap):
 
     def __init__(self, suggestion):
         self.album = album = suggestion.album
-        #text = '{} - {} ({}/{} loved)'.format(
-        #    album.artist.name, album.name, len(suggestion.loved),
-        #    len(album.tracks))
-        text = '{} - {}'.format(
-            album.artist.name, album.name)
+        text = '{} - {}'.format(album.artist.name, album.name)
         super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
 
         self._command_map = AlbumListCommands()
