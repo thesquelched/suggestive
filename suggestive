@@ -52,11 +52,6 @@ class DatabaseUpdateThread(AppThread):
         (self.callback)()
 
 
-#
-# Main Functions
-#
-
-
 class Application(object):
 
     def __init__(self, conf):
@@ -167,6 +162,8 @@ class Application(object):
             self.start_search(reverse=reverse)
         elif key == ':':
             self.start_command()
+        elif key == 'esc':
+            self.clear_modes()
         else:
             return False
 
@@ -211,6 +208,14 @@ class Application(object):
 
     def execute_command(self, command):
         logger.info('COMMAND: {}'.format(command))
+        command, args = command.split(' ', maxsplit=1)
+
+        if command == 'artist':
+            pass
+
+    def clear_modes(self):
+        logger.info('Clear modes')
+        self.modes = []
 
     def suggestion_list(self):
         body = []
