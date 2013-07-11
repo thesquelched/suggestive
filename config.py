@@ -15,10 +15,6 @@ def expand(path):
     return expanduser(expandvars(path))
 
 
-def palette(name, color):
-    return (name, color[0], color[1], '', color[0], color[1])
-
-
 class Config(object):
 
     """Suggestive configuration object"""
@@ -91,6 +87,13 @@ class Config(object):
         """Return True if the terminal should be set to 256 colors"""
         return self.parser.getboolean('general', 'highcolor')
 
+    def _palette(self, name, color, bold=False):
+        if self.use_256_colors():
+            return (name, '', '', '', 'bold,'+color[0], color[1])
+        else:
+            return (name, 'bold,'+color[0], color[1])
+
+
     def palette(self):
         """Return the terminal color palette"""
         colors = self.parser['appearance']
@@ -101,9 +104,9 @@ class Config(object):
         status = (colors['status_fg'], colors['status_bg'])
 
         return [
-            palette(None, album),
-            palette('album', album),
-            palette('focus album', album_focus),
-            palette('status', status),
-            palette('header', header),
+            self._palette(None, ('white', 'white')),
+            self._palette('album', album),
+            self._palette('focus album', album_focus),
+            self._palette('status', status, bold=True),
+            self._palette('header', header, bold=True),
         ]
