@@ -358,9 +358,6 @@ class AlbumSearcher(object):
         index = self.next_match(current, backward=backward)
         return self.matches[index]
 
-        #self.set_focus(self.matches[index])
-        #self.match_index = index
-
 
 class ForwardAlbumSearcher(AlbumSearcher):
 
@@ -463,9 +460,9 @@ class SelectableAlbum(urwid.WidgetWrap):
 
     def keypress(self, size, key):
         if self._command_map[key] == ENQUEUE:
-            self._emit('enqueue')
+            urwid.emit_signal(self, 'enqueue', self.album)
         elif self._command_map[key] == PLAY:
-            self._emit('play')
+            urwid.emit_signal(self, 'play', self.album)
         else:
             return key
 
