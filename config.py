@@ -9,6 +9,25 @@ CONFIG_PATHS = [
     '/etc/suggestive.conf',
 ]
 
+FOREGROUND_COLORS = [
+    'black',
+    'dark red',
+    'dark green',
+    'brown',
+    'dark blue',
+    'dark magenta',
+    'dark cyan',
+    'light gray',
+    'dark gray',
+    'light red',
+    'light green',
+    'yellow',
+    'light blue',
+    'light magenta',
+    'light cyan',
+    'white',
+]
+
 
 def expand(path):
     """Expand a unix path"""
@@ -33,6 +52,8 @@ class Config(object):
             scrobble_days=180,
             # user
             # api_key
+        ),
+        appearance=dict(
         ),
     )
 

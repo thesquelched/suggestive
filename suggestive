@@ -69,10 +69,10 @@ class Application(object):
         # urwid stuff
         self.list_view = self.suggestion_list()
 
-        main = urwid.Padding(self.list_view, left=2, right=2)
-        self.content = urwid.Filler(main, height=('relative', 100),
-                                    valign='middle', top=1, bottom=1)
-        self.top = urwid.Frame(self.content)
+        #main = urwid.Padding(self.list_view, left=2, right=2)
+        #self.content = urwid.Filler(self.list_view, height=('relative', 100),
+        #                            valign='middle')
+        self.top = urwid.Frame(self.list_view)
 
         self.event_loop = self.main_loop()
 
@@ -91,8 +91,10 @@ class Application(object):
         self.suggestions = self.get_suggestions()
 
         self.list_view = self.suggestion_list()
-        padded = urwid.Padding(self.list_view, left=2, right=2)
-        self.content.set_body(padded)
+        #padded = urwid.Padding(self.list_view, left=2, right=2)
+        #self.content.set_body(padded)
+        #self.content.set_body(self.list_view)
+        self.top.set_body(self.list_view)
 
         self.update_status('Idle')
         self.update_header()
@@ -130,14 +132,15 @@ class Application(object):
     def update_header(self):
         timestamp = self.last_updated.strftime('%Y-%m-%d %H:%M:%S')
         upd = urwid.Text('Last updated: {}'.format(timestamp))
-        header = urwid.Pile([upd, urwid.Divider('\u2500')])
+        header = urwid.AttrMap(upd, 'header')
         self.top.set_header(header)
 
         return header
 
     def update_status(self, status):
         status = urwid.Text(status)
-        footer = urwid.Pile([urwid.Divider('\u2500'), status])
+        footer = urwid.AttrMap(status, 'status')
+
         self.top.set_footer(footer)
 
         return footer
@@ -195,7 +198,7 @@ class Application(object):
                                  item.album)
             urwid.connect_signal(item, 'play', self.play_album, item.album)
 
-            body.append(urwid.AttrMap(item, None, focus_map='reversed'))
+            body.append(urwid.AttrMap(item, 'album', 'focus album'))
 
         if not body:
             body = [urwid.Text('MPD database is empty')]
@@ -205,6 +208,16 @@ class Application(object):
         #box = urwid.ListBox(urwid.SimpleFocusListWalker(body))
         #box._command_map = AlbumListCommands()
         #return box
+
+    def setup_palette(self):
+        palette = [
+            ('album', 'black', 'white', '', 'black', 'white'),
+            ('focus album', 'black', 'yellow', '', 'black', 'yellow'),
+            ('status', 'bold,white', 'black', '', 'bold,white', 'black'),
+            ('header', 'bold,black', 'light green', '', 'bold,black', 'light green'),
+        ]
+
+        return palette
 
     def setup_term(self, screen):
         colormode = 256 if self.conf.use_256_colors() else 88
@@ -218,7 +231,7 @@ class Application(object):
 
         mainloop = urwid.MainLoop(
             self.top,
-            palette=[('reversed', 'standout', '')],
+            palette=self.setup_palette(),
             unhandled_input=self.dispatch
         )
 
