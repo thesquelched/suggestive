@@ -17,6 +17,7 @@ logger.addHandler(logging.NullHandler())
 SIG_ENQUEUE = 'enqueue'
 SIG_PLAY = 'play'
 SIG_SEARCH_DONE = 'search_done'
+SIG_COMMAND_DONE = 'command_done'
 
 # Keybinds
 SEARCH_NEXT = 'search_next'
@@ -101,7 +102,7 @@ class Application(object):
         #self.content.set_body(self.list_view)
         self.top.set_body(self.list_view)
 
-        self.update_status('Idle')
+        self.update_status('suggestive')
         self.update_header()
 
     def get_suggestions(self):
@@ -164,15 +165,17 @@ class Application(object):
         elif key in ('/', '?'):
             reverse = (key == '?')
             self.start_search(reverse=reverse)
+        elif key == ':':
+            self.start_command()
         else:
             return False
 
         return True
 
     def start_search(self, reverse=False):
-        self.edit = ListSearcher('Search: ')
+        self.edit = ListSearcher('/')
         urwid.connect_signal(self.edit, SIG_SEARCH_DONE, self.search_done, reverse)
-        footer = urwid.Pile([urwid.Divider('\u2500'), self.edit])
+        footer = urwid.AttrMap(self.edit, 'status')
         self.top.set_footer(footer)
         self.top.set_focus('footer')
 
@@ -191,8 +194,23 @@ class Application(object):
                 status = 'No items matching {}'.format(pattern)
 
             self.update_status(status)
-        else:
-            self.update_status('Idle')
+
+    def start_command(self):
+        self.edit = Commander(':')
+        urwid.connect_signal(self.edit, SIG_COMMAND_DONE, self.command_done)
+        footer = urwid.AttrMap(self.edit, 'status')
+        self.top.set_footer(footer)
+        self.top.set_focus('footer')
+
+    def command_done(self, command):
+        self.top.set_focus('body')
+        urwid.disconnect_signal(self, self.edit, SIG_COMMAND_DONE, self.command_done)
+
+        if command:
+            self.execute_command(command)
+
+    def execute_command(self, command):
+        logger.info('COMMAND: {}'.format(command))
 
     def suggestion_list(self):
         body = []
@@ -252,6 +270,7 @@ class AlbumListCommands(urwid.CommandMap):
         GO_TO_BOTTOM: ('G', 'end'),
         SEARCH_NEXT: ('n',),
         SEARCH_PREV: ('N',),
+
         SIG_ENQUEUE: (' ',),
         SIG_PLAY: ('enter',),
     }
@@ -480,6 +499,21 @@ class ListSearcher(urwid.Edit):
             urwid.emit_signal(self, SIG_SEARCH_DONE, None)
         else:
             super(ListSearcher, self).keypress(size, key)
+
+        return True
+
+
+class Commander(urwid.Edit):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = [ SIG_COMMAND_DONE ]
+
+    def keypress(self, size, key):
+        if key == 'enter':
+            urwid.emit_signal(self, SIG_COMMAND_DONE, self.get_edit_text())
+        elif key == 'esc':
+            urwid.emit_signal(self, SIG_COMMAND_DONE, None)
+        else:
+            super(Commander, self).keypress(size, key)
 
         return True
 
