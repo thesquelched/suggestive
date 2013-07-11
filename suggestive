@@ -196,7 +196,7 @@ class Application(object):
             self.update_status(status)
 
     def start_command(self):
-        self.edit = Commander(':')
+        self.edit = CommanderEdit(':')
         urwid.connect_signal(self.edit, SIG_COMMAND_DONE, self.command_done)
         footer = urwid.AttrMap(self.edit, 'status')
         self.top.set_footer(footer)
@@ -503,7 +503,7 @@ class ListSearcher(urwid.Edit):
         return True
 
 
-class Commander(urwid.Edit):
+class CommanderEdit(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
     signals = [ SIG_COMMAND_DONE ]
 
@@ -513,7 +513,7 @@ class Commander(urwid.Edit):
         elif key == 'esc':
             urwid.emit_signal(self, SIG_COMMAND_DONE, None)
         else:
-            super(Commander, self).keypress(size, key)
+            super(CommanderEdit, self).keypress(size, key)
 
         return True
 
