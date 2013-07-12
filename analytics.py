@@ -79,6 +79,16 @@ class ArtistFilter(OrderDecorator):
         }
 
 
+class SortOrder(OrderDecorator):
+    @classmethod
+    def _format(cls, album):
+        return '{} - {}'.format(album.artist.name, album.name)
+
+    def order(self, albums, session):
+        sorted_albums = sorted(albums, key = self._format, reverse=True)
+        return {album: i for i, album in enumerate(sorted_albums, 1)}
+
+
 class BannedOrder(OrderDecorator):
 
     """Remove or demote albums with banned tracks"""

@@ -5,7 +5,8 @@ import logging
 import threading
 import mstat
 from analytics import (
-    Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter)
+    Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
+    SortOrder)
 from datetime import datetime
 from subprocess import call
 from itertools import chain, islice
@@ -27,10 +28,11 @@ GO_TO_TOP = 'cursor max left'
 GO_TO_BOTTOM = 'cursor max right'
 
 # Commands
-FILTER_COMMANDS = ('artist', 'album')
+FILTER_COMMANDS = ('artist', 'album', 'sort')
 FILTERS = {
     'artist': ArtistFilter,
     'album': AlbumFilter,
+    'sort': SortOrder,
 }
 
 #
@@ -215,11 +217,12 @@ class Application(object):
 
     def execute_command(self, command):
         logger.info('COMMAND: {}'.format(command))
-        command, args = command.split(' ', maxsplit=1)
+        pieces = command.split(' ', maxsplit=1)
+        command, args = pieces[0], pieces[1:]
 
         if command in FILTER_COMMANDS:
             orderer = FILTERS[command]
-            self.orderers.append(orderer(args))
+            self.orderers.append(orderer(*args))
 
         self.update_suggestions()
 
