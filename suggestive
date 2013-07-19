@@ -512,9 +512,46 @@ class AlbumList(urwid.ListBox):
 
         self.set_focus(index)
 
+    def expand_album(self, album_widget):
+        current = self.focus_position
+        album = album_widget.original_widget.album
+
+        for track in reversed(album.tracks):
+            track_widget = SelectableTrack(album_widget, track)
+            item = urwid.AttrMap(track_widget, 'album', 'focus album')
+            self.body.insert(current + 1, item)
+
+        album_widget.original_widget.expanded = True
+        #self.body.insert(current + 1, self.focus)
+
+    def collapse_album(self, album_widget):
+        current = self.focus_position
+        album_index = self.body.index(album_widget, 0, current + 1)
+
+        logger.debug('Album index: {}'.format(album_index))
+
+        album = album_widget.original_widget.album
+        for i in range(len(album.tracks)):
+            track_widget = self.body[album_index + 1]
+            if isinstance(track_widget.original_widget, SelectableTrack):
+                self.body.pop(album_index + 1)
+            else:
+                logger.error('Item #{} is not a track'.format(i))
+
+        album_widget.original_widget.expanded = False
+
     def toggle_expand(self):
-        item = self.focus
-        album = item.original_widget.album
+        widget = self.focus
+
+        if isinstance(widget.original_widget, SelectableTrack):
+            widget = widget.original_widget.parent
+
+        if widget.original_widget.expanded:
+            self.collapse_album(widget)
+        else:
+            self.expand_album(widget)
+
+        album = widget.original_widget.album
 
         logger.info('Expand: {} ({} tracks)'.format(
             album_text(album),
@@ -544,6 +581,7 @@ class SelectableAlbum(urwid.WidgetWrap):
 
     def __init__(self, suggestion):
         self.album = album = suggestion.album
+        self.expanded = False
         text = album_text(album)
         super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
 
@@ -556,6 +594,27 @@ class SelectableAlbum(urwid.WidgetWrap):
             urwid.emit_signal(self, 'play', self.album)
         else:
             return key
+
+
+class SelectableTrack(urwid.WidgetWrap):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['enqueue', 'play']
+
+    def __init__(self, parent, track):
+        self.parent = parent
+        self.track = track
+        text = ' + {}'.format(track.name)
+        super(SelectableTrack, self).__init__(urwid.SelectableIcon(text))
+
+        self._command_map = AlbumListCommands()
+
+    #def keypress(self, size, key):
+    #    if self._command_map[key] == 'enqueue':
+    #        urwid.emit_signal(self, 'enqueue', self.album)
+    #    elif self._command_map[key] == 'play':
+    #        urwid.emit_signal(self, 'play', self.album)
+    #    else:
+    #        return key
 
 
 class ListSearcher(urwid.Edit):
