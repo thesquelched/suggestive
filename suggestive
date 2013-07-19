@@ -126,6 +126,12 @@ class Application(object):
     def play_album(self, album):
         self.play_tracks(album.tracks)
 
+    def enqueue_track(self, track):
+        self.enqueue_tracks([track])
+
+    def play_track(self, track):
+        self.play_tracks([track])
+
     def enqueue_tracks(self, tracks):
         if tracks:
             logger.info('Enqueue {}'.format(album_text(tracks[0].album)))
@@ -296,7 +302,7 @@ class Application(object):
         if not body:
             body = [urwid.Text('MPD database is empty')]
 
-        albumlist = AlbumList(urwid.SimpleFocusListWalker(body))
+        albumlist = AlbumList(self, urwid.SimpleFocusListWalker(body))
         return albumlist
 
     def setup_palette(self):
@@ -491,11 +497,13 @@ class ReverseAlbumSearcher(AlbumSearcher):
 
 class AlbumList(urwid.ListBox):
 
-    def __init__(self, *args, **kwArgs):
+    def __init__(self, app, *args, **kwArgs):
         super(AlbumList, self).__init__(*args, **kwArgs)
 
-        self._command_map = AlbumListCommands()
+        self.app = app
         self.searcher = None
+
+        self._command_map = AlbumListCommands()
 
     def search(self, pattern, reverse=False):
         self.searcher = None
@@ -528,6 +536,11 @@ class AlbumList(urwid.ListBox):
 
         for track in reversed(album.tracks):
             track_widget = SelectableTrack(album_widget, track)
+
+            urwid.connect_signal(track_widget, 'enqueue',
+                                 self.app.enqueue_track)
+            urwid.connect_signal(track_widget, 'play', self.app.play_track)
+
             item = urwid.AttrMap(track_widget, 'track', 'focus track')
             self.body.insert(current + 1, item)
 
@@ -618,13 +631,13 @@ class SelectableTrack(urwid.WidgetWrap):
 
         self._command_map = AlbumListCommands()
 
-    #def keypress(self, size, key):
-    #    if self._command_map[key] == 'enqueue':
-    #        urwid.emit_signal(self, 'enqueue', self.album)
-    #    elif self._command_map[key] == 'play':
-    #        urwid.emit_signal(self, 'play', self.album)
-    #    else:
-    #        return key
+    def keypress(self, size, key):
+        if self._command_map[key] == 'enqueue':
+            urwid.emit_signal(self, 'enqueue', self.track)
+        elif self._command_map[key] == 'play':
+            urwid.emit_signal(self, 'play', self.track)
+        else:
+            return key
 
 
 class ListSearcher(urwid.Edit):
