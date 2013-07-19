@@ -31,6 +31,10 @@ FILTER_COMMANDS = {
 
 COMMAND_KWARG_RGX = re.compile(r'^(\w+)=(.*?)$')
 
+
+def album_text(album):
+    return '{} - {}'.format(album.artist.name, album.name)
+
 #
 # Threads
 #
@@ -116,8 +120,11 @@ class Application(object):
         # return []
         #return self.anl.suggest_albums()
 
+    def toggle_expand(self, widget_, album):
+        logger.info('Expand: {}'.format(album_text(album)))
+
     def enqueue_album(self, widget_, album):
-        logger.info('Enqueue: {} - {}'.format(album.artist.name, album.name))
+        logger.info('Enqueue: {}'.format(album_text(album)))
         mpd_tracks = list(chain.from_iterable(
             self.mpd.listallinfo(track.filename) for track in album.tracks))
 
@@ -131,7 +138,7 @@ class Application(object):
         return ids
 
     def play_album(self, widget_, album):
-        logger.info('Play: {} - {}'.format(album.artist.name, album.name))
+        logger.info('Play: {}'.format(album_text(album)))
         self.mpd.clear()
         ids = self.enqueue_album(widget_, album)
         if ids:
@@ -277,6 +284,7 @@ class Application(object):
             urwid.connect_signal(item, 'enqueue', self.enqueue_album,
                                  item.album)
             urwid.connect_signal(item, 'play', self.play_album, item.album)
+            urwid.connect_signal(item, 'expand', self.toggle_expand, item.album)
 
             body.append(urwid.AttrMap(item, 'album', 'focus album'))
 
@@ -330,6 +338,7 @@ class AlbumListCommands(urwid.CommandMap):
 
         'enqueue': (' ',),
         'play': ('enter',),
+        'expand': ('z',),
     }
 
     @classmethod
@@ -384,8 +393,7 @@ class AlbumSearcher(object):
         )
 
         albums = (item.original_widget.album for item in ordered)
-        search_items = ('{} - {}'.format(album.artist.name, album.name)
-                        for album in albums)
+        search_items = (album_text(album) for album in albums)
 
         indices = self._indices(search_items)
         matches = [
@@ -527,11 +535,11 @@ class AlbumList(urwid.ListBox):
 
 class SelectableAlbum(urwid.WidgetWrap):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['enqueue', 'play']
+    signals = ['enqueue', 'play', 'expand']
 
     def __init__(self, suggestion):
         self.album = album = suggestion.album
-        text = '{} - {}'.format(album.artist.name, album.name)
+        text = album_text(album)
         super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
 
         self._command_map = AlbumListCommands()
@@ -541,6 +549,8 @@ class SelectableAlbum(urwid.WidgetWrap):
             urwid.emit_signal(self, 'enqueue', self.album)
         elif self._command_map[key] == 'play':
             urwid.emit_signal(self, 'play', self.album)
+        elif self._command_map[key] == 'expand':
+            urwid.emit_signal(self, 'expand', self.album)
         else:
             return key
 
