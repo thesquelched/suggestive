@@ -36,11 +36,15 @@ class Config(object):
             # api_key
         ),
         appearance=dict(
-            album_fg='black',
-            album_bg='white',
-
-            album_focus_bg='#0ff',
+            album_fg='#000',
+            album_bg='#fff',
             album_focus_fg='#000',
+            album_focus_bg='#0ff',
+
+            track_fg='#000',
+            track_bg='#ccc',
+            track_focus_fg='#000',
+            track_focus_bg='#0ff',
 
             header_fg='#000',
             header_bg='#08f',
@@ -108,6 +112,8 @@ class Config(object):
 
         album = (colors['album_fg'], colors['album_bg'])
         album_focus = (colors['album_focus_fg'], colors['album_focus_bg'])
+        track = (colors['track_fg'], colors['track_bg'])
+        track_focus = (colors['track_focus_fg'], colors['track_focus_bg'])
         header = (colors['header_fg'], colors['header_bg'])
         status = (colors['status_fg'], colors['status_bg'])
         error = (colors['status_error_fg'], colors['status_error_bg'])
@@ -116,6 +122,8 @@ class Config(object):
             self._palette(None, ('white', 'white')),
             self._palette('album', album),
             self._palette('focus album', album_focus),
+            self._palette('track', track),
+            self._palette('focus track', track_focus),
             self._palette('status', status, bold=True),
             self._palette('status error', error, bold=True),
             self._palette('header', header, bold=True),

@@ -518,7 +518,7 @@ class AlbumList(urwid.ListBox):
 
         for track in reversed(album.tracks):
             track_widget = SelectableTrack(album_widget, track)
-            item = urwid.AttrMap(track_widget, 'album', 'focus album')
+            item = urwid.AttrMap(track_widget, 'track', 'focus track')
             self.body.insert(current + 1, item)
 
         album_widget.original_widget.expanded = True
