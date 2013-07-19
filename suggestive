@@ -68,6 +68,8 @@ class Application(object):
         self.default_orderers = [FractionLovedOrder(), BannedOrder()]
         self.orderers = list(self.default_orderers)
 
+        self.bindings = self.setup_bindings()
+
         self.mpd = mstat.initialize_mpd(conf)
         session = mstat.initialize_sqlalchemy(conf)
         self.anl = Analytics(session)
@@ -155,27 +157,35 @@ class Application(object):
         return footer
 
     def dispatch(self, key):
-        if key == 'q':
-            raise urwid.ExitMainLoop()
-        elif key == 'u':
-            self.start_db_update()
-        elif key == 'r':
-            self.update_suggestions()
-        elif key == '~':
-            self.event_loop.screen.stop()
-            call('ncmpcpp', shell=True)
-            self.event_loop.screen.start()
-        elif key in ('/', '?'):
-            reverse = (key == '?')
-            self.start_search(reverse=reverse)
-        elif key == ':':
-            self.start_command()
-        elif key == 'esc':
-            self.reset_orderers()
+        if key in self.bindings:
+            func = self.bindings[key]
+            logger.debug('KEYBIND: {}'.format(func))
+            func()
+            return True
         else:
+            logger.debug('Unknown keybinding: {}'.format(key))
             return False
 
-        return True
+    @classmethod
+    def exit(cls):
+        raise urwid.ExitMainLoop()
+
+    def launch_mpd_client(self):
+        self.event_loop.screen.stop()
+        call('ncmpcpp', shell=True)
+        self.event_loop.screen.start()
+
+    def setup_bindings(self):
+        return {
+            'q': lambda: self.exit(),
+            'u': lambda: self.start_db_update(),
+            'r': lambda: self.update_suggestions(),
+            '~': lambda: self.launch_mpd_client(),
+            '/': lambda: self.start_search(),
+            '?': lambda: self.start_search(reverse=True),
+            ':': lambda: self.start_command(),
+            'esc': lambda: self.reset_orderers(),
+        }
 
     def start_search(self, reverse=False):
         self.edit = ListSearcher('/')
