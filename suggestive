@@ -678,7 +678,10 @@ def main():
 
     app = Application(conf)
 
-    app.event_loop.run()
+    try:
+        app.event_loop.run()
+    except KeyboardInterrupt:
+        logger.error("Exited via keyboard interrupt; next time, use 'q'")
 
 
 if __name__ == '__main__':
