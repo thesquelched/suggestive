@@ -15,12 +15,6 @@ import re
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-# Signals
-SIG_ENQUEUE = 'enqueue'
-SIG_PLAY = 'play'
-SIG_SEARCH_DONE = 'search_done'
-SIG_COMMAND_DONE = 'command_done'
-
 # Keybinds
 SEARCH_NEXT = 'search_next'
 SEARCH_PREV = 'search_prev'
@@ -191,7 +185,7 @@ class Application(object):
 
     def start_search(self, reverse=False):
         self.edit = ListSearcher('/')
-        urwid.connect_signal(self.edit, SIG_SEARCH_DONE, self.search_done,
+        urwid.connect_signal(self.edit, 'search_done', self.search_done,
                              reverse)
         footer = urwid.AttrMap(self.edit, 'status')
         self.top.set_footer(footer)
@@ -200,7 +194,7 @@ class Application(object):
     def search_done(self, pattern, reverse=False):
         logger.debug('Reverse: {}'.format(reverse))
         self.top.set_focus('body')
-        urwid.disconnect_signal(self, self.edit, SIG_SEARCH_DONE,
+        urwid.disconnect_signal(self, self.edit, 'search_done',
                                 self.search_done)
 
         if pattern:
@@ -216,14 +210,14 @@ class Application(object):
 
     def start_command(self):
         self.edit = CommanderEdit(':')
-        urwid.connect_signal(self.edit, SIG_COMMAND_DONE, self.command_done)
+        urwid.connect_signal(self.edit, 'command_done', self.command_done)
         footer = urwid.AttrMap(self.edit, 'status')
         self.top.set_footer(footer)
         self.top.set_focus('footer')
 
     def command_done(self, command):
         self.top.set_focus('body')
-        urwid.disconnect_signal(self, self.edit, SIG_COMMAND_DONE,
+        urwid.disconnect_signal(self, self.edit, 'command_done',
                                 self.command_done)
 
         if command:
@@ -334,8 +328,8 @@ class AlbumListCommands(urwid.CommandMap):
         SEARCH_NEXT: ('n',),
         SEARCH_PREV: ('N',),
 
-        SIG_ENQUEUE: (' ',),
-        SIG_PLAY: ('enter',),
+        'enqueue': (' ',),
+        'play': ('enter',),
     }
 
     @classmethod
@@ -543,9 +537,9 @@ class SelectableAlbum(urwid.WidgetWrap):
         self._command_map = AlbumListCommands()
 
     def keypress(self, size, key):
-        if self._command_map[key] == SIG_ENQUEUE:
+        if self._command_map[key] == 'enqueue':
             urwid.emit_signal(self, 'enqueue', self.album)
-        elif self._command_map[key] == SIG_PLAY:
+        elif self._command_map[key] == 'play':
             urwid.emit_signal(self, 'play', self.album)
         else:
             return key
@@ -553,13 +547,13 @@ class SelectableAlbum(urwid.WidgetWrap):
 
 class ListSearcher(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = [SIG_SEARCH_DONE]
+    signals = ['search_done']
 
     def keypress(self, size, key):
         if key == 'enter':
-            urwid.emit_signal(self, SIG_SEARCH_DONE, self.get_edit_text())
+            urwid.emit_signal(self, 'search_done', self.get_edit_text())
         elif key == 'esc':
-            urwid.emit_signal(self, SIG_SEARCH_DONE, None)
+            urwid.emit_signal(self, 'search_done', None)
         else:
             super(ListSearcher, self).keypress(size, key)
 
@@ -568,13 +562,13 @@ class ListSearcher(urwid.Edit):
 
 class CommanderEdit(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = [SIG_COMMAND_DONE]
+    signals = ['command_done']
 
     def keypress(self, size, key):
         if key == 'enter':
-            urwid.emit_signal(self, SIG_COMMAND_DONE, self.get_edit_text())
+            urwid.emit_signal(self, 'command_done', self.get_edit_text())
         elif key == 'esc':
-            urwid.emit_signal(self, SIG_COMMAND_DONE, None)
+            urwid.emit_signal(self, 'command_done', None)
         else:
             super(CommanderEdit, self).keypress(size, key)
 
