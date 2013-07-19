@@ -19,7 +19,7 @@ $ sudo pip-3.2 install urwid python-mpd2 SQLAlchemy requests
 Bindings
 ========
 
-`suggestive` used vim-like keybindings.
+`suggestive` uses vim-like keybindings.
 
 General
 -------
