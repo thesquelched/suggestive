@@ -121,9 +121,17 @@ class Application(object):
         #return self.anl.suggest_albums()
 
     def enqueue_album(self, album):
-        logger.info('Enqueue: {}'.format(album_text(album)))
+        self.enqueue_tracks(album.tracks)
+
+    def play_album(self, album):
+        self.play_tracks(album.tracks)
+
+    def enqueue_tracks(self, tracks):
+        if tracks:
+            logger.info('Enqueue {}'.format(album_text(tracks[0].album)))
+
         mpd_tracks = list(chain.from_iterable(
-            self.mpd.listallinfo(track.filename) for track in album.tracks))
+            self.mpd.listallinfo(track.filename) for track in tracks))
 
         for i, track in enumerate(mpd_tracks):
             trackno = str(track.get('track', i))
@@ -134,10 +142,12 @@ class Application(object):
         ids = [self.mpd.addid(track['file']) for track in sorted_tracks]
         return ids
 
-    def play_album(self, album):
-        logger.info('Play: {}'.format(album_text(album)))
+    def play_tracks(self, tracks):
+        if tracks:
+            logger.info('Play: {}'.format(album_text(tracks[0].album)))
+
         self.mpd.clear()
-        ids = self.enqueue_album(album)
+        ids = self.enqueue_tracks(tracks)
         if ids:
             self.mpd.playid(ids[0])
 
