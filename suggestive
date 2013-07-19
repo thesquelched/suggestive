@@ -34,6 +34,8 @@ FILTER_COMMANDS = {
     'sort': SortOrder,
 }
 
+COMMAND_KWARG_RGX = re.compile(r'^(\w+)=(.*?)$')
+
 #
 # Threads
 #
@@ -227,16 +229,31 @@ class Application(object):
         if command:
             self.execute_command(command)
 
+    @classmethod
+    def parse_command_args(cls, args_raw):
+        args = []
+        kwargs = {}
+        for arg in args_raw:
+            match = re.search(COMMAND_KWARG_RGX, arg)
+            if match is None:
+                args.append(arg)
+            else:
+                name, value = match.groups()
+                kwargs[name] = value
+
+        return (args, kwargs)
+
     def execute_command(self, command_raw):
         logger.info('COMMAND: {}'.format(command_raw))
         pieces = command_raw.split(' ', 1)
-        command, args = pieces[0], pieces[1:]
+        command, args_raw = pieces[0], pieces[1:]
 
         if command in FILTER_COMMANDS:
             orderer = FILTER_COMMANDS[command]
+            args, kwargs = self.parse_command_args(args_raw)
 
             try:
-                fltr = orderer(*args)
+                fltr = orderer(*args, **kwargs)
                 self.orderers.append(fltr)
             except TypeError:
                 self.update_status(
