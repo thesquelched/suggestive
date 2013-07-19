@@ -512,6 +512,14 @@ class AlbumList(urwid.ListBox):
 
         self.set_focus(index)
 
+    def toggle_expand(self):
+        item = self.focus
+        album = item.original_widget.album
+
+        logger.info('Expand: {} ({} tracks)'.format(
+            album_text(album),
+            len(album.tracks)))
+
     def keypress(self, size, key):
         cmd = self._command_map[key]
         if cmd in (SEARCH_NEXT, SEARCH_PREV):
@@ -519,6 +527,8 @@ class AlbumList(urwid.ListBox):
             self.next_search_item(backward=backward)
         elif cmd in (GO_TO_TOP, GO_TO_BOTTOM):
             self.set_focus(0 if cmd == GO_TO_TOP else len(self.body) - 1)
+        elif cmd == 'expand':
+            self.toggle_expand()
         else:
             return super(AlbumList, self).keypress(size, key)
 
@@ -539,18 +549,11 @@ class SelectableAlbum(urwid.WidgetWrap):
 
         self._command_map = AlbumListCommands()
 
-    def toggle_expand(self):
-        logger.info('Expand: {} ({} tracks)'.format(
-            album_text(self.album),
-            len(self.album.tracks)))
-
     def keypress(self, size, key):
         if self._command_map[key] == 'enqueue':
             urwid.emit_signal(self, 'enqueue', self.album)
         elif self._command_map[key] == 'play':
             urwid.emit_signal(self, 'play', self.album)
-        elif self._command_map[key] == 'expand':
-            self.toggle_expand()
         else:
             return key
 
