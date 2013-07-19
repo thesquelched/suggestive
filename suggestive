@@ -147,9 +147,9 @@ class Application(object):
 
         return header
 
-    def update_status(self, status):
+    def update_status(self, status, error=False):
         status = urwid.Text(status)
-        footer = urwid.AttrMap(status, 'status')
+        footer = urwid.AttrMap(status, 'status error' if error else 'status')
 
         self.top.set_footer(footer)
 
@@ -180,7 +180,8 @@ class Application(object):
 
     def start_search(self, reverse=False):
         self.edit = ListSearcher('/')
-        urwid.connect_signal(self.edit, SIG_SEARCH_DONE, self.search_done, reverse)
+        urwid.connect_signal(self.edit, SIG_SEARCH_DONE, self.search_done,
+                             reverse)
         footer = urwid.AttrMap(self.edit, 'status')
         self.top.set_footer(footer)
         self.top.set_focus('footer')
@@ -188,7 +189,8 @@ class Application(object):
     def search_done(self, pattern, reverse=False):
         logger.debug('Reverse: {}'.format(reverse))
         self.top.set_focus('body')
-        urwid.disconnect_signal(self, self.edit, SIG_SEARCH_DONE, self.search_done)
+        urwid.disconnect_signal(self, self.edit, SIG_SEARCH_DONE,
+                                self.search_done)
 
         if pattern:
             logger.info('SEARCH FOR: {}'.format(pattern))
@@ -210,19 +212,33 @@ class Application(object):
 
     def command_done(self, command):
         self.top.set_focus('body')
-        urwid.disconnect_signal(self, self.edit, SIG_COMMAND_DONE, self.command_done)
+        urwid.disconnect_signal(self, self.edit, SIG_COMMAND_DONE,
+                                self.command_done)
 
         if command:
             self.execute_command(command)
 
-    def execute_command(self, command):
-        logger.info('COMMAND: {}'.format(command))
-        pieces = command.split(' ', maxsplit=1)
+    def execute_command(self, command_raw):
+        logger.info('COMMAND: {}'.format(command_raw))
+        pieces = command_raw.split(' ', 1)
         command, args = pieces[0], pieces[1:]
 
         if command in FILTER_COMMANDS:
             orderer = FILTERS[command]
-            self.orderers.append(orderer(*args))
+
+            try:
+                fltr = orderer(*args)
+                self.orderers.append(fltr)
+            except TypeError:
+                self.update_status(
+                    "Invalid arguments for command '{}'".format(command),
+                    error=True)
+                return
+        else:
+            self.update_status(
+                "Unknown command: '{}'".format(command),
+                error=True)
+            return
 
         self.update_suggestions()
 
@@ -510,7 +526,7 @@ class SelectableAlbum(urwid.WidgetWrap):
 
 class ListSearcher(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = [ SIG_SEARCH_DONE]
+    signals = [SIG_SEARCH_DONE]
 
     def keypress(self, size, key):
         if key == 'enter':
@@ -525,7 +541,7 @@ class ListSearcher(urwid.Edit):
 
 class CommanderEdit(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = [ SIG_COMMAND_DONE ]
+    signals = [SIG_COMMAND_DONE]
 
     def keypress(self, size, key):
         if key == 'enter':

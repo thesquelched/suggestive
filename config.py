@@ -45,6 +45,8 @@ class Config(object):
             header_bg='#08f',
             status_fg='#000',
             status_bg='#08f',
+            status_error_fg='#000',
+            status_error_bg='#f00',
         ),
     )
 
@@ -91,10 +93,9 @@ class Config(object):
 
     def _palette(self, name, color, bold=False):
         if self.use_256_colors():
-            return (name, '', '', '', 'bold,'+color[0], color[1])
+            return (name, '', '', '', 'bold,' + color[0], color[1])
         else:
-            return (name, 'bold,'+color[0], color[1])
-
+            return (name, 'bold,' + color[0], color[1])
 
     def palette(self):
         """Return the terminal color palette"""
@@ -104,11 +105,13 @@ class Config(object):
         album_focus = (colors['album_focus_fg'], colors['album_focus_bg'])
         header = (colors['header_fg'], colors['header_bg'])
         status = (colors['status_fg'], colors['status_bg'])
+        error = (colors['status_error_fg'], colors['status_error_bg'])
 
         return [
             self._palette(None, ('white', 'white')),
             self._palette('album', album),
             self._palette('focus album', album_focus),
             self._palette('status', status, bold=True),
+            self._palette('status error', error, bold=True),
             self._palette('header', header, bold=True),
         ]
