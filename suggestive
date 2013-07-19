@@ -174,7 +174,7 @@ class Application(object):
 
     def launch_mpd_client(self):
         self.event_loop.screen.stop()
-        call('ncmpcpp', shell=True)
+        call(self.conf.mpd_client(), shell=True)
         self.event_loop.screen.start()
 
     def setup_bindings(self):
