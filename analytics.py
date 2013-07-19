@@ -85,7 +85,7 @@ class SortOrder(OrderDecorator):
         return '{} - {}'.format(album.artist.name, album.name)
 
     def order(self, albums, session):
-        sorted_albums = sorted(albums, key = self._format, reverse=True)
+        sorted_albums = sorted(albums, key=self._format, reverse=True)
         return {album: i for i, album in enumerate(sorted_albums, 1)}
 
 
@@ -125,9 +125,23 @@ class FractionLovedOrder(OrderDecorator):
 
     """Order by fraction of tracks loved"""
 
-    def __init__(self, penalize_unloved=False):
+    def __init__(self, minimum=None, maximum=None, penalize_unloved=False):
         super(FractionLovedOrder, self).__init__()
         self.penalize = penalize_unloved
+
+        if minimum is None:
+            minimum = 0
+        if maximum is None:
+            maximum = 1
+
+        minimum, maximum = float(minimum), float(maximum)
+
+        if minimum > maximum:
+            minimum, maximum = maximum, minimum
+
+        min_ = min(max(minimum, 0), 1)
+        self.f_max = max(min(maximum, 1), min_)
+        self.f_min = min(max(minimum, 0), self.f_max)
 
     def order(self, albums, session):
         results = session.query(Album).\
@@ -147,14 +161,24 @@ class FractionLovedOrder(OrderDecorator):
             if n_loved is None:
                 n_loved = 0
 
-            if n_loved > 0:
-                order = 1 + n_loved / n_tracks
-            else:
-                order = 1.0 / n_tracks if self.penalize else 1.0
+            f_loved = n_loved / n_tracks
+            if not (self.f_min <= f_loved <= self.f_max):
+                if album in neworder:
+                    del neworder[album]
 
-            neworder[album] *= order
+                continue
+
+            neworder[album] *= self._order(n_loved, n_tracks)
 
         return neworder
+
+    def _order(self, n_loved, n_tracks):
+        f_loved = n_loved / n_tracks
+
+        if n_loved > 0:
+            return 1 + f_loved
+        else:
+            return 1.0 / n_tracks if self.penalize else 1.0
 
 
 class Analytics(object):

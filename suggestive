@@ -32,6 +32,7 @@ FILTER_COMMANDS = {
     'artist': ArtistFilter,
     'album': AlbumFilter,
     'sort': SortOrder,
+    'loved': FractionLovedOrder,
 }
 
 COMMAND_KWARG_RGX = re.compile(r'^(\w+)=(.*?)$')
@@ -165,7 +166,6 @@ class Application(object):
             func()
             return True
         else:
-            logger.debug('Unknown keybinding: {}'.format(key))
             return False
 
     @classmethod
@@ -255,7 +255,8 @@ class Application(object):
             try:
                 fltr = orderer(*args, **kwargs)
                 self.orderers.append(fltr)
-            except TypeError:
+            except TypeError as err:
+                logger.debug('TypeError: {}'.format(err))
                 self.update_status(
                     "Invalid arguments for command '{}'".format(command),
                     error=True)
