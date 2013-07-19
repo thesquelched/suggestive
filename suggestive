@@ -120,10 +120,12 @@ class Application(object):
         # return []
         #return self.anl.suggest_albums()
 
-    def toggle_expand(self, widget_, album):
-        logger.info('Expand: {}'.format(album_text(album)))
+    def toggle_expand(self, album):
+        logger.info('Expand: {} ({} tracks)'.format(
+            album_text(album),
+            len(album.tracks)))
 
-    def enqueue_album(self, widget_, album):
+    def enqueue_album(self, album):
         logger.info('Enqueue: {}'.format(album_text(album)))
         mpd_tracks = list(chain.from_iterable(
             self.mpd.listallinfo(track.filename) for track in album.tracks))
@@ -137,10 +139,10 @@ class Application(object):
         ids = [self.mpd.addid(track['file']) for track in sorted_tracks]
         return ids
 
-    def play_album(self, widget_, album):
+    def play_album(self, album):
         logger.info('Play: {}'.format(album_text(album)))
         self.mpd.clear()
-        ids = self.enqueue_album(widget_, album)
+        ids = self.enqueue_album(album)
         if ids:
             self.mpd.playid(ids[0])
 
@@ -281,10 +283,9 @@ class Application(object):
         for suggestion in self.suggestions:
             item = SelectableAlbum(suggestion)
 
-            urwid.connect_signal(item, 'enqueue', self.enqueue_album,
-                                 item.album)
-            urwid.connect_signal(item, 'play', self.play_album, item.album)
-            urwid.connect_signal(item, 'expand', self.toggle_expand, item.album)
+            urwid.connect_signal(item, 'enqueue', self.enqueue_album)
+            urwid.connect_signal(item, 'play', self.play_album)
+            urwid.connect_signal(item, 'expand', self.toggle_expand)
 
             body.append(urwid.AttrMap(item, 'album', 'focus album'))
 
