@@ -28,8 +28,7 @@ GO_TO_TOP = 'cursor max left'
 GO_TO_BOTTOM = 'cursor max right'
 
 # Commands
-FILTER_COMMANDS = ('artist', 'album', 'sort')
-FILTERS = {
+FILTER_COMMANDS = {
     'artist': ArtistFilter,
     'album': AlbumFilter,
     'sort': SortOrder,
@@ -224,7 +223,7 @@ class Application(object):
         command, args = pieces[0], pieces[1:]
 
         if command in FILTER_COMMANDS:
-            orderer = FILTERS[command]
+            orderer = FILTER_COMMANDS[command]
 
             try:
                 fltr = orderer(*args)
