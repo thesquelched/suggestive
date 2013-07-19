@@ -120,11 +120,6 @@ class Application(object):
         # return []
         #return self.anl.suggest_albums()
 
-    def toggle_expand(self, album):
-        logger.info('Expand: {} ({} tracks)'.format(
-            album_text(album),
-            len(album.tracks)))
-
     def enqueue_album(self, album):
         logger.info('Enqueue: {}'.format(album_text(album)))
         mpd_tracks = list(chain.from_iterable(
@@ -285,7 +280,6 @@ class Application(object):
 
             urwid.connect_signal(item, 'enqueue', self.enqueue_album)
             urwid.connect_signal(item, 'play', self.play_album)
-            urwid.connect_signal(item, 'expand', self.toggle_expand)
 
             body.append(urwid.AttrMap(item, 'album', 'focus album'))
 
@@ -536,7 +530,7 @@ class AlbumList(urwid.ListBox):
 
 class SelectableAlbum(urwid.WidgetWrap):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['enqueue', 'play', 'expand']
+    signals = ['enqueue', 'play']
 
     def __init__(self, suggestion):
         self.album = album = suggestion.album
@@ -545,13 +539,18 @@ class SelectableAlbum(urwid.WidgetWrap):
 
         self._command_map = AlbumListCommands()
 
+    def toggle_expand(self):
+        logger.info('Expand: {} ({} tracks)'.format(
+            album_text(self.album),
+            len(self.album.tracks)))
+
     def keypress(self, size, key):
         if self._command_map[key] == 'enqueue':
             urwid.emit_signal(self, 'enqueue', self.album)
         elif self._command_map[key] == 'play':
             urwid.emit_signal(self, 'play', self.album)
         elif self._command_map[key] == 'expand':
-            urwid.emit_signal(self, 'expand', self.album)
+            self.toggle_expand()
         else:
             return key
 
