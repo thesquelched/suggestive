@@ -62,6 +62,24 @@ class DatabaseUpdateThread(AppThread):
         (self.callback)()
 
 
+class MainWindow(urwid.Frame):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['set_status']
+
+    def __init__(self, conf, *args, **kwArgs):
+        super(MainWindow, self).__init__(*args, **kwArgs)
+        self.conf = conf
+
+        # Signals
+        urwid.connect_signal(self, 'set_status', self.update_status)
+
+    def update_status(self, status, error=False):
+        status = urwid.Text(status)
+        footer = urwid.AttrMap(status, 'status error' if error else 'status')
+
+        self.set_footer(footer)
+
+
 class Application(object):
 
     def __init__(self, conf):
@@ -84,10 +102,8 @@ class Application(object):
         # urwid stuff
         self.list_view = self.suggestion_list()
 
-        #main = urwid.Padding(self.list_view, left=2, right=2)
-        #self.content = urwid.Filler(self.list_view, height=('relative', 100),
-        #                            valign='middle')
-        self.top = urwid.Frame(self.list_view)
+        #self.top = urwid.Frame(self.list_view)
+        self.top = MainWindow(conf, self.list_view)
 
         self.event_loop = self.main_loop()
 
@@ -166,12 +182,7 @@ class Application(object):
         return header
 
     def update_status(self, status, error=False):
-        status = urwid.Text(status)
-        footer = urwid.AttrMap(status, 'status error' if error else 'status')
-
-        self.top.set_footer(footer)
-
-        return footer
+        urwid.emit_signal(self.top, 'set_status', status, error)
 
     def dispatch(self, key):
         if key in self.bindings:
