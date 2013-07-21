@@ -24,8 +24,10 @@ Bindings
 General
 -------
 
-- `q`, `<C-c>` - quit
-- `~` - launch MPD client (see `Configuration`)
+- `q`, `<C-c>` - Quit
+- `~` - Launch MPD client (see `Configuration`)
+- `space` - Enqueue album/track
+- `enter` - Play album/track
 
 Movement
 --------
