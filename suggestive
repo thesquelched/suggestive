@@ -64,7 +64,7 @@ class DatabaseUpdateThread(AppThread):
 
 class MainWindow(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['set_status']
+    signals = ['set_status', 'set_header']
 
     def __init__(self, conf, *args, **kwArgs):
         super(MainWindow, self).__init__(*args, **kwArgs)
@@ -72,12 +72,20 @@ class MainWindow(urwid.Frame):
 
         # Signals
         urwid.connect_signal(self, 'set_status', self.update_status)
+        urwid.connect_signal(self, 'set_header', self.update_header)
 
-    def update_status(self, status, error=False):
-        status = urwid.Text(status)
+    def update_status(self, text, error=False):
+        status = urwid.Text(text)
         footer = urwid.AttrMap(status, 'status error' if error else 'status')
 
         self.set_footer(footer)
+
+    def update_header(self, last_updated):
+        timestamp = last_updated.strftime('%Y-%m-%d %H:%M:%S')
+        upd = urwid.Text('Last updated: {}'.format(timestamp))
+        header = urwid.AttrMap(upd, 'header')
+
+        self.set_header(header)
 
 
 class Application(object):
@@ -94,7 +102,6 @@ class Application(object):
         self.anl = Analytics(session)
 
         self.suggestions = []
-        self.last_updated = datetime.now()
 
         self.search_matches = []
         self.current_search_index = None
@@ -118,7 +125,6 @@ class Application(object):
 
     def update_suggestions(self, *_args):
         logger.info('Update suggestions display')
-        self.last_updated = datetime.now()
         self.suggestions = self.get_suggestions()
 
         self.list_view = self.suggestion_list()
@@ -128,6 +134,7 @@ class Application(object):
         self.top.set_body(self.list_view)
 
         self.update_status('suggestive')
+
         self.update_header()
 
     def get_suggestions(self):
@@ -174,12 +181,12 @@ class Application(object):
             self.mpd.playid(ids[0])
 
     def update_header(self):
-        timestamp = self.last_updated.strftime('%Y-%m-%d %H:%M:%S')
-        upd = urwid.Text('Last updated: {}'.format(timestamp))
-        header = urwid.AttrMap(upd, 'header')
-        self.top.set_header(header)
-
-        return header
+        now = datetime.now()
+        urwid.emit_signal(self.top, 'set_header', now)
+        #timestamp = last_updated.strftime('%Y-%m-%d %H:%M:%S')
+        #upd = urwid.Text('Last updated: {}'.format(timestamp))
+        #header = urwid.AttrMap(upd, 'header')
+        #self.top.set_header(header)
 
     def update_status(self, status, error=False):
         urwid.emit_signal(self.top, 'set_status', status, error)
