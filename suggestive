@@ -548,12 +548,28 @@ class AlbumList(urwid.ListBox):
 
         self.set_focus(index)
 
+    def sort_tracks(self, tracks):
+        track_and_num = []
+        mpd = mstat.initialize_mpd(self.app.conf)
+
+        for i, track in enumerate(tracks):
+            mpd_track = mpd.listallinfo(track.filename)
+            if not mpd_track:
+                continue
+            trackno = str(mpd_track[0].get('track', i))
+            trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
+
+            track_and_num.append((int(trackno), track))
+
+        return sorted(track_and_num)
+
     def expand_album(self, album_widget):
         current = self.focus_position
         album = album_widget.original_widget.album
 
-        for track in reversed(album.tracks):
-            track_widget = SelectableTrack(album_widget, track)
+        sorted_tracks = self.sort_tracks(album.tracks)
+        for track_no, track in reversed(sorted_tracks):
+            track_widget = SelectableTrack(album_widget, track, track_no)
 
             urwid.connect_signal(track_widget, 'enqueue',
                                  self.app.enqueue_track)
@@ -641,10 +657,11 @@ class SelectableTrack(urwid.WidgetWrap):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['enqueue', 'play']
 
-    def __init__(self, parent, track):
+    def __init__(self, parent, track, track_no):
         self.parent = parent
         self.track = track
-        text = ' + {}'.format(track.name)
+        self.track_no = track_no
+        text = ' + {} - {}'.format(track_no, track.name)
         super(SelectableTrack, self).__init__(urwid.SelectableIcon(text))
 
         self._command_map = AlbumListCommands()

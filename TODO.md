@@ -4,7 +4,7 @@ TODO
 Bug fixes
 ---------
 - ESC shouldn't move cursor to the top of the screen
-- Track ordering is not correct
+- ~~Track ordering is not correct~~
 
 New features
 ------------
