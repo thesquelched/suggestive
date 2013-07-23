@@ -128,13 +128,9 @@ class Application(object):
         self.suggestions = self.get_suggestions()
 
         self.list_view = self.suggestion_list()
-        #padded = urwid.Padding(self.list_view, left=2, right=2)
-        #self.content.set_body(padded)
-        #self.content.set_body(self.list_view)
         self.top.set_body(self.list_view)
 
         self.update_status('suggestive')
-
         self.update_header()
 
     def get_suggestions(self):
@@ -318,7 +314,7 @@ class Application(object):
             body.append(urwid.AttrMap(item, 'album', 'focus album'))
 
         if not body:
-            body = [urwid.Text('MPD database is empty')]
+            body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
 
         albumlist = AlbumList(self, urwid.SimpleFocusListWalker(body))
         return albumlist
