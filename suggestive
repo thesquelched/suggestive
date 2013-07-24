@@ -97,7 +97,6 @@ class Application(object):
 
         self.bindings = self.setup_bindings()
 
-        self.mpd = mstat.initialize_mpd(conf)
         session = mstat.initialize_sqlalchemy(conf)
         self.anl = Analytics(session)
 
@@ -152,11 +151,13 @@ class Application(object):
         self.play_tracks([track])
 
     def enqueue_tracks(self, tracks):
+        mpd = mstat.initialize_mpd(self.conf)
+
         if tracks:
             logger.info('Enqueue {}'.format(album_text(tracks[0].album)))
 
         mpd_tracks = list(chain.from_iterable(
-            self.mpd.listallinfo(track.filename) for track in tracks))
+            mpd.listallinfo(track.filename) for track in tracks))
 
         for i, track in enumerate(mpd_tracks):
             trackno = str(track.get('track', i))
@@ -164,17 +165,19 @@ class Application(object):
             track['track'] = int(trackno)
 
         sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
-        ids = [self.mpd.addid(track['file']) for track in sorted_tracks]
+        ids = [mpd.addid(track['file']) for track in sorted_tracks]
         return ids
 
     def play_tracks(self, tracks):
+        mpd = mstat.initialize_mpd(self.conf)
+
         if tracks:
             logger.info('Play: {}'.format(album_text(tracks[0].album)))
 
-        self.mpd.clear()
+        mpd.clear()
         ids = self.enqueue_tracks(tracks)
         if ids:
-            self.mpd.playid(ids[0])
+            mpd.playid(ids[0])
 
     def update_header(self):
         now = datetime.now()
