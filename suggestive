@@ -56,6 +56,10 @@ class DatabaseUpdateThread(AppThread):
         self.lastfm = mstat.initialize_lastfm(conf)
 
     def run(self):
+        logger.info('Start MPD update')
+        self.mpd.update()
+        logger.info('Finished MPD update')
+        logger.info('Update internal database')
         mstat.update_database(self.session, self.mpd, self.lastfm, self.conf)
         self.session.close()
         logger.info('Finished update')
