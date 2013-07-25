@@ -22,13 +22,31 @@ GO_TO_TOP = 'cursor max left'
 GO_TO_BOTTOM = 'cursor max right'
 
 # Commands
-FILTER_COMMANDS = {
-    'artist': ArtistFilter,
-    'album': AlbumFilter,
-    'sort': SortOrder,
-    'loved': FractionLovedOrder,
-    'plays': PlaycountOrder,
+FILTERS = {
+    ('artist', 'ar'): ArtistFilter,
+    ('album', 'al'): AlbumFilter,
+    ('sort',): SortOrder,
+    ('loved', 'lo'): FractionLovedOrder,
+    ('plays', 'playcount'): PlaycountOrder,
 }
+
+# Create a flat dict from FILTERS in which the commands in the tuple key
+# correspond to the filter value
+FILTER_COMMANDS = dict(
+    chain.from_iterable(
+        [(command, func) for command in commands]
+        for commands, func in FILTERS.items()
+    )
+)
+
+#FILTER_COMMANDS = {
+#    'artist': ArtistFilter,
+#    'album': AlbumFilter,
+#    'sort': SortOrder,
+#    'loved': FractionLovedOrder,
+#    'plays': PlaycountOrder,
+#    'playcount': PlaycountOrder,
+#}
 
 COMMAND_KWARG_RGX = re.compile(r'^(\w+)=(.*?)$')
 
