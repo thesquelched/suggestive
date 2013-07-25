@@ -39,15 +39,6 @@ FILTER_COMMANDS = dict(
     )
 )
 
-#FILTER_COMMANDS = {
-#    'artist': ArtistFilter,
-#    'album': AlbumFilter,
-#    'sort': SortOrder,
-#    'loved': FractionLovedOrder,
-#    'plays': PlaycountOrder,
-#    'playcount': PlaycountOrder,
-#}
-
 COMMAND_KWARG_RGX = re.compile(r'^(\w+)=(.*?)$')
 
 
