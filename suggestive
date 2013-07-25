@@ -27,6 +27,7 @@ FILTERS = {
     ('album', 'al'): AlbumFilter,
     ('sort',): SortOrder,
     ('loved', 'lo'): FractionLovedOrder,
+    ('banned', 'bn'): BannedOrder,
     ('pc', 'playcount'): PlaycountOrder,
 }
 
