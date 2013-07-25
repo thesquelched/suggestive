@@ -1,6 +1,7 @@
 #! /usr/bin/python3
 
 import urwid
+import shlex
 import logging
 import threading
 import mstat
@@ -77,9 +78,52 @@ class DatabaseUpdateThread(AppThread):
         (self.callback)()
 
 
+class Commandable(object):
+    def __init__(self):
+        self.edit = None
+
+    def start_command(self):
+        self.edit = CommanderEdit(':')
+        urwid.connect_signal(self.edit, 'command_done', self.command_done)
+        footer = urwid.AttrMap(self.edit, 'status')
+        urwid.emit_signal(self, 'set_footer', footer, True)
+        #self.top.set_footer(footer)
+        #self.top.set_focus('footer')
+
+    def command_done(self, command):
+        #self.top.set_focus('body')
+        urwid.emit_signal(self, 'set_focus', 'body')
+        urwid.disconnect_signal(self, self.edit, 'command_done',
+                                self.command_done)
+
+        if command:
+            self.execute_command(command)
+
+    @classmethod
+    def parse_command_args(cls, args_raw):
+        args = []
+        kwargs = {}
+        for arg in args_raw:
+            match = re.search(COMMAND_KWARG_RGX, arg)
+            if match is None:
+                args.append(arg)
+            else:
+                name, value = match.groups()
+                kwargs[name] = value
+
+        return (args, kwargs)
+
+    def execute_command(self, command_raw):
+        pieces = shlex.split(command_raw)
+        if not pieces:
+            return
+
+        command_name, args_raw = pieces[0], pieces[1:]
+
+
 class MainWindow(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['set_status', 'set_header']
+    signals = ['set_footer', 'set_focus', 'set_status', 'set_header']
 
     def __init__(self, conf, *args, **kwArgs):
         super(MainWindow, self).__init__(*args, **kwArgs)
@@ -88,6 +132,16 @@ class MainWindow(urwid.Frame):
         # Signals
         urwid.connect_signal(self, 'set_status', self.update_status)
         urwid.connect_signal(self, 'set_header', self.update_header)
+        urwid.connect_signal(self, 'set_footer', self.update_footer)
+        urwid.connect_signal(self, 'set_focus', self.update_focus)
+
+    def update_footer(self, footer, focus=False):
+        self.set_footer(footer)
+        if focus:
+            self.set_focus('footer')
+
+    def update_focus(self, to_focus):
+        self.set_focus(to_focus)
 
     def update_status(self, text, error=False):
         status = urwid.Text(text)
