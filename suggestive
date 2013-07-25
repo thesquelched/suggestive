@@ -6,7 +6,7 @@ import threading
 import mstat
 from analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
-    SortOrder)
+    SortOrder, PlaycountOrder)
 from datetime import datetime
 from subprocess import call
 from itertools import chain, islice
@@ -27,6 +27,7 @@ FILTER_COMMANDS = {
     'album': AlbumFilter,
     'sort': SortOrder,
     'loved': FractionLovedOrder,
+    'plays': PlaycountOrder,
 }
 
 COMMAND_KWARG_RGX = re.compile(r'^(\w+)=(.*?)$')

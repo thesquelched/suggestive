@@ -181,6 +181,48 @@ class FractionLovedOrder(OrderDecorator):
             return 1.0 / n_tracks if self.penalize else 1.0
 
 
+class PlaycountOrder(OrderDecorator):
+
+    """Order items based on playcount/scrobbles"""
+
+    def __init__(self, minimum=None, maximum=None):
+        if minimum is None:
+            minimum = 0
+        if maximum is None:
+            maximum = 1
+
+        minimum, maximum = float(minimum), float(maximum)
+
+        if minimum > maximum:
+            minimum, maximum = maximum, minimum
+
+        self.plays_min = max(0, minimum)
+        self.plays_max = max(self.plays_min, maximum)
+
+    def order(self, albums, session):
+        results = session.query(Album).\
+            join(Track).\
+            outerjoin(Scrobble).\
+            add_columns(func.count(Track.id), func.count(Scrobble.id)).\
+            group_by(Album.id).\
+            all()
+
+        neworder = defaultdict(lambda: 1.0, albums.items())
+
+        for album, n_tracks, n_scrobbles in results:
+            if n_tracks == 0:
+                continue
+
+            album_plays = n_scrobbles / n_tracks
+            if self.plays_min <= album_plays <= self.plays_max:
+                neworder[album] *= album_plays
+            else:
+                if album in neworder:
+                    del neworder[album]
+
+        return neworder
+
+
 class Analytics(object):
 
     def __init__(self, session):
