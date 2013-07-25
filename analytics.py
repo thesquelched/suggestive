@@ -108,12 +108,11 @@ class BannedOrder(OrderDecorator):
         neworder = defaultdict(lambda: 1.0, albums.items())
 
         for album, n_tracks, n_banned in results:
-            if n_tracks == 0:
+            if album not in neworder or n_tracks == 0:
                 continue
 
             if n_banned and self.remove:
-                if album in neworder:
-                    del neworder[album]
+                del neworder[album]
             elif n_banned:
                 # Banned albums are equally worthless
                 neworder[album] *= 0.0
@@ -155,7 +154,7 @@ class FractionLovedOrder(OrderDecorator):
         neworder = defaultdict(lambda: 1.0, albums.items())
 
         for album, n_tracks, n_loved in results:
-            if n_tracks == 0:
+            if album not in neworder or n_tracks == 0:
                 continue
 
             if n_loved is None:
@@ -163,9 +162,7 @@ class FractionLovedOrder(OrderDecorator):
 
             f_loved = n_loved / n_tracks
             if not (self.f_min <= f_loved <= self.f_max):
-                if album in neworder:
-                    del neworder[album]
-
+                del neworder[album]
                 continue
 
             neworder[album] *= self._order(n_loved, n_tracks)
@@ -210,7 +207,7 @@ class PlaycountOrder(OrderDecorator):
         neworder = defaultdict(lambda: 1.0, albums.items())
 
         for album, n_tracks, n_scrobbles in results:
-            if n_tracks == 0:
+            if album not in neworder or n_tracks == 0:
                 continue
 
             album_plays = n_scrobbles / n_tracks

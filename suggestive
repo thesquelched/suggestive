@@ -6,7 +6,7 @@ import threading
 import mstat
 from analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
-    SortOrder, PlaycountOrder)
+    SortOrder, PlaycountOrder, BaseOrder)
 from datetime import datetime
 from subprocess import call
 from itertools import chain, islice
@@ -27,7 +27,7 @@ FILTERS = {
     ('album', 'al'): AlbumFilter,
     ('sort',): SortOrder,
     ('loved', 'lo'): FractionLovedOrder,
-    ('plays', 'playcount'): PlaycountOrder,
+    ('pc', 'playcount'): PlaycountOrder,
 }
 
 # Create a flat dict from FILTERS in which the commands in the tuple key
@@ -106,7 +106,11 @@ class Application(object):
 
     def __init__(self, conf):
         self.conf = conf
-        self.default_orderers = [FractionLovedOrder(), BannedOrder()]
+        self.default_orderers = [
+            BaseOrder(),
+            FractionLovedOrder(),
+            BannedOrder()
+        ]
         self.orderers = list(self.default_orderers)
 
         self.bindings = self.setup_bindings()
