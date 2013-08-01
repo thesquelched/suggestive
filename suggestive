@@ -291,7 +291,12 @@ class Application(object):
             '?': lambda: self.start_search(reverse=True),
             ':': lambda: self.start_command(),
             'esc': lambda: self.reset_orderers(),
+            'p': lambda: self.pause(),
         }
+
+    def pause(self):
+        mpd = mstat.initialize_mpd(self.conf)
+        mpd.pause()
 
     def start_search(self, reverse=False):
         self.edit = ListSearcher('/')
