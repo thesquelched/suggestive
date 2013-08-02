@@ -12,6 +12,7 @@ from datetime import datetime
 from subprocess import call
 from itertools import chain, islice
 import re
+from mpd import CommandError
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -641,7 +642,11 @@ class AlbumList(urwid.ListBox):
         mpd = mstat.initialize_mpd(self.app.conf)
 
         for i, track in enumerate(tracks):
-            mpd_track = mpd.listallinfo(track.filename)
+            try:
+                mpd_track = mpd.listallinfo(track.filename)
+            except CommandError:
+                continue
+
             if not mpd_track:
                 continue
             trackno = str(mpd_track[0].get('track', i))
@@ -649,7 +654,9 @@ class AlbumList(urwid.ListBox):
 
             track_and_num.append((int(trackno), track))
 
-        return sorted(track_and_num)
+        logger.debug('Track nums: {}'.format([x[0] for x in track_and_num]))
+
+        return sorted(track_and_num, key=lambda pair: pair[0])
 
     def expand_album(self, album_widget):
         current = self.focus_position
