@@ -369,7 +369,7 @@ class Application(object):
             except TypeError as err:
                 logger.debug('TypeError: {}'.format(err))
                 self.update_status(
-                    "Invalid arguments for command '{}'".format(command),
+                    "Invalid arguments for command '{}'".format(command_raw),
                     error=True)
                 return
         else:

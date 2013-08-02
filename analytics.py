@@ -145,7 +145,10 @@ class FractionLovedOrder(OrderDecorator):
         if maximum is None:
             maximum = 1
 
-        minimum, maximum = float(minimum), float(maximum)
+        try:
+            minimum, maximum = float(minimum), float(maximum)
+        except (TypeError, ValueError) as err:
+            raise TypeError(*err.args)
 
         if minimum > maximum:
             minimum, maximum = maximum, minimum
@@ -199,15 +202,15 @@ class PlaycountOrder(OrderDecorator):
     """Order items based on playcount/scrobbles"""
 
     def __init__(self, minimum=None, maximum=None):
-        try:
-            minimum = float(minimum)
-        except (ValueError, TypeError):
-            minimum = 0.0
+        if minimum is None:
+            minimum = 0
+        if maximum is None:
+            maximum = sys.maxsize
 
         try:
-            maximum = float(maximum)
-        except (ValueError, TypeError):
-            maximum = sys.maxsize
+            minimum, maximum = float(minimum), float(maximum)
+        except (TypeError, ValueError) as err:
+            raise TypeError(*err.args)
 
         if minimum > maximum:
             minimum, maximum = maximum, minimum
