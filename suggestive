@@ -364,6 +364,8 @@ class Application(object):
             try:
                 fltr = orderer(*args, **kwargs)
                 self.orderers.append(fltr)
+                logger.debug('Orderers: {}'.format(
+                    ', '.join(map(repr, self.orderers))))
             except TypeError as err:
                 logger.debug('TypeError: {}'.format(err))
                 self.update_status(

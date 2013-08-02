@@ -5,6 +5,7 @@ from itertools import repeat
 from collections import defaultdict
 from operator import itemgetter
 import re
+import sys
 
 
 logger = logging.getLogger(__name__)
@@ -39,8 +40,8 @@ def choose(N, k):
 
 class OrderDecorator(object):
 
-    def __init__(self, next=None):
-        self.next = next
+    def __repr__(self):
+        return '<{}()>'.format(self.__class__.__name__)
 
     def order(self, albums, session):
         raise NotImplementedError
@@ -59,7 +60,11 @@ class BaseOrder(OrderDecorator):
 
 class AlbumFilter(OrderDecorator):
     def __init__(self, name):
+        self.name = name
         self.name_rgx = re.compile(name, re.I)
+
+    def __repr__(self):
+        return '<AlbumFilter({})>'.format(self.name)
 
     def order(self, albums, session):
         return {
@@ -70,7 +75,11 @@ class AlbumFilter(OrderDecorator):
 
 class ArtistFilter(OrderDecorator):
     def __init__(self, name):
+        self.name = name
         self.name_rgx = re.compile(name, re.I)
+
+    def __repr__(self):
+        return '<ArtistFilter({})>'.format(self.name)
 
     def order(self, albums, session):
         return {
@@ -95,6 +104,9 @@ class BannedOrder(OrderDecorator):
 
     def __init__(self, remove_banned=True):
         self.remove = remove_banned
+
+    def __repr__(self):
+        return '<BannedOrder({})>'.format(self.remove)
 
     def order(self, albums, session):
         results = session.query(Album).\
@@ -142,6 +154,10 @@ class FractionLovedOrder(OrderDecorator):
         self.f_max = max(min(maximum, 1), min_)
         self.f_min = min(max(minimum, 0), self.f_max)
 
+    def __repr__(self):
+        return '<FractionLovedOrder({}, {}, {})>'.format(
+            self.f_min, self.f_max, self.penalize)
+
     def order(self, albums, session):
         results = session.query(Album).\
             join(Track).\
@@ -183,18 +199,25 @@ class PlaycountOrder(OrderDecorator):
     """Order items based on playcount/scrobbles"""
 
     def __init__(self, minimum=None, maximum=None):
-        if minimum is None:
-            minimum = 0
-        if maximum is None:
-            maximum = 1
+        try:
+            minimum = float(minimum)
+        except (ValueError, TypeError):
+            minimum = 0.0
 
-        minimum, maximum = float(minimum), float(maximum)
+        try:
+            maximum = float(maximum)
+        except (ValueError, TypeError):
+            maximum = sys.maxsize
 
         if minimum > maximum:
             minimum, maximum = maximum, minimum
 
         self.plays_min = max(0, minimum)
         self.plays_max = max(self.plays_min, maximum)
+
+    def __repr__(self):
+        return '<PlaycountOrder({}, {})>'.format(
+            self.plays_min, self.plays_max)
 
     def order(self, albums, session):
         results = session.query(Album).\
