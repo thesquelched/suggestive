@@ -103,7 +103,7 @@ class BannedOrder(OrderDecorator):
     """Remove or demote albums with banned tracks"""
 
     def __init__(self, remove_banned=True):
-        self.remove = remove_banned
+        self.remove = bool(remove_banned)
 
     def __repr__(self):
         return '<BannedOrder({})>'.format(self.remove)
