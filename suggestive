@@ -380,9 +380,12 @@ class Application(object):
 
     def reset_orderers(self):
         logger.info('Clear modes')
-        self.orderers = list(self.default_orderers)
+        if self.orderers != self.default_orderers:
+            self.orderers = list(self.default_orderers)
 
-        self.update_suggestions()
+            self.update_suggestions()
+        else:
+            logger.debug('Modes are already at default')
 
     def suggestion_list(self):
         body = []
