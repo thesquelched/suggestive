@@ -352,33 +352,39 @@ class Application(object):
 
         return (args, kwargs)
 
+    def add_orderer(self, command, *args, **kwArgs):
+        orderer = FILTER_COMMANDS[command]
+
+        fltr = orderer(*args, **kwArgs)
+        try:
+            idx = list(map(type, self.orderers)).index(orderer)
+            self.orderers[idx] = fltr
+        except ValueError:
+            self.orderers.append(fltr)
+
+        logger.debug('Orderers: {}'.format(
+            ', '.join(map(repr, self.orderers))))
+
+        self.update_suggestions()
+
     def execute_command(self, command_raw):
         logger.info('COMMAND: {}'.format(command_raw))
         pieces = command_raw.split(' ', 1)
         command, args_raw = pieces[0], pieces[1:]
+        args, kwargs = self.parse_command_args(args_raw)
 
         if command in FILTER_COMMANDS:
-            orderer = FILTER_COMMANDS[command]
-            args, kwargs = self.parse_command_args(args_raw)
-
             try:
-                fltr = orderer(*args, **kwargs)
-                self.orderers.append(fltr)
-                logger.debug('Orderers: {}'.format(
-                    ', '.join(map(repr, self.orderers))))
+                self.add_orderer(command, *args, **kwargs)
             except TypeError as err:
                 logger.debug('TypeError: {}'.format(err))
                 self.update_status(
                     "Invalid arguments for command '{}'".format(command_raw),
                     error=True)
-                return
         else:
             self.update_status(
                 "Unknown command: '{}'".format(command),
                 error=True)
-            return
-
-        self.update_suggestions()
 
     def reset_orderers(self):
         logger.info('Clear modes')
