@@ -123,7 +123,11 @@ class Commandable(object):
 
 
 class BufferList(urwid.Pile):
-    pass
+
+    def add(self, buf, options=None):
+        if options is None:
+            options = ('weight', 1)
+        self.contents.append((buf, options))
 
 
 class Buffer(urwid.Frame):
@@ -323,13 +327,15 @@ class Application(object):
         self.current_search_index = None
 
         #self.list_view = self.suggestion_list()
-        self.list_view = self.library_buffer()
 
-        #self.buffers = urwid.Pile([self.list_view])
-        self.buffers = BufferList([self.list_view])
+        #self.buffers = BufferList([self.list_view])
+        self.buffers = BufferList([])
 
         #self.top = urwid.Frame(self.list_view)
         self.top = MainWindow(conf, self.buffers)
+
+        self.list_view = self.library_buffer()
+        self.buffers.add(self.list_view)
 
         self.event_loop = self.main_loop()
 
@@ -337,6 +343,8 @@ class Application(object):
         buf = LibraryBuffer(self.conf)
         urwid.connect_signal(buf, 'set_status', self.update_status)
         urwid.connect_signal(buf, 'set_header', self.update_header)
+
+        buf.update_suggestions()
 
         return buf
 
@@ -575,7 +583,7 @@ class Application(object):
     def main_loop(self):
         logger.info('Starting event loop')
 
-        self.list_view.update_suggestions()
+        #self.list_view.update_suggestions()
         #self.update_suggestions()
         # self.start_db_update()
 
