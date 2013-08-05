@@ -128,6 +128,13 @@ class BufferList(urwid.Pile):
             options = ('weight', 1)
         self.contents.append((buf, options))
 
+    def next_buffer(self):
+        current = self.focus_position
+        try:
+            self.focus_position = current + 1
+        except IndexError:
+            self.focus_position = 0
+
 
 class Buffer(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
@@ -146,8 +153,7 @@ class Buffer(urwid.Frame):
         urwid.emit_signal(self, 'set_footer', footer, focus)
 
     def setup_bindings(self):
-        return {
-        }
+        return {}
 
     def keypress(self, size, key):
         if self.dispatch(key):
@@ -343,7 +349,6 @@ class Application(object):
 
         self.top = MainWindow(conf, self.buffers)
 
-        #self.list_view = self.library_buffer()
         self.buffers.add(self.library_buffer())
 
         self.event_loop = self.main_loop()
@@ -399,6 +404,7 @@ class Application(object):
             ':': lambda: self.start_command(),
             'esc': lambda: self.reset_orderers(),
             'p': lambda: self.pause(),
+            'ctrl w': lambda: self.buffers.next_buffer()
         }
 
     def pause(self):
