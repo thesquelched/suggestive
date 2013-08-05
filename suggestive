@@ -114,6 +114,7 @@ class Buffer(urwid.Frame, Commandable):
 
     def __init__(self, *args, **kwArgs):
         super(Buffer, self).__init__(*args, **kwArgs)
+        self.bindings = {}
 
     def update_status(self, status, error=False):
         urwid.emit_signal(self, 'set_status', status, error)
@@ -144,7 +145,6 @@ class Buffer(urwid.Frame, Commandable):
 
 
 class LibraryBuffer(Buffer):
-    # Commands
     ORDERERS = {
         ('artist', 'ar'): ArtistFilter,
         ('album', 'al'): AlbumFilter,
@@ -319,6 +319,36 @@ class LibraryBuffer(Buffer):
             logger.debug('Modes are already at default')
 
 
+class PlaylistBuffer(Buffer):
+    ITEM_FORMAT = '{artist} - {album} - {title}'
+
+    def __init__(self, conf):
+        self.conf = conf
+
+        self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
+        walker = urwid.SimpleFocusListWalker(self.playlist_items())
+        self.playlist = urwid.ListBox(walker)
+        super(PlaylistBuffer, self).__init__(self.playlist)
+
+    def format_track(self, track):
+        replace = {key: 'Unknown' for key in self.format_keys}
+        replace.update(track)
+
+        return self.ITEM_FORMAT.format(**replace)
+
+    def playlist_items(self):
+        mpd = mstat.initialize_mpd(self.conf)
+
+        playlist = mpd.playlistinfo()
+        body = []
+        for track in playlist:
+            text = urwid.Text(self.format_track(track))
+            with_attr = urwid.AttrMap(text, 'track', 'focus track')
+            body.append(with_attr)
+
+        return body
+
+
 class MainWindow(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['set_footer', 'set_focus', 'set_status']
@@ -373,6 +403,7 @@ class Application(Commandable):
         self.top = MainWindow(conf, self.buffers)
 
         self.buffers.add(self.library_buffer())
+        #self.buffers.add(self.playlist_buffer())
 
         self.event_loop = self.main_loop()
 
@@ -383,6 +414,12 @@ class Application(Commandable):
         urwid.connect_signal(buf, 'set_footer', self.top.update_footer)
 
         buf.update_suggestions()
+
+        return buf
+
+    def playlist_buffer(self):
+        buf = PlaylistBuffer(self.conf)
+        buf.update()
 
         return buf
 
@@ -473,10 +510,6 @@ class Application(Commandable):
 
     def main_loop(self):
         logger.info('Starting event loop')
-
-        #self.list_view.update_suggestions()
-        #self.update_suggestions()
-        # self.start_db_update()
 
         mainloop = urwid.MainLoop(
             self.top,
