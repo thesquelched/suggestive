@@ -22,24 +22,6 @@ SEARCH_PREV = 'search_prev'
 GO_TO_TOP = 'cursor max left'
 GO_TO_BOTTOM = 'cursor max right'
 
-# Commands
-FILTERS = {
-    ('artist', 'ar'): ArtistFilter,
-    ('album', 'al'): AlbumFilter,
-    ('sort',): SortOrder,
-    ('loved', 'lo'): FractionLovedOrder,
-    ('banned', 'bn'): BannedOrder,
-    ('pc', 'playcount'): PlaycountOrder,
-}
-
-# Create a flat dict from FILTERS in which the commands in the tuple key
-# correspond to the filter value
-FILTER_COMMANDS = dict(
-    chain.from_iterable(
-        [(command, func) for command in commands]
-        for commands, func in FILTERS.items()
-    )
-)
 
 COMMAND_KWARG_RGX = re.compile(r'^(\w+)=(.*?)$')
 
@@ -79,25 +61,7 @@ class DatabaseUpdateThread(AppThread):
 
 
 class Commandable(object):
-    def __init__(self):
-        self.edit = None
-
-    def start_command(self):
-        self.edit = CommanderEdit(':')
-        urwid.connect_signal(self.edit, 'command_done', self.command_done)
-        footer = urwid.AttrMap(self.edit, 'status')
-        urwid.emit_signal(self, 'set_footer', footer, True)
-        #self.top.set_footer(footer)
-        #self.top.set_focus('footer')
-
-    def command_done(self, command):
-        #self.top.set_focus('body')
-        urwid.emit_signal(self, 'set_focus', 'body')
-        urwid.disconnect_signal(self, self.edit, 'command_done',
-                                self.command_done)
-
-        if command:
-            self.execute_command(command)
+    commands = {}
 
     @classmethod
     def parse_command_args(cls, args_raw):
@@ -119,6 +83,14 @@ class Commandable(object):
             return
 
         command_name, args_raw = pieces[0], pieces[1:]
+        if command_name in self.commands:
+            args, kwargs = self.parse_command_args(args_raw)
+            command_func = self.commands[command_name]
+            command_func(*args, **kwargs)
+
+            return True
+        else:
+            return False
 
 
 class BufferList(urwid.Pile):
@@ -136,7 +108,7 @@ class BufferList(urwid.Pile):
             self.focus_position = 0
 
 
-class Buffer(urwid.Frame):
+class Buffer(urwid.Frame, Commandable):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['set_footer', 'set_focus', 'set_status']
 
@@ -172,16 +144,27 @@ class Buffer(urwid.Frame):
 
 
 class LibraryBuffer(Buffer):
+    # Commands
+    ORDERERS = {
+        ('artist', 'ar'): ArtistFilter,
+        ('album', 'al'): AlbumFilter,
+        ('sort',): SortOrder,
+        ('loved', 'lo'): FractionLovedOrder,
+        ('banned', 'bn'): BannedOrder,
+        ('pc', 'playcount'): PlaycountOrder,
+    }
+
     def __init__(self, conf):
         self.conf = conf
+        self.bindings = self.setup_bindings()
+        self.commands = self.setup_commands()
+
         self.default_orderers = [
             BaseOrder(),
             FractionLovedOrder(),
             BannedOrder()
         ]
         self.orderers = list(self.default_orderers)
-
-        self.bindings = self.setup_bindings()
 
         session = mstat.initialize_sqlalchemy(conf)
         self.anl = Analytics(session)
@@ -191,14 +174,32 @@ class LibraryBuffer(Buffer):
         self.search_matches = []
         self.current_search_index = None
 
-        # urwid stuff
         self.list_view = self.suggestion_list()
 
         super(LibraryBuffer, self).__init__(self.list_view)
 
+    def setup_commands(self):
+        orderers = dict(
+            chain.from_iterable(
+                ((command, func) for command in commands)
+                for commands, func in self.ORDERERS.items()
+            )
+        )
+
+        return {
+            name: self.orderer_func(orderer)
+            for name, orderer in orderers.items()
+        }
+
+    def orderer_func(self, orderer):
+        def add_func(*args, **kwArgs):
+            self.add_orderer(orderer, *args, **kwArgs)
+        return add_func
+
     def setup_bindings(self):
         return {
             '/': lambda: self.start_search(),
+            'esc': lambda: self.reset_orderers(),
         }
 
     def suggestion_list(self):
@@ -295,6 +296,28 @@ class LibraryBuffer(Buffer):
 
             self.update_status(status)
 
+    def add_orderer(self, orderer_class, *args, **kwArgs):
+        orderer = orderer_class(*args, **kwArgs)
+        try:
+            idx = list(map(type, self.orderers)).index(orderer)
+            self.orderers[idx] = orderer
+        except ValueError:
+            self.orderers.append(orderer)
+
+        logger.debug('Orderers: {}'.format(
+            ', '.join(map(repr, self.orderers))))
+
+        self.update_suggestions()
+
+    def reset_orderers(self):
+        logger.info('Clear modes')
+        if self.orderers != self.default_orderers:
+            self.orderers = list(self.default_orderers)
+
+            self.update_suggestions()
+        else:
+            logger.debug('Modes are already at default')
+
 
 class MainWindow(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
@@ -324,7 +347,7 @@ class MainWindow(urwid.Frame):
         self.set_footer(footer)
 
 
-class Application(object):
+class Application(Commandable):
 
     def __init__(self, conf):
         self.conf = conf
@@ -400,9 +423,9 @@ class Application(object):
             'r': lambda: self.update_suggestions(),
             '~': lambda: self.launch_mpd_client(),
 #            '/': lambda: self.start_search(),
-            '?': lambda: self.start_search(reverse=True),
+#            '?': lambda: self.start_search(reverse=True),
             ':': lambda: self.start_command(),
-            'esc': lambda: self.reset_orderers(),
+#            'esc': lambda: self.reset_orderers(),
             'p': lambda: self.pause(),
             'ctrl w': lambda: self.buffers.next_buffer()
         }
@@ -424,80 +447,22 @@ class Application(object):
                                 self.command_done)
 
         if command:
-            self.execute_command(command)
+            success = False
 
-    @classmethod
-    def parse_command_args(cls, args_raw):
-        args = []
-        kwargs = {}
-        for arg in args_raw:
-            match = re.search(COMMAND_KWARG_RGX, arg)
-            if match is None:
-                args.append(arg)
-            else:
-                name, value = match.groups()
-                kwargs[name] = value
-
-        return (args, kwargs)
-
-    def add_orderer(self, command, *args, **kwArgs):
-        orderer = FILTER_COMMANDS[command]
-
-        fltr = orderer(*args, **kwArgs)
-        try:
-            idx = list(map(type, self.orderers)).index(orderer)
-            self.orderers[idx] = fltr
-        except ValueError:
-            self.orderers.append(fltr)
-
-        logger.debug('Orderers: {}'.format(
-            ', '.join(map(repr, self.orderers))))
-
-        self.update_suggestions()
-
-    def execute_command(self, command_raw):
-        logger.info('COMMAND: {}'.format(command_raw))
-        pieces = command_raw.split(' ', 1)
-        command, args_raw = pieces[0], pieces[1:]
-        args, kwargs = self.parse_command_args(args_raw)
-
-        if command in FILTER_COMMANDS:
             try:
-                self.add_orderer(command, *args, **kwargs)
+                success = self.buffers.focus.execute_command(command)
+                if not success:
+                    success = self.execute_command(command)
             except TypeError as err:
                 logger.debug('TypeError: {}'.format(err))
                 self.update_status(
-                    "Invalid arguments for command '{}'".format(command_raw),
+                    "Invalid arguments for command '{}'".format(command),
                     error=True)
-        else:
-            self.update_status(
-                "Unknown command: '{}'".format(command),
-                error=True)
 
-    def reset_orderers(self):
-        logger.info('Clear modes')
-        if self.orderers != self.default_orderers:
-            self.orderers = list(self.default_orderers)
-
-            self.update_suggestions()
-        else:
-            logger.debug('Modes are already at default')
-
-    #def suggestion_list(self):
-    #    body = []
-    #    for suggestion in self.suggestions:
-    #        item = SelectableAlbum(suggestion)
-
-    #        urwid.connect_signal(item, 'enqueue', self.enqueue_album)
-    #        urwid.connect_signal(item, 'play', self.play_album)
-
-    #        body.append(urwid.AttrMap(item, 'album', 'focus album'))
-
-    #    if not body:
-    #        body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
-
-    #    albumlist = AlbumList(self, urwid.SimpleFocusListWalker(body))
-    #    return albumlist
+            if not success:
+                self.update_status(
+                    "Unknown command: '{}'".format(command),
+                    error=True)
 
     def setup_palette(self):
         return self.conf.palette()
