@@ -143,9 +143,30 @@ class Buffer(urwid.Frame):
     def update_status(self, status, error=False):
         urwid.emit_signal(self, 'set_status', status, error)
 
+    def update_focus(self, to_focus):
+        urwid.emit_signal(self, 'set_focus', to_focus)
+
+    def update_footer(self, footer, focus=False):
+        urwid.emit_signal(self, 'set_footer', footer, focus)
+
     def setup_bindings(self):
         return {
         }
+
+    def keypress(self, size, key):
+        if self.dispatch(key):
+            return True
+        else:
+            return super(Buffer, self).keypress(size, key)
+
+    def dispatch(self, key):
+        if key in self.bindings:
+            func = self.bindings[key]
+            logger.debug('KEYBIND: {}'.format(func))
+            func()
+            return True
+        else:
+            return False
 
 
 class LibraryBuffer(Buffer):
@@ -172,6 +193,11 @@ class LibraryBuffer(Buffer):
         self.list_view = self.suggestion_list()
 
         super(LibraryBuffer, self).__init__(self.list_view)
+
+    def setup_bindings(self):
+        return {
+            '/': lambda: self.start_search(),
+        }
 
     def suggestion_list(self):
         body = []
@@ -243,30 +269,30 @@ class LibraryBuffer(Buffer):
         if ids:
             mpd.playid(ids[0])
 
-    #def start_search(self, reverse=False):
-    #    self.edit = ListSearcher('/')
-    #    urwid.connect_signal(self.edit, 'search_done', self.search_done,
-    #                         reverse)
-    #    footer = urwid.AttrMap(self.edit, 'status')
-    #    self.top.set_footer(footer)
-    #    self.top.set_focus('footer')
+    def start_search(self, reverse=False):
+        self.edit = ListSearcher('/')
+        urwid.connect_signal(self.edit, 'search_done', self.search_done,
+                             reverse)
+        footer = urwid.AttrMap(self.edit, 'status')
+        self.update_footer(footer)
+        self.update_focus('footer')
 
-    #def search_done(self, pattern, reverse=False):
-    #    logger.debug('Reverse: {}'.format(reverse))
-    #    self.top.set_focus('body')
-    #    urwid.disconnect_signal(self, self.edit, 'search_done',
-    #                            self.search_done)
+    def search_done(self, pattern, reverse=False):
+        logger.debug('Reverse: {}'.format(reverse))
+        self.update_focus('body')
+        urwid.disconnect_signal(self, self.edit, 'search_done',
+                                self.search_done)
 
-    #    if pattern:
-    #        logger.info('SEARCH FOR: {}'.format(pattern))
-    #        found = self.list_view.search(pattern)
+        if pattern:
+            logger.info('SEARCH FOR: {}'.format(pattern))
+            found = self.list_view.search(pattern)
 
-    #        if found:
-    #            status = 'Found {} matches'.format(found)
-    #        else:
-    #            status = 'No items matching {}'.format(pattern)
+            if found:
+                status = 'Found {} matches'.format(found)
+            else:
+                status = 'No items matching {}'.format(pattern)
 
-    #        self.update_status(status)
+            self.update_status(status)
 
 
 class MainWindow(urwid.Frame):
@@ -326,16 +352,12 @@ class Application(object):
         self.search_matches = []
         self.current_search_index = None
 
-        #self.list_view = self.suggestion_list()
-
-        #self.buffers = BufferList([self.list_view])
         self.buffers = BufferList([])
 
-        #self.top = urwid.Frame(self.list_view)
         self.top = MainWindow(conf, self.buffers)
 
-        self.list_view = self.library_buffer()
-        self.buffers.add(self.list_view)
+        #self.list_view = self.library_buffer()
+        self.buffers.add(self.library_buffer())
 
         self.event_loop = self.main_loop()
 
@@ -343,6 +365,8 @@ class Application(object):
         buf = LibraryBuffer(self.conf)
         urwid.connect_signal(buf, 'set_status', self.update_status)
         urwid.connect_signal(buf, 'set_header', self.update_header)
+        urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
+        urwid.connect_signal(buf, 'set_footer', self.top.update_footer)
 
         buf.update_suggestions()
 
@@ -357,70 +381,9 @@ class Application(object):
     def update_event(self):
         self.event_loop.set_alarm_in(0, self.update_suggestions)
 
-    #def update_suggestions(self, *_args):
-    #    logger.info('Update suggestions display')
-    #    self.suggestions = self.get_suggestions()
-
-    #    self.list_view = self.suggestion_list()
-    #    self.top.set_body(self.list_view)
-
-    #    self.update_status('suggestive')
-    #    self.update_header()
-
-    #def get_suggestions(self):
-    #    return self.anl.order_albums(self.orderers)
-    #    #return self.anl.loved_order()
-    #    # return []
-    #    #return self.anl.suggest_albums()
-
-    #def enqueue_album(self, album):
-    #    self.enqueue_tracks(album.tracks)
-
-    #def play_album(self, album):
-    #    self.play_tracks(album.tracks)
-
-    #def enqueue_track(self, track):
-    #    self.enqueue_tracks([track])
-
-    #def play_track(self, track):
-    #    self.play_tracks([track])
-
-    #def enqueue_tracks(self, tracks):
-    #    mpd = mstat.initialize_mpd(self.conf)
-
-    #    if tracks:
-    #        logger.info('Enqueue {}'.format(album_text(tracks[0].album)))
-
-    #    mpd_tracks = list(chain.from_iterable(
-    #        mpd.listallinfo(track.filename) for track in tracks))
-
-    #    for i, track in enumerate(mpd_tracks):
-    #        trackno = str(track.get('track', i))
-    #        trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
-    #        track['track'] = int(trackno)
-
-    #    sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
-    #    ids = [mpd.addid(track['file']) for track in sorted_tracks]
-    #    return ids
-
-    #def play_tracks(self, tracks):
-    #    mpd = mstat.initialize_mpd(self.conf)
-
-    #    if tracks:
-    #        logger.info('Play: {}'.format(album_text(tracks[0].album)))
-
-    #    mpd.clear()
-    #    ids = self.enqueue_tracks(tracks)
-    #    if ids:
-    #        mpd.playid(ids[0])
-
     def update_header(self):
         now = datetime.now()
         urwid.emit_signal(self.top, 'set_header', now)
-        #timestamp = last_updated.strftime('%Y-%m-%d %H:%M:%S')
-        #upd = urwid.Text('Last updated: {}'.format(timestamp))
-        #header = urwid.AttrMap(upd, 'header')
-        #self.top.set_header(header)
 
     def update_status(self, status, error=False):
         urwid.emit_signal(self.top, 'set_status', status, error)
@@ -449,7 +412,7 @@ class Application(object):
             'u': lambda: self.start_db_update(),
             'r': lambda: self.update_suggestions(),
             '~': lambda: self.launch_mpd_client(),
-            '/': lambda: self.start_search(),
+#            '/': lambda: self.start_search(),
             '?': lambda: self.start_search(reverse=True),
             ':': lambda: self.start_command(),
             'esc': lambda: self.reset_orderers(),
@@ -459,31 +422,6 @@ class Application(object):
     def pause(self):
         mpd = mstat.initialize_mpd(self.conf)
         mpd.pause()
-
-    def start_search(self, reverse=False):
-        self.edit = ListSearcher('/')
-        urwid.connect_signal(self.edit, 'search_done', self.search_done,
-                             reverse)
-        footer = urwid.AttrMap(self.edit, 'status')
-        self.top.set_footer(footer)
-        self.top.set_focus('footer')
-
-    def search_done(self, pattern, reverse=False):
-        logger.debug('Reverse: {}'.format(reverse))
-        self.top.set_focus('body')
-        urwid.disconnect_signal(self, self.edit, 'search_done',
-                                self.search_done)
-
-        if pattern:
-            logger.info('SEARCH FOR: {}'.format(pattern))
-            found = self.list_view.search(pattern)
-
-            if found:
-                status = 'Found {} matches'.format(found)
-            else:
-                status = 'No items matching {}'.format(pattern)
-
-            self.update_status(status)
 
     def start_command(self):
         self.edit = CommanderEdit(':')
