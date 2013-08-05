@@ -122,6 +122,149 @@ class Commandable(object):
         command_name, args_raw = pieces[0], pieces[1:]
 
 
+class BufferList(urwid.Pile):
+    pass
+
+
+class Buffer(urwid.Frame):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['set_footer', 'set_focus', 'set_status', 'set_header']
+
+    def __init__(self, *args, **kwArgs):
+        super(Buffer, self).__init__(*args, **kwArgs)
+
+    def update_header(self):
+        urwid.emit_signal(self, 'set_header')
+
+    def update_status(self, status, error=False):
+        urwid.emit_signal(self, 'set_status', status, error)
+
+    def setup_bindings(self):
+        return {
+        }
+
+
+class LibraryBuffer(Buffer):
+    def __init__(self, conf):
+        self.conf = conf
+        self.default_orderers = [
+            BaseOrder(),
+            FractionLovedOrder(),
+            BannedOrder()
+        ]
+        self.orderers = list(self.default_orderers)
+
+        self.bindings = self.setup_bindings()
+
+        session = mstat.initialize_sqlalchemy(conf)
+        self.anl = Analytics(session)
+
+        self.suggestions = []
+
+        self.search_matches = []
+        self.current_search_index = None
+
+        # urwid stuff
+        self.list_view = self.suggestion_list()
+
+        super(LibraryBuffer, self).__init__(self.list_view)
+
+    def suggestion_list(self):
+        body = []
+        for suggestion in self.suggestions:
+            item = SelectableAlbum(suggestion)
+
+            urwid.connect_signal(item, 'enqueue', self.enqueue_album)
+            urwid.connect_signal(item, 'play', self.play_album)
+
+            body.append(urwid.AttrMap(item, 'album', 'focus album'))
+
+        if not body:
+            body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
+
+        albumlist = AlbumList(self, urwid.SimpleFocusListWalker(body))
+        return albumlist
+
+    def update_suggestions(self, *_args):
+        logger.info('Update suggestions display')
+        self.suggestions = self.get_suggestions()
+
+        self.list_view = self.suggestion_list()
+        self.set_body(self.list_view)
+
+        self.update_status('suggestive')
+        self.update_header()
+
+    def get_suggestions(self):
+        return self.anl.order_albums(self.orderers)
+
+    def enqueue_album(self, album):
+        self.enqueue_tracks(album.tracks)
+
+    def play_album(self, album):
+        self.play_tracks(album.tracks)
+
+    def enqueue_track(self, track):
+        self.enqueue_tracks([track])
+
+    def play_track(self, track):
+        self.play_tracks([track])
+
+    def enqueue_tracks(self, tracks):
+        mpd = mstat.initialize_mpd(self.conf)
+
+        if tracks:
+            logger.info('Enqueue {}'.format(album_text(tracks[0].album)))
+
+        mpd_tracks = list(chain.from_iterable(
+            mpd.listallinfo(track.filename) for track in tracks))
+
+        for i, track in enumerate(mpd_tracks):
+            trackno = str(track.get('track', i))
+            trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
+            track['track'] = int(trackno)
+
+        sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
+        ids = [mpd.addid(track['file']) for track in sorted_tracks]
+        return ids
+
+    def play_tracks(self, tracks):
+        mpd = mstat.initialize_mpd(self.conf)
+
+        if tracks:
+            logger.info('Play: {}'.format(album_text(tracks[0].album)))
+
+        mpd.clear()
+        ids = self.enqueue_tracks(tracks)
+        if ids:
+            mpd.playid(ids[0])
+
+    #def start_search(self, reverse=False):
+    #    self.edit = ListSearcher('/')
+    #    urwid.connect_signal(self.edit, 'search_done', self.search_done,
+    #                         reverse)
+    #    footer = urwid.AttrMap(self.edit, 'status')
+    #    self.top.set_footer(footer)
+    #    self.top.set_focus('footer')
+
+    #def search_done(self, pattern, reverse=False):
+    #    logger.debug('Reverse: {}'.format(reverse))
+    #    self.top.set_focus('body')
+    #    urwid.disconnect_signal(self, self.edit, 'search_done',
+    #                            self.search_done)
+
+    #    if pattern:
+    #        logger.info('SEARCH FOR: {}'.format(pattern))
+    #        found = self.list_view.search(pattern)
+
+    #        if found:
+    #            status = 'Found {} matches'.format(found)
+    #        else:
+    #            status = 'No items matching {}'.format(pattern)
+
+    #        self.update_status(status)
+
+
 class MainWindow(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['set_footer', 'set_focus', 'set_status', 'set_header']
@@ -179,13 +322,23 @@ class Application(object):
         self.search_matches = []
         self.current_search_index = None
 
-        # urwid stuff
-        self.list_view = self.suggestion_list()
+        #self.list_view = self.suggestion_list()
+        self.list_view = self.library_buffer()
+
+        #self.buffers = urwid.Pile([self.list_view])
+        self.buffers = BufferList([self.list_view])
 
         #self.top = urwid.Frame(self.list_view)
-        self.top = MainWindow(conf, self.list_view)
+        self.top = MainWindow(conf, self.buffers)
 
         self.event_loop = self.main_loop()
+
+    def library_buffer(self):
+        buf = LibraryBuffer(self.conf)
+        urwid.connect_signal(buf, 'set_status', self.update_status)
+        urwid.connect_signal(buf, 'set_header', self.update_header)
+
+        return buf
 
     def start_db_update(self):
         self.update_status('Updating database')
@@ -196,62 +349,62 @@ class Application(object):
     def update_event(self):
         self.event_loop.set_alarm_in(0, self.update_suggestions)
 
-    def update_suggestions(self, *_args):
-        logger.info('Update suggestions display')
-        self.suggestions = self.get_suggestions()
+    #def update_suggestions(self, *_args):
+    #    logger.info('Update suggestions display')
+    #    self.suggestions = self.get_suggestions()
 
-        self.list_view = self.suggestion_list()
-        self.top.set_body(self.list_view)
+    #    self.list_view = self.suggestion_list()
+    #    self.top.set_body(self.list_view)
 
-        self.update_status('suggestive')
-        self.update_header()
+    #    self.update_status('suggestive')
+    #    self.update_header()
 
-    def get_suggestions(self):
-        return self.anl.order_albums(self.orderers)
-        #return self.anl.loved_order()
-        # return []
-        #return self.anl.suggest_albums()
+    #def get_suggestions(self):
+    #    return self.anl.order_albums(self.orderers)
+    #    #return self.anl.loved_order()
+    #    # return []
+    #    #return self.anl.suggest_albums()
 
-    def enqueue_album(self, album):
-        self.enqueue_tracks(album.tracks)
+    #def enqueue_album(self, album):
+    #    self.enqueue_tracks(album.tracks)
 
-    def play_album(self, album):
-        self.play_tracks(album.tracks)
+    #def play_album(self, album):
+    #    self.play_tracks(album.tracks)
 
-    def enqueue_track(self, track):
-        self.enqueue_tracks([track])
+    #def enqueue_track(self, track):
+    #    self.enqueue_tracks([track])
 
-    def play_track(self, track):
-        self.play_tracks([track])
+    #def play_track(self, track):
+    #    self.play_tracks([track])
 
-    def enqueue_tracks(self, tracks):
-        mpd = mstat.initialize_mpd(self.conf)
+    #def enqueue_tracks(self, tracks):
+    #    mpd = mstat.initialize_mpd(self.conf)
 
-        if tracks:
-            logger.info('Enqueue {}'.format(album_text(tracks[0].album)))
+    #    if tracks:
+    #        logger.info('Enqueue {}'.format(album_text(tracks[0].album)))
 
-        mpd_tracks = list(chain.from_iterable(
-            mpd.listallinfo(track.filename) for track in tracks))
+    #    mpd_tracks = list(chain.from_iterable(
+    #        mpd.listallinfo(track.filename) for track in tracks))
 
-        for i, track in enumerate(mpd_tracks):
-            trackno = str(track.get('track', i))
-            trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
-            track['track'] = int(trackno)
+    #    for i, track in enumerate(mpd_tracks):
+    #        trackno = str(track.get('track', i))
+    #        trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
+    #        track['track'] = int(trackno)
 
-        sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
-        ids = [mpd.addid(track['file']) for track in sorted_tracks]
-        return ids
+    #    sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
+    #    ids = [mpd.addid(track['file']) for track in sorted_tracks]
+    #    return ids
 
-    def play_tracks(self, tracks):
-        mpd = mstat.initialize_mpd(self.conf)
+    #def play_tracks(self, tracks):
+    #    mpd = mstat.initialize_mpd(self.conf)
 
-        if tracks:
-            logger.info('Play: {}'.format(album_text(tracks[0].album)))
+    #    if tracks:
+    #        logger.info('Play: {}'.format(album_text(tracks[0].album)))
 
-        mpd.clear()
-        ids = self.enqueue_tracks(tracks)
-        if ids:
-            mpd.playid(ids[0])
+    #    mpd.clear()
+    #    ids = self.enqueue_tracks(tracks)
+    #    if ids:
+    #        mpd.playid(ids[0])
 
     def update_header(self):
         now = datetime.now()
@@ -396,21 +549,21 @@ class Application(object):
         else:
             logger.debug('Modes are already at default')
 
-    def suggestion_list(self):
-        body = []
-        for suggestion in self.suggestions:
-            item = SelectableAlbum(suggestion)
+    #def suggestion_list(self):
+    #    body = []
+    #    for suggestion in self.suggestions:
+    #        item = SelectableAlbum(suggestion)
 
-            urwid.connect_signal(item, 'enqueue', self.enqueue_album)
-            urwid.connect_signal(item, 'play', self.play_album)
+    #        urwid.connect_signal(item, 'enqueue', self.enqueue_album)
+    #        urwid.connect_signal(item, 'play', self.play_album)
 
-            body.append(urwid.AttrMap(item, 'album', 'focus album'))
+    #        body.append(urwid.AttrMap(item, 'album', 'focus album'))
 
-        if not body:
-            body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
+    #    if not body:
+    #        body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
 
-        albumlist = AlbumList(self, urwid.SimpleFocusListWalker(body))
-        return albumlist
+    #    albumlist = AlbumList(self, urwid.SimpleFocusListWalker(body))
+    #    return albumlist
 
     def setup_palette(self):
         return self.conf.palette()
@@ -422,7 +575,8 @@ class Application(object):
     def main_loop(self):
         logger.info('Starting event loop')
 
-        self.update_suggestions()
+        self.list_view.update_suggestions()
+        #self.update_suggestions()
         # self.start_db_update()
 
         mainloop = urwid.MainLoop(
