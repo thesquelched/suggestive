@@ -40,25 +40,20 @@ class AppThread(threading.Thread):
 
 class MpdWatchThread(AppThread):
 
-    def __init__(self, conf, playlist_cb, library_cb, *args, **kwArgs):
+    def __init__(self, conf, playlist_cb, *args, **kwArgs):
         super(MpdWatchThread, self).__init__(*args, **kwArgs)
         self.conf = conf
         self.playlist_cb = playlist_cb
-        self.library_cb = library_cb
 
     def run(self):
         mpd = mstat.initialize_mpd(self.conf)
 
         while True:
-            changes = mpd.idle()
+            changes = mpd.idle('playlist', 'player')
             if 'playlist' in changes or 'player' in changes:
                 # update playlist
                 logger.debug('Detected playlist change')
                 self.playlist_cb()
-            if 'database' in changes:
-                # update library
-                logger.debug('Detected library change')
-                self.library_cb()
 
 
 class DatabaseUpdateThread(AppThread):
@@ -161,7 +156,6 @@ class Buffer(urwid.Frame, Commandable):
             return super(Buffer, self).keypress(size, key)
 
         super(Buffer, self).keypress(size, None)
-
         return True
 
     def dispatch(self, key):
@@ -397,7 +391,6 @@ class PlaylistBuffer(Buffer):
         return body
 
     def update(self, *args):
-        logger.debug('arguments: {}'.format(args))
         items = self.playlist_items()
 
         self.clear_playlist()
@@ -406,13 +399,12 @@ class PlaylistBuffer(Buffer):
             self.playlist.body.append(item)
 
     def clear_playlist(self):
-        while len(self.playlist.body):
-            self.playlist.body.pop()
+        #while len(self.playlist.body):
+        #    self.playlist.body.pop()
+        del self.playlist.body[:]
 
     def clear_mpd_playlist(self):
         logger.debug('clearing list')
-
-        self.clear_playlist()
 
         mpd = mstat.initialize_mpd(self.conf)
         mpd.stop()
@@ -531,8 +523,7 @@ class Application(Commandable):
         #self.update_status('Updating database')
         thread = MpdWatchThread(
             self.conf,
-            self.update_playlist_event,
-            self.update_library_event)
+            self.update_playlist_event)
         thread.daemon = True
         thread.start()
 
