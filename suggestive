@@ -368,12 +368,24 @@ class PlaylistBuffer(Buffer):
 
         return body
 
+    def update(self):
+        items = self.playlist_items()
+        if not items:
+            text = urwid.Text('Playlist is empty')
+            items.append(urwid.AttrMap(text, 'playlist'))
+
+        for item in items:
+            self.playlist.body.append(item)
+
     def clear_list(self):
         logger.debug('clearing list')
         self.playlist.body.clear()
 
         mpd = mstat.initialize_mpd(self.conf)
+        mpd.stop()
         mpd.clear()
+
+        self.update()
 
 
 class MainWindow(urwid.Frame):
