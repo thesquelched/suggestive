@@ -169,6 +169,8 @@ class Buffer(urwid.Frame, Commandable):
 
 
 class LibraryBuffer(Buffer):
+    signals = Buffer.signals + ['update_playlist']
+
     ORDERERS = {
         ('artist', 'ar'): ArtistFilter,
         ('album', 'al'): AlbumFilter,
@@ -282,6 +284,8 @@ class LibraryBuffer(Buffer):
 
         sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
         ids = [mpd.addid(track['file']) for track in sorted_tracks]
+
+        urwid.emit_signal(self, 'update_playlist')
         return ids
 
     def play_tracks(self, tracks):
@@ -471,6 +475,11 @@ class Application(Commandable):
         self.library_buffer = self.create_library_buffer()
         self.library_buffer.active = True
         self.playlist_buffer = self.create_playlist_buffer()
+
+        urwid.connect_signal(
+            self.library_buffer,
+            'update_playlist',
+            self.playlist_buffer.update)
 
         self.buffers.add(self.library_buffer)
 
