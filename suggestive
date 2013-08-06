@@ -38,6 +38,29 @@ class AppThread(threading.Thread):
     pass
 
 
+class MpdWatchThread(AppThread):
+
+    def __init__(self, conf, playlist_cb, library_cb, *args, **kwArgs):
+        super(MpdWatchThread, self).__init__(*args, **kwArgs)
+        self.conf = conf
+        self.playlist_cb = playlist_cb
+        self.library_cb = library_cb
+
+    def run(self):
+        mpd = mstat.initialize_mpd(self.conf)
+
+        while True:
+            changes = mpd.idle()
+            if 'playlist' in changes or 'player' in changes:
+                # update playlist
+                logger.debug('Detected playlist change')
+                self.playlist_cb()
+            if 'database' in changes:
+                # update library
+                logger.debug('Detected library change')
+                self.library_cb()
+
+
 class DatabaseUpdateThread(AppThread):
 
     def __init__(self, conf, callback, *args, **kwArgs):
@@ -115,6 +138,7 @@ class Buffer(urwid.Frame, Commandable):
     def __init__(self, *args, **kwArgs):
         super(Buffer, self).__init__(*args, **kwArgs)
         self.bindings = self.setup_bindings()
+        self.active = False
         urwid.connect_signal(self, 'set_status', self.update_status)
 
     def update_status(self, text):
@@ -347,7 +371,7 @@ class PlaylistBuffer(Buffer):
 
     def setup_bindings(self):
         return {
-            'c': self.clear_list
+            'c': self.clear_mpd_playlist
         }
 
     def format_track(self, track):
@@ -366,20 +390,29 @@ class PlaylistBuffer(Buffer):
             with_attr = urwid.AttrMap(text, 'playlist', 'focus playlist')
             body.append(with_attr)
 
+        if not body:
+            text = urwid.Text('Playlist is empty')
+            body.append(urwid.AttrMap(text, 'playlist'))
+
         return body
 
-    def update(self):
+    def update(self, *args):
+        logger.debug('arguments: {}'.format(args))
         items = self.playlist_items()
-        if not items:
-            text = urwid.Text('Playlist is empty')
-            items.append(urwid.AttrMap(text, 'playlist'))
+
+        self.clear_playlist()
 
         for item in items:
             self.playlist.body.append(item)
 
-    def clear_list(self):
+    def clear_playlist(self):
+        while len(self.playlist.body):
+            self.playlist.body.pop()
+
+    def clear_mpd_playlist(self):
         logger.debug('clearing list')
-        self.playlist.body.clear()
+
+        self.clear_playlist()
 
         mpd = mstat.initialize_mpd(self.conf)
         mpd.stop()
@@ -444,8 +477,11 @@ class Application(Commandable):
 
         self.top = MainWindow(conf, self.buffers)
 
-        self.buffers.add(self.library_buffer())
-        #self.buffers.add(self.playlist_buffer())
+        self.library_buffer = self.create_library_buffer()
+        self.library_buffer.active = True
+        self.playlist_buffer = self.create_playlist_buffer()
+
+        self.buffers.add(self.library_buffer)
 
         self.event_loop = self.main_loop()
 
@@ -458,9 +494,8 @@ class Application(Commandable):
         )
         self.top.update_footer(text)
 
-    def library_buffer(self):
+    def create_library_buffer(self):
         buf = LibraryBuffer(self.conf)
-        #urwid.connect_signal(buf, 'set_status', self.update_status)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
         urwid.connect_signal(buf, 'set_footer', self.top.update_footer)
 
@@ -468,29 +503,44 @@ class Application(Commandable):
 
         return buf
 
-    def playlist_buffer(self):
+    def create_playlist_buffer(self):
         buf = PlaylistBuffer(self.conf)
+        urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
+        urwid.connect_signal(buf, 'set_footer', self.top.update_footer)
 
         return buf
 
     def open_playlist(self):
-        open_buffers = [type(widget) for widget, opts in self.buffers.contents]
-        try:
-            playlist_index = open_buffers.index(PlaylistBuffer)
+        if self.playlist_buffer.active:
             logger.debug('Close playlist')
-            self.buffers.contents.pop(playlist_index)
-        except ValueError:
+            self.buffers.contents.pop(self.playlist_buffer)
+            self.playlist_buffer.active = False
+        else:
             logger.debug('Open playlist')
-            self.buffers.add(self.playlist_buffer())
+            self.buffers.add(self.playlist_buffer)
+            self.playlist_buffer.active = True
 
     def start_db_update(self):
         #self.update_status('Updating database')
-        update_thread = DatabaseUpdateThread(self.conf, self.update_event)
+        update_thread = DatabaseUpdateThread(
+            self.conf, self.update_library_event)
         update_thread.daemon = False
         update_thread.start()
 
-    def update_event(self):
-        self.event_loop.set_alarm_in(0, self.update_suggestions)
+    def start_mpd_watch_thread(self):
+        #self.update_status('Updating database')
+        thread = MpdWatchThread(
+            self.conf,
+            self.update_playlist_event,
+            self.update_library_event)
+        thread.daemon = True
+        thread.start()
+
+    def update_library_event(self):
+        self.event_loop.set_alarm_in(0, self.library_buffer.update_suggestions)
+
+    def update_playlist_event(self):
+        self.playlist_buffer.update()
 
     def dispatch(self, key):
         if key in self.bindings:
@@ -573,6 +623,9 @@ class Application(Commandable):
         )
 
         self.setup_term(mainloop.screen)
+
+        # Start threads
+        self.start_mpd_watch_thread()
 
         return mainloop
 
