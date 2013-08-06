@@ -346,6 +346,8 @@ class LibraryBuffer(Buffer):
         else:
             logger.debug('Modes are already at default')
 
+        self.update_footer('suggestive')
+
 
 class PlaylistView(urwid.ListBox):
 
@@ -490,7 +492,7 @@ class Application(Commandable):
             self.playlist_buffer.update)
         self.setup_buffers()
 
-        self.update_footer_text('Footer')
+        self.update_footer_text('suggestive')
 
     def setup_buffers(self):
         default_buffers = self.conf.default_buffers()
@@ -499,6 +501,12 @@ class Application(Commandable):
             self.buffers.add(self.library_buffer)
         if 'playlist' in default_buffers:
             self.buffers.add(self.playlist_buffer)
+
+    def update_footer(self, value, error=False):
+        if isinstance(value, str):
+            self.update_footer_text(value, error=error)
+        else:
+            self.top.update_footer(value)
 
     def update_footer_text(self, value, error=False):
         text = urwid.AttrMap(
@@ -510,7 +518,7 @@ class Application(Commandable):
     def create_library_buffer(self):
         buf = LibraryBuffer(self.conf)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
-        urwid.connect_signal(buf, 'set_footer', self.top.update_footer)
+        urwid.connect_signal(buf, 'set_footer', self.update_footer)
 
         buf.update_suggestions()
 
@@ -519,7 +527,7 @@ class Application(Commandable):
     def create_playlist_buffer(self):
         buf = PlaylistBuffer(self.conf)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
-        urwid.connect_signal(buf, 'set_footer', self.top.update_footer)
+        urwid.connect_signal(buf, 'set_footer', self.update_footer)
 
         return buf
 
