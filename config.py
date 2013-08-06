@@ -51,12 +51,13 @@ class Config(object):
             track_focus_fg='#000',
             track_focus_bg='#0ff',
 
-            header_fg='#000',
-            header_bg='#08f',
+            footer_fg='#000',
+            footer_bg='#00f',
+            footer_error_fg='#000',
+            footer_error_bg='#f00',
+
             status_fg='#000',
             status_bg='#08f',
-            status_error_fg='#000',
-            status_error_bg='#f00',
         ),
     )
 
@@ -118,12 +119,14 @@ class Config(object):
         album = (colors['album_fg'], colors['album_bg'])
         album_focus = (colors['album_focus_fg'], colors['album_focus_bg'])
         playlist = (colors['playlist_fg'], colors['playlist_bg'])
-        playlist_focus = (colors['playlist_focus_fg'], colors['playlist_focus_bg'])
+        playlist_focus = (colors['playlist_focus_fg'],
+                          colors['playlist_focus_bg'])
         track = (colors['track_fg'], colors['track_bg'])
         track_focus = (colors['track_focus_fg'], colors['track_focus_bg'])
-        header = (colors['header_fg'], colors['header_bg'])
         status = (colors['status_fg'], colors['status_bg'])
-        error = (colors['status_error_fg'], colors['status_error_bg'])
+
+        footer = (colors['footer_fg'], colors['footer_bg'])
+        error = (colors['footer_error_fg'], colors['footer_error_bg'])
 
         return [
             self._palette(None, ('white', 'white')),
@@ -134,6 +137,7 @@ class Config(object):
             self._palette('track', track),
             self._palette('focus track', track_focus),
             self._palette('status', status, bold=True),
-            self._palette('status error', error, bold=True),
-            self._palette('header', header, bold=True),
+
+            self._palette('footer', footer, bold=True),
+            self._palette('footer error', error, bold=True),
         ]
