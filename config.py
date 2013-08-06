@@ -1,6 +1,7 @@
 from configparser import ConfigParser
 from os.path import expanduser, expandvars
 from time import time
+import re
 
 
 SECONDS_IN_DAY = 24 * 3600
@@ -24,6 +25,7 @@ class Config(object):
             conf_dir='$HOME/.suggestive',
             database='$HOME/.suggestive/music.db',
             highcolor=True,
+            default_buffers='library',
         ),
         mpd=dict(
             host='localhost',
@@ -106,11 +108,29 @@ class Config(object):
         """Return True if the terminal should be set to 256 colors"""
         return self.parser.getboolean('general', 'highcolor')
 
-    def _palette(self, name, color, bold=False):
-        if self.use_256_colors():
-            return (name, '', '', '', 'bold,' + color[0], color[1])
+    def default_buffers(self):
+        """Return a list of the default screens to display"""
+        raw = self.parser['general']['default_buffers']
+        screens = set(re.split(r'\s*,\s*', raw))
+
+        # Always have library
+        screens.add('library')
+
+        return screens
+
+    def _palette(self, name, color, bold=False, invert=False):
+        if invert:
+            bg, fg = color
         else:
-            return (name, 'bold,' + color[0], color[1])
+            fg, bg = color
+
+        if bold:
+            fg = 'bold,' + fg
+
+        if self.use_256_colors():
+            return (name, '', '', '', fg, bg)
+        else:
+            return (name, fg, bg)
 
     def palette(self):
         """Return the terminal color palette"""
@@ -130,12 +150,19 @@ class Config(object):
 
         return [
             self._palette(None, ('white', 'white')),
+
             self._palette('album', album),
             self._palette('focus album', album_focus),
+
             self._palette('playlist', playlist),
             self._palette('focus playlist', playlist_focus),
+            self._palette('playing', playlist, bold=True),
+            self._palette('playing focus', playlist_focus, bold=True,
+                          invert=True),
+
             self._palette('track', track),
             self._palette('focus track', track_focus),
+
             self._palette('status', status, bold=True),
 
             self._palette('footer', footer, bold=True),

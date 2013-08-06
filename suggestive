@@ -382,10 +382,19 @@ class PlaylistBuffer(Buffer):
         mpd = mstat.initialize_mpd(self.conf)
 
         playlist = mpd.playlistinfo()
+        current = mpd.currentsong()
+        if current and 'pos' in current:
+            current_position = int(current['pos'])
+
         body = []
-        for track in playlist:
+        for position, track in enumerate(playlist):
             text = urwid.SelectableIcon(self.format_track(track))
-            with_attr = urwid.AttrMap(text, 'playlist', 'focus playlist')
+            if position == current_position:
+                styles = ('playing', 'playing focus')
+            else:
+                styles = ('playlist', 'focus playlist')
+
+            with_attr = urwid.AttrMap(text, *styles)
             body.append(with_attr)
 
         if not body:
@@ -445,7 +454,6 @@ class MainWindow(urwid.Frame):
 
 
 class Application(Commandable):
-
     def __init__(self, conf):
         self.conf = conf
         self.default_orderers = [
@@ -469,23 +477,28 @@ class Application(Commandable):
         self.current_search_index = None
 
         self.buffers = BufferList([])
-
         self.top = MainWindow(conf, self.buffers)
+        self.event_loop = self.main_loop()
 
+        # Initialize buffers
         self.library_buffer = self.create_library_buffer()
-        self.library_buffer.active = True
         self.playlist_buffer = self.create_playlist_buffer()
 
         urwid.connect_signal(
             self.library_buffer,
             'update_playlist',
             self.playlist_buffer.update)
-
-        self.buffers.add(self.library_buffer)
-
-        self.event_loop = self.main_loop()
+        self.setup_buffers()
 
         self.update_footer_text('Footer')
+
+    def setup_buffers(self):
+        default_buffers = self.conf.default_buffers()
+
+        if 'library' in default_buffers:
+            self.buffers.add(self.library_buffer)
+        if 'playlist' in default_buffers:
+            self.buffers.add(self.playlist_buffer)
 
     def update_footer_text(self, value, error=False):
         text = urwid.AttrMap(
