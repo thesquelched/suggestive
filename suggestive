@@ -395,12 +395,11 @@ class PlaylistBuffer(Buffer):
 
         self.clear_playlist()
 
-        for item in items:
-            self.playlist.body.append(item)
+        self.playlist.body.extend(items)
+        #for item in items:
+        #    self.playlist.body.append(item)
 
     def clear_playlist(self):
-        #while len(self.playlist.body):
-        #    self.playlist.body.pop()
         del self.playlist.body[:]
 
     def clear_mpd_playlist(self):
