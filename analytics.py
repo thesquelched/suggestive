@@ -59,7 +59,8 @@ class BaseOrder(OrderDecorator):
 
 
 class AlbumFilter(OrderDecorator):
-    def __init__(self, name):
+    def __init__(self, *name_pieces):
+        name = ' '.join(name_pieces)
         self.name = name
         self.name_rgx = re.compile(name, re.I)
 
@@ -74,7 +75,8 @@ class AlbumFilter(OrderDecorator):
 
 
 class ArtistFilter(OrderDecorator):
-    def __init__(self, name):
+    def __init__(self, *name_pieces):
+        name = ' '.join(name_pieces)
         self.name = name
         self.name_rgx = re.compile(name, re.I)
 

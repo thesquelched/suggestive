@@ -387,6 +387,8 @@ class PlaylistBuffer(Buffer):
         current = mpd.currentsong()
         if current and 'pos' in current:
             current_position = int(current['pos'])
+        else:
+            current_position = None
 
         body = []
         for position, track in enumerate(playlist):
