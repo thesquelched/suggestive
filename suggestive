@@ -114,7 +114,7 @@ class Buffer(urwid.Frame, Commandable):
 
     def __init__(self, *args, **kwArgs):
         super(Buffer, self).__init__(*args, **kwArgs)
-        self.bindings = {}
+        self.bindings = self.setup_bindings()
         urwid.connect_signal(self, 'set_status', self.update_status)
 
     def update_status(self, text):
@@ -133,10 +133,12 @@ class Buffer(urwid.Frame, Commandable):
         return {}
 
     def keypress(self, size, key):
-        if self.dispatch(key):
-            return True
-        else:
+        if not self.dispatch(key):
             return super(Buffer, self).keypress(size, key)
+
+        super(Buffer, self).keypress(size, None)
+
+        return True
 
     def dispatch(self, key):
         if key in self.bindings:
@@ -160,7 +162,6 @@ class LibraryBuffer(Buffer):
 
     def __init__(self, conf):
         self.conf = conf
-        self.bindings = self.setup_bindings()
         self.commands = self.setup_commands()
 
         self.default_orderers = [
@@ -324,6 +325,13 @@ class LibraryBuffer(Buffer):
             logger.debug('Modes are already at default')
 
 
+class PlaylistView(urwid.ListBox):
+
+    def __init__(self, *args, **kwArgs):
+        super(PlaylistView, self).__init__(*args, **kwArgs)
+        self._command_map = ListCommands()
+
+
 class PlaylistBuffer(Buffer):
     ITEM_FORMAT = '{artist} - {album} - {title}'
 
@@ -332,9 +340,15 @@ class PlaylistBuffer(Buffer):
 
         self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
         walker = urwid.SimpleFocusListWalker(self.playlist_items())
-        self.playlist = urwid.ListBox(walker)
+        self.playlist = PlaylistView(walker)
         super(PlaylistBuffer, self).__init__(self.playlist)
+
         self.update_status('Playlist')
+
+    def setup_bindings(self):
+        return {
+            'c': self.clear_list
+        }
 
     def format_track(self, track):
         replace = {key: 'Unknown' for key in self.format_keys}
@@ -348,11 +362,18 @@ class PlaylistBuffer(Buffer):
         playlist = mpd.playlistinfo()
         body = []
         for track in playlist:
-            text = urwid.Text(self.format_track(track))
+            text = urwid.SelectableIcon(self.format_track(track))
             with_attr = urwid.AttrMap(text, 'playlist', 'focus playlist')
             body.append(with_attr)
 
         return body
+
+    def clear_list(self):
+        logger.debug('clearing list')
+        self.playlist.body.clear()
+
+        mpd = mstat.initialize_mpd(self.conf)
+        mpd.clear()
 
 
 class MainWindow(urwid.Frame):
@@ -441,8 +462,13 @@ class Application(Commandable):
         return buf
 
     def open_playlist(self):
-        if PlaylistBuffer not in map(type, self.buffers.contents):
-            logger.debug('Add playlist')
+        open_buffers = [type(widget) for widget, opts in self.buffers.contents]
+        try:
+            playlist_index = open_buffers.index(PlaylistBuffer)
+            logger.debug('Close playlist')
+            self.buffers.contents.pop(playlist_index)
+        except ValueError:
+            logger.debug('Open playlist')
             self.buffers.add(self.playlist_buffer())
 
     def start_db_update(self):
@@ -537,6 +563,42 @@ class Application(Commandable):
         self.setup_term(mainloop.screen)
 
         return mainloop
+
+
+class ListCommands(urwid.CommandMap):
+    DEFAULT_BINDINGS = {
+        'cursor up': ('k', 'up'),
+        'cursor down': ('j', 'down'),
+        'cursor left': ('h', 'left'),
+        'cursor right': ('l', 'right'),
+        'cursor page up': ('ctrl b', 'page up'),
+        'cursor page down': ('ctrl f', 'page down'),
+
+        GO_TO_TOP: ('g', 'home'),
+        GO_TO_BOTTOM: ('G', 'end'),
+    }
+
+    @classmethod
+    def _flatten(cls, bindings):
+        flattened = {}
+        for action, keys in bindings.items():
+            flattened.update({key: action for key in keys})
+
+        return flattened
+
+    def __init__(self, *args, **kwArgs):
+        super(ListCommands, self).__init__()
+        self.update(self._flatten(self.DEFAULT_BINDINGS))
+        self.update(*args, **kwArgs)
+
+    def update(self, *args, **kwArgs):
+        if args and isinstance(args[0], dict):
+            bindings = args[0]
+        else:
+            bindings = kwArgs
+
+        for key, command in bindings.items():
+            self.__setitem__(key, command)
 
 
 class AlbumListCommands(urwid.CommandMap):
