@@ -41,6 +41,11 @@ class Config(object):
             album_focus_fg='#000',
             album_focus_bg='#0ff',
 
+            playlist_fg='#000',
+            playlist_bg='#fff',
+            playlist_focus_fg='#000',
+            playlist_focus_bg='#0ff',
+
             track_fg='#000',
             track_bg='#ccc',
             track_focus_fg='#000',
@@ -112,6 +117,8 @@ class Config(object):
 
         album = (colors['album_fg'], colors['album_bg'])
         album_focus = (colors['album_focus_fg'], colors['album_focus_bg'])
+        playlist = (colors['playlist_fg'], colors['playlist_bg'])
+        playlist_focus = (colors['playlist_focus_fg'], colors['playlist_focus_bg'])
         track = (colors['track_fg'], colors['track_bg'])
         track_focus = (colors['track_focus_fg'], colors['track_focus_bg'])
         header = (colors['header_fg'], colors['header_bg'])
@@ -122,6 +129,8 @@ class Config(object):
             self._palette(None, ('white', 'white')),
             self._palette('album', album),
             self._palette('focus album', album_focus),
+            self._palette('playlist', playlist),
+            self._palette('focus playlist', playlist_focus),
             self._palette('track', track),
             self._palette('focus track', track_focus),
             self._palette('status', status, bold=True),

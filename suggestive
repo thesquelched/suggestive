@@ -343,7 +343,7 @@ class PlaylistBuffer(Buffer):
         body = []
         for track in playlist:
             text = urwid.Text(self.format_track(track))
-            with_attr = urwid.AttrMap(text, 'track', 'focus track')
+            with_attr = urwid.AttrMap(text, 'playlist', 'focus playlist')
             body.append(with_attr)
 
         return body
@@ -389,6 +389,9 @@ class Application(Commandable):
         self.orderers = list(self.default_orderers)
 
         self.bindings = self.setup_bindings()
+        self.commands = {
+            'playlist': self.open_playlist
+        }
 
         session = mstat.initialize_sqlalchemy(conf)
         self.anl = Analytics(session)
@@ -419,9 +422,13 @@ class Application(Commandable):
 
     def playlist_buffer(self):
         buf = PlaylistBuffer(self.conf)
-        buf.update()
 
         return buf
+
+    def open_playlist(self):
+        if PlaylistBuffer not in map(type, self.buffers.contents):
+            logger.debug('Add playlist')
+            self.buffers.add(self.playlist_buffer())
 
     def start_db_update(self):
         self.update_status('Updating database')
@@ -459,10 +466,7 @@ class Application(Commandable):
             'u': lambda: self.start_db_update(),
             'r': lambda: self.update_suggestions(),
             '~': lambda: self.launch_mpd_client(),
-#            '/': lambda: self.start_search(),
-#            '?': lambda: self.start_search(reverse=True),
             ':': lambda: self.start_command(),
-#            'esc': lambda: self.reset_orderers(),
             'p': lambda: self.pause(),
             'ctrl w': lambda: self.buffers.next_buffer()
         }
