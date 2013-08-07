@@ -129,7 +129,7 @@ class VerticalBufferList(urwid.Columns, BufferList):
 
 class Buffer(urwid.Frame, Commandable):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['set_footer', 'set_focus', 'set_status']
+    signals = ['set_footer', 'set_focus', 'set_status', 'redraw']
 
     def __init__(self, *args, **kwArgs):
         super(Buffer, self).__init__(*args, **kwArgs)
@@ -152,6 +152,9 @@ class Buffer(urwid.Frame, Commandable):
 
     def update_footer(self, footer, focus=False):
         urwid.emit_signal(self, 'set_footer', footer, focus)
+
+    def redraw(self):
+        urwid.emit_signal(self, 'redraw')
 
     def setup_bindings(self):
         return {}
@@ -273,8 +276,7 @@ class LibraryBuffer(Buffer):
 
         self.list_view = self.suggestion_list()
         self.set_body(self.list_view)
-
-        #self.update_status('suggestive')
+        #self.redraw()
 
     def get_suggestions(self):
         return self.anl.order_albums(self.orderers)
@@ -464,7 +466,9 @@ class PlaylistBuffer(Buffer):
             try:
                 self.playlist.focus_position = current_position - 1
             except IndexError:
-                return
+                pass
+
+        self.redraw()
 
     def clear_playlist(self):
         del self.playlist.body[:]
@@ -596,6 +600,7 @@ class Application(Commandable):
         buf = LibraryBuffer(self.conf)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
         urwid.connect_signal(buf, 'set_footer', self.update_footer)
+        urwid.connect_signal(buf, 'redraw', self.event_loop.draw_screen)
 
         buf.update_suggestions()
 
@@ -605,6 +610,7 @@ class Application(Commandable):
         buf = PlaylistBuffer(self.conf)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
         urwid.connect_signal(buf, 'set_footer', self.update_footer)
+        urwid.connect_signal(buf, 'redraw', self.event_loop.draw_screen)
 
         return buf
 
