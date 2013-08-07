@@ -26,6 +26,7 @@ class Config(object):
             database='$HOME/.suggestive/music.db',
             highcolor=True,
             default_buffers='library',
+            orientation='horizontal',
         ),
         mpd=dict(
             host='localhost',
@@ -163,3 +164,7 @@ class Config(object):
             self._palette('footer', footer, bold=True),
             self._palette('footer error', error, bold=True),
         ]
+
+    def orientation(self):
+        """Return buffer split orientation"""
+        return self.parser['general']['orientation']

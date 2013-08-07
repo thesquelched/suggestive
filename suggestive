@@ -82,12 +82,7 @@ class Commandable(object):
             return False
 
 
-class BufferList(urwid.Pile):
-
-    def add(self, buf, options=None):
-        if options is None:
-            options = ('weight', 1)
-        self.contents.append((buf, options))
+class BufferList(object):
 
     def next_buffer(self):
         current = self.focus_position
@@ -95,6 +90,20 @@ class BufferList(urwid.Pile):
             self.focus_position = current + 1
         except IndexError:
             self.focus_position = 0
+
+
+class HorizontalBufferList(urwid.Pile, BufferList):
+
+    def add(self, buf, options=None):
+        if options is None:
+            options = ('weight', 1)
+        self.contents.append((buf, options))
+
+
+class VerticalBufferList(urwid.Columns, BufferList):
+
+    def add(self, buf):
+        self.contents.append((buf, self.options()))
 
 
 class Buffer(urwid.Frame, Commandable):
@@ -494,7 +503,13 @@ class Application(Commandable):
         self.search_matches = []
         self.current_search_index = None
 
-        self.buffers = BufferList([])
+        self.orientation = self.conf.orientation()
+
+        if self.orientation == 'vertical':
+            self.buffers = VerticalBufferList([])
+        else:
+            self.buffers = HorizontalBufferList([])
+
         self.top = MainWindow(conf, self.buffers)
         self.event_loop = self.main_loop()
 
