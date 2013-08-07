@@ -430,9 +430,6 @@ class PlaylistBuffer(Buffer):
             except IndexError:
                 return
 
-        #for item in items:
-        #    self.playlist.body.append(item)
-
     def clear_playlist(self):
         del self.playlist.body[:]
 
