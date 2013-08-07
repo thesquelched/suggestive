@@ -7,6 +7,9 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
+db_lock = threading.Lock()
+
+
 class AppThread(threading.Thread):
 
     """Base class for suggestive threads"""
@@ -48,11 +51,21 @@ class DatabaseUpdateThread(AppThread):
         self.lastfm = mstat.initialize_lastfm(conf)
 
     def run(self):
-        logger.info('Start MPD update')
-        self.mpd.update()
-        logger.info('Finished MPD update')
-        logger.info('Update internal database')
-        mstat.update_database(self.session, self.mpd, self.lastfm, self.conf)
-        self.session.close()
-        logger.info('Finished update')
-        (self.callback)()
+        logger.debug('Waiting for lock')
+
+        with db_lock:
+            logger.info('Start MPD update')
+            self.mpd.update()
+            logger.info('Finished MPD update')
+
+            logger.info('Update internal database')
+            mstat.update_database(self.session, self.mpd, self.lastfm,
+                                  self.conf)
+
+            self.session.close()
+
+            logger.info('Finished update')
+
+            (self.callback)()
+
+        logger.debug('Released lock')
