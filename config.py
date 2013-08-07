@@ -25,7 +25,7 @@ class Config(object):
             conf_dir='$HOME/.suggestive',
             database='$HOME/.suggestive/music.db',
             highcolor=True,
-            default_buffers='library',
+            default_buffers='library,playlist',
             orientation='horizontal',
         ),
         mpd=dict(
