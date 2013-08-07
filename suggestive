@@ -35,6 +35,21 @@ def album_text(album):
 #
 
 
+class CommanderEdit(urwid.Edit):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['command_done']
+
+    def keypress(self, size, key):
+        if key == 'enter':
+            urwid.emit_signal(self, 'command_done', self.get_edit_text())
+        elif key == 'esc':
+            urwid.emit_signal(self, 'command_done', None)
+        else:
+            super(CommanderEdit, self).keypress(size, key)
+
+        return True
+
+
 class Commandable(object):
     commands = {}
 
@@ -123,6 +138,21 @@ class Buffer(urwid.Frame, Commandable):
             return True
         else:
             return False
+
+
+class ListSearcher(urwid.Edit):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['search_done']
+
+    def keypress(self, size, key):
+        if key == 'enter':
+            urwid.emit_signal(self, 'search_done', self.get_edit_text())
+        elif key == 'esc':
+            urwid.emit_signal(self, 'search_done', None)
+        else:
+            super(ListSearcher, self).keypress(size, key)
+
+        return True
 
 
 class LibraryBuffer(Buffer):
@@ -328,8 +358,28 @@ class PlaylistBuffer(Buffer):
 
     def setup_bindings(self):
         return {
-            'c': self.clear_mpd_playlist
+            'c': self.clear_mpd_playlist,
+            'd': self.delete_track,
+            'enter': self.play_track,
         }
+
+    def delete_track(self):
+        current_position = self.playlist.focus_position
+
+        if current_position is not None:
+            mpd = mstat.initialize_mpd(self.conf)
+            mpd.delete(current_position)
+
+            self.update()
+
+    def play_track(self):
+        current_position = self.playlist.focus_position
+
+        if current_position is not None:
+            mpd = mstat.initialize_mpd(self.conf)
+            mpd.play(current_position)
+
+            self.update()
 
     def format_track(self, track):
         replace = {key: 'Unknown' for key in self.format_keys}
@@ -365,11 +415,21 @@ class PlaylistBuffer(Buffer):
         return body
 
     def update(self, *args):
+        current_position = self.playlist.focus_position
+
         items = self.playlist_items()
 
         self.clear_playlist()
-
         self.playlist.body.extend(items)
+
+        try:
+            self.playlist.focus_position = current_position
+        except IndexError:
+            try:
+                self.playlist.focus_position = current_position - 1
+            except IndexError:
+                return
+
         #for item in items:
         #    self.playlist.body.append(item)
 
@@ -977,36 +1037,6 @@ class SelectableTrack(urwid.WidgetWrap):
             urwid.emit_signal(self, 'play', self.track)
         else:
             return key
-
-
-class ListSearcher(urwid.Edit):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['search_done']
-
-    def keypress(self, size, key):
-        if key == 'enter':
-            urwid.emit_signal(self, 'search_done', self.get_edit_text())
-        elif key == 'esc':
-            urwid.emit_signal(self, 'search_done', None)
-        else:
-            super(ListSearcher, self).keypress(size, key)
-
-        return True
-
-
-class CommanderEdit(urwid.Edit):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['command_done']
-
-    def keypress(self, size, key):
-        if key == 'enter':
-            urwid.emit_signal(self, 'command_done', self.get_edit_text())
-        elif key == 'esc':
-            urwid.emit_signal(self, 'command_done', None)
-        else:
-            super(CommanderEdit, self).keypress(size, key)
-
-        return True
 
 
 def main():
