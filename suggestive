@@ -85,25 +85,29 @@ class Commandable(object):
 class BufferList(object):
 
     def next_buffer(self):
-        current = self.focus_position
         try:
-            self.focus_position = current + 1
+            self.focus_position += 1
+            while not isinstance(self.focus, Buffer):
+                self.focus_position += 1
+
         except IndexError:
             self.focus_position = 0
 
+    def add(self, buf, *options):
+        self.contents.append((buf, self.options(*options)))
+
 
 class HorizontalBufferList(urwid.Pile, BufferList):
-
-    def add(self, buf, options=None):
-        if options is None:
-            options = ('weight', 1)
-        self.contents.append((buf, options))
+    pass
 
 
 class VerticalBufferList(urwid.Columns, BufferList):
 
     def add(self, buf):
-        self.contents.append((buf, self.options()))
+        if len(self.contents) > 0:
+            fill = urwid.AttrMap(urwid.SolidFill(), 'status')
+            super(VerticalBufferList, self).add(fill, 'given')
+        super(VerticalBufferList, self).add(buf)
 
 
 class Buffer(urwid.Frame, Commandable):
