@@ -134,6 +134,7 @@ class Buffer(urwid.Frame, Commandable):
     def __init__(self, *args, **kwArgs):
         super(Buffer, self).__init__(*args, **kwArgs)
         self.bindings = self.setup_bindings()
+        self.commands = self.setup_commands()
         self.active = False
         urwid.connect_signal(self, 'set_status', self.update_status)
 
@@ -150,6 +151,9 @@ class Buffer(urwid.Frame, Commandable):
         urwid.emit_signal(self, 'set_footer', footer, focus)
 
     def setup_bindings(self):
+        return {}
+
+    def setup_commands(self):
         return {}
 
     def keypress(self, size, key):
@@ -511,12 +515,7 @@ class Application(Commandable):
         self.orderers = list(self.default_orderers)
 
         self.bindings = self.setup_bindings()
-        self.commands = {
-            'playlist': self.open_playlist,
-            'library': self.open_library,
-            'q': self.exit,
-            'orientation': self.change_orientation,
-        }
+        self.commands = self.setup_commands()
 
         session = mstat.initialize_sqlalchemy(conf)
         self.anl = Analytics(session)
@@ -668,6 +667,14 @@ class Application(Commandable):
             ':': lambda: self.start_command(),
             'p': lambda: self.pause(),
             'ctrl w': lambda: self.buffers.next_buffer()
+        }
+
+    def setup_commands(self):
+        return {
+            'playlist': self.open_playlist,
+            'library': self.open_library,
+            'q': self.exit,
+            'orientation': self.change_orientation,
         }
 
     def pause(self):
