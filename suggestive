@@ -1,13 +1,14 @@
 #! /usr/bin/python3
 
-import urwid
-import shlex
-import logging
-import threading
-import mstat
+from threads import MpdWatchThread, DatabaseUpdateThread
 from analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
     SortOrder, PlaycountOrder, BaseOrder)
+import mstat
+
+import urwid
+import shlex
+import logging
 from subprocess import call
 from itertools import chain, islice
 import re
@@ -32,50 +33,6 @@ def album_text(album):
 #
 # Threads
 #
-
-
-class AppThread(threading.Thread):
-    pass
-
-
-class MpdWatchThread(AppThread):
-
-    def __init__(self, conf, playlist_cb, *args, **kwArgs):
-        super(MpdWatchThread, self).__init__(*args, **kwArgs)
-        self.conf = conf
-        self.playlist_cb = playlist_cb
-
-    def run(self):
-        mpd = mstat.initialize_mpd(self.conf)
-
-        while True:
-            changes = mpd.idle('playlist', 'player')
-            if 'playlist' in changes or 'player' in changes:
-                # update playlist
-                logger.debug('Detected playlist change')
-                self.playlist_cb()
-
-
-class DatabaseUpdateThread(AppThread):
-
-    def __init__(self, conf, callback, *args, **kwArgs):
-        super(DatabaseUpdateThread, self).__init__(*args, **kwArgs)
-        self.callback = callback
-        self.conf = conf
-
-        self.session = mstat.initialize_sqlalchemy(conf)
-        self.mpd = mstat.initialize_mpd(conf)
-        self.lastfm = mstat.initialize_lastfm(conf)
-
-    def run(self):
-        logger.info('Start MPD update')
-        self.mpd.update()
-        logger.info('Finished MPD update')
-        logger.info('Update internal database')
-        mstat.update_database(self.session, self.mpd, self.lastfm, self.conf)
-        self.session.close()
-        logger.info('Finished update')
-        (self.callback)()
 
 
 class Commandable(object):
@@ -469,7 +426,8 @@ class Application(Commandable):
 
         self.bindings = self.setup_bindings()
         self.commands = {
-            'playlist': self.open_playlist
+            'playlist': self.open_playlist,
+            'q': self.exit
         }
 
         session = mstat.initialize_sqlalchemy(conf)
