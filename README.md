@@ -25,9 +25,10 @@ General
 -------
 
 - `q`, `<C-c>` - Quit
-- `~` - Launch MPD client (see `Configuration`)
-- `space` - Enqueue album/track
-- `enter` - Play album/track
+- `:` - Enter command mode
+- `u` - Update database
+- `p` - Pause/resume playback
+- `<C-w>` - Switch between open buffers
 
 Movement
 --------
@@ -36,9 +37,10 @@ Movement
 - `j`, arrow-down - Down
 - `k`, arrow-up - Up
 - `l`, arrow-right - Right
-
 - `<C-f>`, page-down - Scroll one page down
 - `<C-b>`, page-up - Scroll one page up
+- `g`, `home` - Go to top
+- `G`, `end` - Go to bottom
 
 Search
 ------
@@ -47,22 +49,35 @@ Search
 - `n` - Next search result
 - `N` - Previous search result
 
-Tracks
-------
+Library
+-------
 
+- `space` - Enqueue album/track
+- `enter` - Play album/track
 - `z` - Toggle tracks fold (i.e. toggle album tracks display)
 
-Commands
---------
+Playlist
+------
 
-- `:` - Enter command mode
+- `c` - Clear playlist
+- `d` - Remove track
+- `enter` - Play track
 
 
 Command mode
 ============
 
-Changing the album list
------------------------
+General commands
+----------------
+
+- `q` - quit
+- `playlist` - toggle playlist buffer
+- `library` - toggle library buffer
+- `orientation` - toggle between vertical and horizontal orientations
+
+
+Library
+-------
 
 `suggestive` tries to order your library so that albums you'd probably like to listen to are close to the top, while albums you don't like are towards the bottom.  However, you can change what's displayed using one or more filters or orderers.  Note that you can compose multiple filters/orderers by issuing succesive commands.
 
@@ -71,6 +86,7 @@ Changing the album list
 - `:artist <name>` - Only display albums of the artist matching `name` (case-insensitive)
 - `:loved <minimum=min> <maximum=max>` - Display albums in order of fraction of tracks loved. You may optional specify the minimum or maximum fraction of loved tracks for an album to be displayed
 - `:sort` - Sort albums using the string 'artist - album'
+
 
 Configuration
 =============
