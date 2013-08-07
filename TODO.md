@@ -10,4 +10,6 @@ Bug fixes
 New features
 ------------
 - Command completion
-- Multiple screens (library, now playing, etc)
+- Song progress
+- Color code part of track title (like blue album, red artist, yellow song)
+- ~~Multiple screens (library, now playing, etc)~~
