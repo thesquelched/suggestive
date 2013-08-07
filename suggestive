@@ -138,10 +138,13 @@ class Buffer(urwid.Frame, Commandable):
         self.active = False
         urwid.connect_signal(self, 'set_status', self.update_status)
 
-    def update_status(self, text):
-        status = urwid.Text(text)
-        footer = urwid.AttrMap(status, 'status')
+    def update_status(self, value):
+        if isinstance(value, str):
+            status = urwid.Text(value)
+        else:
+            status = value
 
+        footer = urwid.AttrMap(status, 'status')
         self.set_footer(footer)
 
     def update_focus(self, to_focus):
