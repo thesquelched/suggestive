@@ -96,6 +96,23 @@ class BufferList(object):
     def add(self, buf, *options):
         self.contents.append((buf, self.options(*options)))
 
+    def remove(self, buf):
+        if len(self.contents) == 1:
+            return False
+
+        try:
+            buffers = [item[0] for item in self.contents]
+            idx = buffers.index(buf)
+            self.contents.pop(idx)
+
+            while not isinstance(self.focus, Buffer):
+                self.contents.pop(idx)
+
+            return True
+
+        except ValueError:
+            return False
+
 
 class HorizontalBufferList(urwid.Pile, BufferList):
     pass
@@ -496,7 +513,9 @@ class Application(Commandable):
         self.bindings = self.setup_bindings()
         self.commands = {
             'playlist': self.open_playlist,
-            'q': self.exit
+            'library': self.open_library,
+            'q': self.exit,
+            'orientation': self.change_orientation,
         }
 
         session = mstat.initialize_sqlalchemy(conf)
@@ -534,8 +553,29 @@ class Application(Commandable):
 
         if 'library' in default_buffers:
             self.buffers.add(self.library_buffer)
+            self.library_buffer.active = True
         if 'playlist' in default_buffers:
             self.buffers.add(self.playlist_buffer)
+            self.playlist_buffer.active = True
+
+    def change_orientation(self, orientation=None):
+        if orientation is None:
+            orientation = ('vertical' if self.orientation == 'horizontal'
+                           else 'horizontal')
+
+        if orientation == 'vertical':
+            buffers = VerticalBufferList([])
+        else:
+            buffers = HorizontalBufferList([])
+
+        if self.library_buffer.active:
+            buffers.add(self.library_buffer)
+        if self.playlist_buffer.active:
+            buffers.add(self.playlist_buffer)
+
+        self.orientation = orientation
+        self.buffers = buffers
+        self.top.body = self.buffers
 
     def update_footer(self, value, error=False):
         if isinstance(value, str):
@@ -569,12 +609,22 @@ class Application(Commandable):
     def open_playlist(self):
         if self.playlist_buffer.active:
             logger.debug('Close playlist')
-            self.buffers.contents.pop(self.playlist_buffer)
-            self.playlist_buffer.active = False
+            if self.buffers.remove(self.playlist_buffer):
+                self.playlist_buffer.active = False
         else:
             logger.debug('Open playlist')
             self.buffers.add(self.playlist_buffer)
             self.playlist_buffer.active = True
+
+    def open_library(self):
+        if self.library_buffer.active:
+            logger.debug('Close playlist')
+            if self.buffers.remove(self.library_buffer):
+                self.library_buffer.active = False
+        else:
+            logger.debug('Open playlist')
+            self.buffers.add(self.library_buffer)
+            self.library_buffer.active = True
 
     def start_db_update(self):
         #self.update_status('Updating database')
@@ -645,6 +695,7 @@ class Application(Commandable):
                     success = self.execute_command(command)
             except TypeError as err:
                 logger.debug('TypeError: {}'.format(err))
+                raise
                 self.update_footer_text(
                     "Invalid arguments for command '{}'".format(command),
                     error=True)
