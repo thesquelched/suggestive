@@ -30,7 +30,6 @@ class Config(object):
         mpd=dict(
             host='localhost',
             port=6600,
-            client='ncmpcpp',
         ),
         lastfm=dict(
             scrobble_days=180,
@@ -82,10 +81,6 @@ class Config(object):
             mpd['host'],
             mpd.getint('port'),
         )
-
-    def mpd_client(self):
-        """Return mpd client program"""
-        return self.parser['mpd']['client']
 
     def lastfm_user(self):
         """Return LastFM user name"""

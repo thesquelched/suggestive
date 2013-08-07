@@ -9,7 +9,6 @@ import mstat
 import urwid
 import shlex
 import logging
-from subprocess import call
 from itertools import chain, islice
 import re
 from mpd import CommandError
@@ -592,17 +591,11 @@ class Application(Commandable):
     def exit(cls):
         raise urwid.ExitMainLoop()
 
-    def launch_mpd_client(self):
-        self.event_loop.screen.stop()
-        call(self.conf.mpd_client(), shell=True)
-        self.event_loop.screen.start()
-
     def setup_bindings(self):
         return {
             'q': lambda: self.exit(),
             'u': lambda: self.start_db_update(),
             'r': lambda: self.update_suggestions(),
-            '~': lambda: self.launch_mpd_client(),
             ':': lambda: self.start_command(),
             'p': lambda: self.pause(),
             'ctrl w': lambda: self.buffers.next_buffer()
