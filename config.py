@@ -61,6 +61,10 @@ class Config(object):
             status_fg='#000',
             status_bg='#08f',
         ),
+        playlist=dict(
+            status_format='{status}: {artist} - {title} '
+                          '[{time_elapsed}/{time_total}]',
+        ),
     )
 
     def __init__(self, path=None):
@@ -168,3 +172,7 @@ class Config(object):
     def orientation(self):
         """Return buffer split orientation"""
         return self.parser['general']['orientation']
+
+    def playlist_status_format(self):
+        """Return the format for the playlist status bar"""
+        return self.parser['playlist']['status_format']

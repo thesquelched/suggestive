@@ -386,6 +386,7 @@ class PlaylistBuffer(Buffer):
 
     def __init__(self, conf):
         self.conf = conf
+        self.status_format = conf.playlist_status_format()
 
         self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
         walker = urwid.SimpleFocusListWalker(self.playlist_items())
@@ -471,34 +472,50 @@ class PlaylistBuffer(Buffer):
         self.update_status(self.status_text())
         self.redraw()
 
+    def status_params(self, status, track):
+        elapsed_time = int(status.get('time', '0').split(':')[0])
+        total_time = int(track.get('time', '0').split(':')[0])
+
+        elapsed_min, elapsed_sec = elapsed_time // 60, elapsed_time % 60
+        total_min, total_sec = total_time // 60, total_time % 60
+
+        state = status['state']
+        if state == 'play':
+            state = 'Now Playing'
+
+        return {
+            'status': state[0].upper() + state[1:],
+            'time_elapsed': '{}:{}'.format(
+                elapsed_min,
+                str(elapsed_sec).rjust(2, '0')
+            ),
+            'time_total': '{}:{}'.format(
+                total_min,
+                str(total_sec).rjust(2, '0')
+            ),
+            'title': track.get('title', 'Unknown Track'),
+            'artist': track.get('artist', 'Unknown Artist'),
+            'album_artist': track.get('album_artist', 'Unknown Artist'),
+            'album': track.get('album', 'Unknown Album'),
+            'filename': track['file'],
+            'track': track.get('track', 'Unknown'),
+            'date': track.get('date', 'Unknown'),
+        }
+
     def status_text(self):
         mpd = mstat.initialize_mpd(self.conf)
         status = mpd.status()
 
+        text = ''
+
         songid = status.get('songid')
         if songid:
-            songid = int(songid)
-            song = mpd.playlistid(songid)[0]
+            track = mpd.playlistid(songid)
+            if track:
+                params = self.status_params(status, track[0])
+                text = self.status_format.format(**params)
 
-            elapsed_time = int(status.get('time', '0').split(':')[0])
-            total_time = int(song.get('time', '0').split(':')[0])
-
-            elapsed_min, elapsed_sec = elapsed_time // 60, elapsed_time % 60
-            total_min, total_sec = total_time // 60, total_time % 60
-
-            text = 'Playlist | [{}:{}/{}:{}]'.format(
-                elapsed_min,
-                str(elapsed_sec).rjust(2, '0'),
-                total_min,
-                str(total_sec).rjust(2, '0'),
-            )
-
-            if status['state'] == 'pause':
-                text += ' PAUSED'
-
-            return text
-
-        return 'Playlist'
+        return 'Playlist | ' + text
 
     def clear_playlist(self):
         del self.playlist.body[:]
