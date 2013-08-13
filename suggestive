@@ -468,7 +468,37 @@ class PlaylistBuffer(Buffer):
             except IndexError:
                 pass
 
+        self.update_status(self.status_text())
         self.redraw()
+
+    def status_text(self):
+        mpd = mstat.initialize_mpd(self.conf)
+        status = mpd.status()
+
+        songid = status.get('songid')
+        if songid:
+            songid = int(songid)
+            song = mpd.playlistid(songid)[0]
+
+            elapsed_time = int(status.get('time', '0').split(':')[0])
+            total_time = int(song.get('time', '0').split(':')[0])
+
+            elapsed_min, elapsed_sec = elapsed_time // 60, elapsed_time % 60
+            total_min, total_sec = total_time // 60, total_time % 60
+
+            text = 'Playlist | [{}:{}/{}:{}]'.format(
+                elapsed_min,
+                str(elapsed_sec).rjust(2, '0'),
+                total_min,
+                str(total_sec).rjust(2, '0'),
+            )
+
+            if status['state'] == 'pause':
+                text += ' PAUSED'
+
+            return text
+
+        return 'Playlist'
 
     def clear_playlist(self):
         del self.playlist.body[:]
@@ -553,6 +583,7 @@ class Application(Commandable):
         self.setup_buffers()
 
         self.update_footer_text('suggestive')
+        self.playing_update()
 
     def setup_buffers(self):
         default_buffers = self.conf.default_buffers()
@@ -726,6 +757,11 @@ class Application(Commandable):
     def setup_term(self, screen):
         colormode = 256 if self.conf.use_256_colors() else 88
         screen.set_terminal_properties(colors=colormode)
+
+    def playing_update(self, *args):
+        text = self.playlist_buffer.status_text()
+        self.playlist_buffer.update_status(text)
+        self.event_loop.set_alarm_in(1, self.playing_update)
 
     def main_loop(self):
         logger.info('Starting event loop')

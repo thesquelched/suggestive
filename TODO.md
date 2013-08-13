@@ -13,6 +13,6 @@ New features
 - Mark songs loved
 - Sync scrobbles from all time
 - Command completion
-- Song progress
+- ~~Song progress~~
 - Color code part of track title (like blue album, red artist, yellow song)
 - ~~Multiple screens (library, now playing, etc)~~
