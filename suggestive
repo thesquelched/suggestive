@@ -3,7 +3,7 @@
 from threads import MpdWatchThread, DatabaseUpdateThread
 from analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
-    SortOrder, PlaycountOrder, BaseOrder)
+    SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)
 import mstat
 
 import urwid
@@ -12,6 +12,7 @@ import logging
 from itertools import chain, islice
 import re
 from mpd import CommandError
+import os.path
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -197,27 +198,6 @@ class ListSearcher(urwid.Edit):
 class LibraryBuffer(Buffer):
     signals = Buffer.signals + ['update_playlist']
 
-    ORDERERS = {
-        ('artist', 'ar'): ArtistFilter,
-        ('album', 'al'): AlbumFilter,
-        ('sort',): SortOrder,
-        ('loved', 'lo'): FractionLovedOrder,
-        ('banned', 'bn'): BannedOrder,
-        ('pc', 'playcount'): PlaycountOrder,
-    }
-
-    def setup_orderers(self):
-        return {
-            ('artist', 'ar'): (ArtistFilter, None),
-            ('album', 'al'): (AlbumFilter, None),
-            ('sort',): (SortOrder, {
-                'ignore_artist_the': self.conf.ignore_artist_the()
-            }),
-            ('loved', 'lo'): (FractionLovedOrder, None),
-            ('banned', 'bn'): (BannedOrder, None),
-            ('pc', 'playcount'): (PlaycountOrder, None),
-        }
-
     def __init__(self, conf):
         self.conf = conf
         self.commands = self.setup_commands()
@@ -229,8 +209,7 @@ class LibraryBuffer(Buffer):
         ]
         self.orderers = list(self.default_orderers)
 
-        session = mstat.initialize_sqlalchemy(conf)
-        self.anl = Analytics(session)
+        self.anl = Analytics(conf)
 
         self.suggestions = []
 
@@ -243,8 +222,6 @@ class LibraryBuffer(Buffer):
         self.update_status('Library')
 
     def orderer_command(self, orderer, defaults):
-        logger.debug('Class: {}, defaults: {}'.format(
-            orderer.__name__, defaults))
         if not defaults:
             return orderer
 
@@ -252,6 +229,19 @@ class LibraryBuffer(Buffer):
             kwArgs.update(defaults)
             return orderer(*args, **kwArgs)
         return orderer_func
+
+    def setup_orderers(self):
+        return {
+            ('artist', 'ar'): (ArtistFilter, None),
+            ('album', 'al'): (AlbumFilter, None),
+            ('sort',): (SortOrder, {
+                'ignore_artist_the': self.conf.ignore_artist_the()
+            }),
+            ('loved', 'lo'): (FractionLovedOrder, None),
+            ('banned', 'bn'): (BannedOrder, None),
+            ('pc', 'playcount'): (PlaycountOrder, None),
+            ('mod', 'modified'): (ModifiedOrder, None),
+        }
 
     def setup_commands(self):
         init_orderers = self.setup_orderers()
@@ -596,8 +586,7 @@ class Application(Commandable):
         self.bindings = self.setup_bindings()
         self.commands = self.setup_commands()
 
-        session = mstat.initialize_sqlalchemy(conf)
-        self.anl = Analytics(session)
+        self.anl = Analytics(conf)
 
         self.suggestions = []
 
@@ -1196,6 +1185,12 @@ def main():
 
     logging.basicConfig(level=logging.DEBUG, filename='log.txt', filemode='w')
     logger.info('Starting event loop')
+
+    if not os.path.exists(conf.database()):
+        print('Music database not found; initializing...')
+        session = mstat.initialize_sqlalchemy(conf)
+        mpd = mstat.initialize_mpd(conf)
+        mstat.update_mpd(session, mpd)
 
     app = Application(conf)
 

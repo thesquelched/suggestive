@@ -1,3 +1,4 @@
+import mstat
 from model import Album, Track, Scrobble, LastfmTrackInfo
 from sqlalchemy import func, Integer
 import logging
@@ -6,6 +7,7 @@ from collections import defaultdict
 from operator import itemgetter
 import re
 import sys
+from datetime import datetime
 
 
 logger = logging.getLogger(__name__)
@@ -43,7 +45,7 @@ class OrderDecorator(object):
     def __repr__(self):
         return '<{}()>'.format(self.__class__.__name__)
 
-    def order(self, albums, session):
+    def order(self, albums, session, mpd):
         raise NotImplementedError
 
 
@@ -51,7 +53,7 @@ class BaseOrder(OrderDecorator):
 
     """Initialize all albums with unity order"""
 
-    def order(self, albums, session):
+    def order(self, albums, session, mpd):
         return defaultdict(
             lambda: 1.0,
             zip(session.query(Album).all(), repeat(1.0))
@@ -67,7 +69,7 @@ class AlbumFilter(OrderDecorator):
     def __repr__(self):
         return '<AlbumFilter({})>'.format(self.name)
 
-    def order(self, albums, session):
+    def order(self, albums, session, mpd):
         return {
             album: order for album, order in albums.items()
             if re.search(self.name_rgx, album.name) is not None
@@ -83,7 +85,7 @@ class ArtistFilter(OrderDecorator):
     def __repr__(self):
         return '<ArtistFilter({})>'.format(self.name)
 
-    def order(self, albums, session):
+    def order(self, albums, session, mpd):
         return {
             album: order for album, order in albums.items()
             if re.search(self.name_rgx, album.artist.name) is not None
@@ -104,8 +106,31 @@ class SortOrder(OrderDecorator):
 
         return '{} - {}'.format(artist, album.name)
 
-    def order(self, albums, session):
+    def order(self, albums, session, mpd):
         sorted_albums = sorted(albums, key=self._format, reverse=True)
+        return {album: i for i, album in enumerate(sorted_albums, 1)}
+
+
+class ModifiedOrder(OrderDecorator):
+
+    """Sort by modified date"""
+
+    FMT = '%Y-%m-%dT%H:%M:%SZ'
+
+    @classmethod
+    def get_date(cls, album, mpd):
+        track_info = mpd.search('album', album.name)
+        if not track_info:
+            return None
+
+        dates = [datetime.strptime(info['last-modified'], cls.FMT)
+                 for info in track_info]
+        return sorted(dates)[0]
+
+    def order(self, albums, session, mpd):
+        sorted_albums = sorted(
+            albums,
+            key=lambda album: self.get_date(album, mpd))
         return {album: i for i, album in enumerate(sorted_albums, 1)}
 
 
@@ -119,7 +144,7 @@ class BannedOrder(OrderDecorator):
     def __repr__(self):
         return '<BannedOrder({})>'.format(self.remove)
 
-    def order(self, albums, session):
+    def order(self, albums, session, mpd):
         results = session.query(Album).\
             join(Track).\
             outerjoin(LastfmTrackInfo).\
@@ -172,7 +197,7 @@ class FractionLovedOrder(OrderDecorator):
         return '<FractionLovedOrder({}, {}, {})>'.format(
             self.f_min, self.f_max, self.penalize)
 
-    def order(self, albums, session):
+    def order(self, albums, session, mpd):
         results = session.query(Album).\
             join(Track).\
             outerjoin(LastfmTrackInfo).\
@@ -233,7 +258,7 @@ class PlaycountOrder(OrderDecorator):
         return '<PlaycountOrder({}, {})>'.format(
             self.plays_min, self.plays_max)
 
-    def order(self, albums, session):
+    def order(self, albums, session, mpd):
         results = session.query(Album).\
             join(Track).\
             outerjoin(Scrobble).\
@@ -259,11 +284,12 @@ class PlaycountOrder(OrderDecorator):
 
 class Analytics(object):
 
-    def __init__(self, session):
-        self.session = session
+    def __init__(self, conf):
+        self.conf = conf
 
     def not_recently_played(self):
-        return self.session.query(Album).\
+        session = mstat.initialize_sqlalchemy(self.conf)
+        return session.query(Album).\
             outerjoin(Album.tracks).\
             outerjoin(Track.scrobbles).\
             group_by(Album.id).\
@@ -282,7 +308,8 @@ class Analytics(object):
     def loved_order(self):
         album_orderer = FractionLovedOrder()
 
-        ordered = album_orderer.order({}, self.session)
+        session = mstat.initialize_sqlalchemy(self.conf)
+        ordered = album_orderer.order({}, session, None)
         albums = [album for album, order in sorted(
             ordered.items(),
             reverse=True,
@@ -292,12 +319,15 @@ class Analytics(object):
         return [Suggestion(album) for album in albums]
 
     def order_albums(self, orderers=None):
+        session = mstat.initialize_sqlalchemy(self.conf)
+        mpd = mstat.initialize_mpd(self.conf)
+
         if orderers is None:
             orderers = [BaseOrder()]
 
         ordered = {}
         for album_orderer in orderers:
-            ordered = album_orderer.order(ordered, self.session)
+            ordered = album_orderer.order(ordered, session, mpd)
 
         albums = [album for album, order in sorted(
             ordered.items(),
@@ -306,43 +336,3 @@ class Analytics(object):
         ]
 
         return [Suggestion(album) for album in albums]
-
-    #def loved_order(self):
-    #    pct_loved = self.p_loved()
-
-    #    results = self.session.query(Album).\
-    #        join(Track).\
-    #        outerjoin(LastfmTrackInfo).\
-    #        add_columns(func.count(Track.id),
-    #                    func.count(LastfmTrackInfo.id)).\
-    #        group_by(Album.id).\
-    #        all()
-
-    #    p_love_album = list()
-    #    handle = open('loved.csv', 'w')
-    #    for album, n_tracks, n_loved in results:
-    #        p_loved = (choose(n_tracks, n_loved) * pct_loved ** n_loved
-    #                   * (1 - pct_loved) ** (n_tracks - n_loved))
-    #        handle.write('"{} - {}",{},{},{}\n'.format(
-    #            album.artist.name, album.name, n_tracks, n_loved, p_loved))
-
-    #        p_love_album.append((album, p_loved))
-
-    #    handle.close()
-    #    ordered = sorted(p_love_album, key=lambda p: p[1])
-
-    #    # TODO: Remove this
-    #    #with open('ordered.csv', 'w') as handle:
-    #    #    for album, prob in ordered:
-    #    #        handle.write('"{} - {}",{}\n'.format(
-    #    #            album.artist.name, album.name, prob))
-
-    #    return [Suggestion(album) for album, _prob in ordered]
-
-    #def p_loved(self):
-    #    n_tracks = self.session.query(Track).count()
-    #    n_loved = self.session.query(LastfmTrackInfo).\
-    #        filter_by(loved=True).\
-    #        count()
-
-    #    return n_loved / n_tracks

@@ -12,7 +12,6 @@ from time import mktime
 from collections import defaultdict
 from itertools import chain
 import logging
-import argparse
 from os.path import basename
 
 logger = logging.getLogger(__name__)
@@ -330,7 +329,8 @@ def set_last_updated(session):
     session.commit()
 
 
-def update_database(session, mpdclient, lastfm, config):
+def update_mpd(session, mpdclient):
+    logger.info('Updating database from mpd')
     artists_start = session.query(Artist).count()
     albums_start = session.query(Album).count()
     tracks_start = session.query(Track).count()
@@ -346,6 +346,10 @@ def update_database(session, mpdclient, lastfm, config):
     logger.info('Inserted {} albums'.format(new_albums))
     logger.info('Inserted {} tracks'.format(new_tracks))
 
+
+def update_lastfm(session, lastfm, config):
+    logger.debug('Update database from last.fm')
+
     scrobbles_start = session.query(Scrobble).count()
 
     scrobble_loader = ScrobbleLoader(lastfm, config)
@@ -359,32 +363,6 @@ def update_database(session, mpdclient, lastfm, config):
     info_loader.load(session)
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Suggest lastfm stuff')
-    parser.add_argument('--config', '-c', help='Configuration file')
-
-    args = parser.parse_args()
-
-    run(args.config)
-
-
-def run(config_path=None):
-    config = configuration(path=config_path)
-
-    session = initialize_sqlalchemy(config)
-    mpdclient = initialize_mpd(config)
-    lastfm = initialize_lastfm(config)
-
-    update_database(session, mpdclient, lastfm, config)
-
-    return session
-
-
-def init_logging():
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger('mpd').setLevel(logging.ERROR)
-    logging.getLogger('requests').setLevel(logging.ERROR)
-
-if __name__ == '__main__':
-    init_logging()
-    main()
+def update_database(session, mpdclient, lastfm, config):
+    update_mpd(session, mpdclient)
+    update_lastfm(session, lastfm, config)
