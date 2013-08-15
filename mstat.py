@@ -1,5 +1,4 @@
 from lastfm import LastFM
-from config import Config
 from model import (
     Artist, ArtistCorrection, Album, Scrobble, Session, Base, LoadStatus,
     Track, ScrobbleInfo, LastfmTrackInfo)
@@ -107,10 +106,8 @@ class ScrobbleLoader(object):
         if not last_upd:
             last_upd = self.retention
 
-        logger.debug('Get scrobbles since {}'.format(
-                     datetime.fromtimestamp(
-                         last_upd).strftime('%Y-%m-%d %H:%M')
-                     ))
+        logger.info('Get scrobbles since {}'.format(
+            datetime.fromtimestamp(last_upd).strftime('%Y-%m-%d %H:%M')))
 
         for item in self.lastfm.scrobbles(user, last_updated=last_upd):
             self.load_scrobble(session, item)
@@ -272,10 +269,6 @@ class TrackInfoLoader(object):
             )
 
 
-def configuration(path=None):
-    return Config(path=path)
-
-
 def initialize_sqlalchemy(config, echo=False):
     path = 'sqlite:///{}'.format(config.database())
     engine = create_engine(path, echo=bool(echo))
@@ -300,7 +293,7 @@ def initialize_lastfm(config):
 
 
 def correct_artist(name, lastfm):
-    logger.debug('Attempting to find a correction for {}'.format(name))
+    logger.info('Attempting to find a correction for {}'.format(name))
 
     resp = lastfm.query('artist.getCorrection', artist=name)
     if 'corrections' in resp and isinstance(resp['corrections'], dict):
@@ -363,7 +356,7 @@ def update_mpd(config):
 
 
 def update_lastfm(config):
-    logger.debug('Update database from last.fm')
+    logger.info('Update database from last.fm')
 
     with session_scope(config) as session:
         scrobbles_start = session.query(Scrobble).count()

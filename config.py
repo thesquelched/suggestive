@@ -2,6 +2,7 @@ from configparser import ConfigParser
 from os.path import expanduser, expandvars
 from time import time
 import re
+import logging
 
 
 SECONDS_IN_DAY = 24 * 3600
@@ -23,10 +24,12 @@ class Config(object):
     DEFAULTS = dict(
         general=dict(
             conf_dir='$HOME/.suggestive',
-            database='$HOME/.suggestive/music.db',
+            database='%(conf_dir)s/music.db',
             highcolor=True,
             default_buffers='library,playlist',
             orientation='horizontal',
+            log='%(conf_dir)s/log.txt',
+            verbose=False
         ),
         mpd=dict(
             host='localhost',
@@ -70,17 +73,23 @@ class Config(object):
         ),
     )
 
-    def __init__(self, path=None):
+    def __init__(self, args=None):
         parser = ConfigParser()
         parser.read_dict(self.DEFAULTS)
 
         paths = CONFIG_PATHS
-        if path:
-            paths = [path] + CONFIG_PATHS
+        if args and args.config:
+            paths = [args.config] + CONFIG_PATHS
 
         parser.read(map(expand, paths))
+        self.parser = self.override_config(parser, args) if args else parser
 
-        self.parser = parser
+    @classmethod
+    def override_config(cls, parser, args):
+        if args.log:
+            parser['general']['log'] = args.log
+
+        return parser
 
     def mpd(self):
         """Return (host, port)"""
@@ -184,3 +193,14 @@ class Config(object):
         """Return True if sorting albums should ignore the word 'The' in the
         artist name"""
         return self.parser.getboolean('library', 'ignore_artist_the')
+
+    def log_file(self):
+        """Return the log file path"""
+        return expand(self.parser['general']['log'])
+
+    def log_level(self):
+        """Return the log level"""
+        if self.parser.getboolean('general', 'verbose'):
+            return logging.DEBUG
+        else:
+            return logging.INFO

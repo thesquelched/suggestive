@@ -1,6 +1,7 @@
 [general]
 #conf_dir = $HOME/.suggestive
 #database = %(conf_dir)s/music.db
+#log = %(conf_dir)s/log.txt
 #highcolor = true
 #default_buffers = library,playlist
 #orientation = horizontal
