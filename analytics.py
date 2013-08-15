@@ -91,9 +91,18 @@ class ArtistFilter(OrderDecorator):
 
 
 class SortOrder(OrderDecorator):
-    @classmethod
-    def _format(cls, album):
-        return '{} - {}'.format(album.artist.name, album.name)
+
+    """Sort by 'Artist - Album'"""
+
+    def __init__(self, ignore_artist_the=True):
+        self.ignore_artist_the = bool(ignore_artist_the)
+
+    def _format(self, album):
+        artist = album.artist.name
+        if self.ignore_artist_the and artist.lower().startswith('the '):
+            artist = artist[4:] + ', ' + artist[:3]
+
+        return '{} - {}'.format(artist, album.name)
 
     def order(self, albums, session):
         sorted_albums = sorted(albums, key=self._format, reverse=True)

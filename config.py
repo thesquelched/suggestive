@@ -65,6 +65,9 @@ class Config(object):
             status_format='{status}: {artist} - {title} '
                           '[{time_elapsed}/{time_total}]',
         ),
+        library=dict(
+            ignore_artist_the=True
+        ),
     )
 
     def __init__(self, path=None):
@@ -176,3 +179,8 @@ class Config(object):
     def playlist_status_format(self):
         """Return the format for the playlist status bar"""
         return self.parser['playlist']['status_format']
+
+    def ignore_artist_the(self):
+        """Return True if sorting albums should ignore the word 'The' in the
+        artist name"""
+        return self.parser.getboolean('library', 'ignore_artist_the')
