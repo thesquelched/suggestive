@@ -229,6 +229,9 @@ class TrackInfoLoader(object):
                     track in loved_tracks,
                     track in banned_tracks
                 )
+            else:
+                logger.error('Could not database entry for LastFM item: '
+                             '{} - {}'.format(artist, track))
 
     def get_loved_tracks(self, session):
         loved_track_info = list(self.lastfm.loved_tracks(self.user))
@@ -237,6 +240,7 @@ class TrackInfoLoader(object):
         for info in loved_track_info:
             if not('name' in info and 'artist' in info
                    and 'name' in info['artist']):
+                logger.error('Malformed LastFM loved info: {}'.format(info))
                 continue
             loved_tracks[info['artist']['name']].add(info['name'])
 
@@ -249,6 +253,7 @@ class TrackInfoLoader(object):
         for info in banned_track_info:
             if not('name' in info and 'artist' in info
                    and 'name' in info['artist']):
+                logger.error('Malformed LastFM banned info: {}'.format(info))
                 continue
             banned_tracks[info['artist']['name']].add(info['name'])
 
