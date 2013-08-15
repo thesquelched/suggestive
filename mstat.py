@@ -100,8 +100,6 @@ class ScrobbleLoader(object):
         for item in self.lastfm.scrobbles(user, last_updated=last_upd):
             self.load_scrobble(session, item)
 
-        session.commit()
-
         set_last_updated(session)
 
 
@@ -123,6 +121,22 @@ class MpdLoader(object):
             db_artist.tracks.append(db_track)
             session.add(db_track)
 
+    def load_artist_albums(self, session, db_artist, albums):
+        for album, info_list in albums.items():
+            # ignore missing albums
+            if not album:
+                continue
+
+            db_album = session.query(Album).filter_by(
+                name_insensitive=album).first()
+            if not db_album:
+                db_album = Album(name=album)
+                db_artist.albums.append(db_album)
+                session.add(db_album)
+
+            for info in info_list:
+                self.load_track(session, db_artist, db_album, info)
+
     def load_by_artist_album(self, session, by_artist_album):
         for artist, albums in by_artist_album.items():
             # ignore missing artists
@@ -135,20 +149,7 @@ class MpdLoader(object):
                 db_artist = Artist(name=artist)
                 session.add(db_artist)
 
-            for album, info_list in albums.items():
-                # ignore missing albums
-                if not album:
-                    continue
-
-                db_album = session.query(Album).filter_by(
-                    name_insensitive=album).first()
-                if not db_album:
-                    db_album = Album(name=album)
-                    db_artist.albums.append(db_album)
-                    session.add(db_album)
-
-                for info in info_list:
-                    self.load_track(session, db_artist, db_album, info)
+            self.load_artist_albums(session, db_artist, albums)
 
     def load(self, session):
         files_in_mpd = set(self.mpd.list('file'))
@@ -175,8 +176,6 @@ class MpdLoader(object):
     def initialize(self, session):
         for artist in self.mpd.list('artist'):
             self.load_artist(session, artist)
-
-        session.commit()
 
 
 class TrackInfoLoader(object):
@@ -257,8 +256,6 @@ class TrackInfoLoader(object):
                 banned_tracks[artist]
             )
 
-        session.commit()
-
 
 def configuration(path=None):
     return Config(path=path)
@@ -326,43 +323,63 @@ def set_last_updated(session):
     session.query(LoadStatus).delete()
     session.add(LoadStatus(last_updated=datetime.now()))
 
-    session.commit()
 
-
-def update_mpd(session, mpdclient):
+def update_mpd(config):
     logger.info('Updating database from mpd')
-    artists_start = session.query(Artist).count()
-    albums_start = session.query(Album).count()
-    tracks_start = session.query(Track).count()
 
-    mpd_loader = MpdLoader(mpdclient)
-    mpd_loader.load(session)
+    session = initialize_sqlalchemy(config)
 
-    new_artists = session.query(Artist).count() - artists_start
-    new_albums = session.query(Album).count() - albums_start
-    new_tracks = session.query(Track).count() - tracks_start
+    try:
+        artists_start = session.query(Artist).count()
+        albums_start = session.query(Album).count()
+        tracks_start = session.query(Track).count()
 
-    logger.info('Inserted {} artists'.format(new_artists))
-    logger.info('Inserted {} albums'.format(new_albums))
-    logger.info('Inserted {} tracks'.format(new_tracks))
+        mpdclient = initialize_mpd(config)
+        mpd_loader = MpdLoader(mpdclient)
+        mpd_loader.load(session)
+
+        session.commit()
+
+        new_artists = session.query(Artist).count() - artists_start
+        new_albums = session.query(Album).count() - albums_start
+        new_tracks = session.query(Track).count() - tracks_start
+
+        logger.info('Inserted {} artists'.format(new_artists))
+        logger.info('Inserted {} albums'.format(new_albums))
+        logger.info('Inserted {} tracks'.format(new_tracks))
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
-def update_lastfm(session, lastfm, config):
+def update_lastfm(config):
     logger.debug('Update database from last.fm')
 
-    scrobbles_start = session.query(Scrobble).count()
+    session = initialize_sqlalchemy(config)
+    try:
+        scrobbles_start = session.query(Scrobble).count()
 
-    scrobble_loader = ScrobbleLoader(lastfm, config)
-    scrobble_loader.load_recent_scrobbles(session)
+        lastfm = initialize_lastfm(config)
+        scrobble_loader = ScrobbleLoader(lastfm, config)
+        scrobble_loader.load_recent_scrobbles(session)
 
-    new_scrobbles = session.query(Scrobble).count() - scrobbles_start
+        new_scrobbles = session.query(Scrobble).count() - scrobbles_start
 
-    logger.info('Inserted {} scrobbles'.format(new_scrobbles))
+        logger.info('Inserted {} scrobbles'.format(new_scrobbles))
 
-    info_loader = TrackInfoLoader(lastfm, config)
-    info_loader.load(session)
+        info_loader = TrackInfoLoader(lastfm, config)
+        info_loader.load(session)
+
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
-def update_database(session, mpdclient, lastfm, config):
-    update_mpd(session, mpdclient)
-    update_lastfm(session, lastfm, config)
+def update_database(config):
+    update_mpd(config)
+    update_lastfm(config)

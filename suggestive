@@ -1188,9 +1188,7 @@ def main():
 
     if not os.path.exists(conf.database()):
         print('Music database not found; initializing...')
-        session = mstat.initialize_sqlalchemy(conf)
-        mpd = mstat.initialize_mpd(conf)
-        mstat.update_mpd(session, mpd)
+        mstat.update_mpd(conf)
 
     app = Application(conf)
 

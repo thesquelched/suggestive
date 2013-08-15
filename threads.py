@@ -46,21 +46,17 @@ class DatabaseUpdateThread(AppThread):
         self.callback = callback
         self.conf = conf
 
-        self.session = mstat.initialize_sqlalchemy(conf)
-        self.mpd = mstat.initialize_mpd(conf)
-        self.lastfm = mstat.initialize_lastfm(conf)
-
     def run(self):
         logger.debug('Waiting for lock')
 
         with db_lock:
             logger.info('Start MPD update')
-            self.mpd.update()
+            mpd = mstat.initialize_mpd(self.conf)
+            mpd.update()
             logger.info('Finished MPD update')
 
             logger.info('Update internal database')
-            mstat.update_database(self.session, self.mpd, self.lastfm,
-                                  self.conf)
+            mstat.update_database(self.conf)
 
             self.session.close()
 
