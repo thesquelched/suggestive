@@ -287,8 +287,7 @@ class Analytics(object):
     def __init__(self, conf):
         self.conf = conf
 
-    def order_albums(self, orderers=None):
-        session = mstat.initialize_sqlalchemy(self.conf)
+    def order_albums(self, session, orderers=None):
         mpd = mstat.initialize_mpd(self.conf)
 
         if orderers is None:

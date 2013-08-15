@@ -1,6 +1,7 @@
 import mstat
 import threading
 import logging
+import traceback
 
 
 logger = logging.getLogger(__name__)
@@ -10,6 +11,22 @@ logger.addHandler(logging.NullHandler())
 db_lock = threading.Lock()
 
 
+def log_errors(cls):
+    orig_run = cls.run
+
+    def newrun(self):
+        try:
+            orig_run(self)
+        except:
+            logger.critical('{} encountered exception'.format(cls.__name__))
+            logger.critical(traceback.format_exc())
+            raise
+
+    cls.run = newrun
+
+    return cls
+
+
 class AppThread(threading.Thread):
 
     """Base class for suggestive threads"""
@@ -17,6 +34,7 @@ class AppThread(threading.Thread):
     pass
 
 
+@log_errors
 class MpdWatchThread(AppThread):
 
     """Watches mpd for changes"""
@@ -37,6 +55,7 @@ class MpdWatchThread(AppThread):
                 self.playlist_cb()
 
 
+@log_errors
 class DatabaseUpdateThread(AppThread):
 
     """Start a database update"""
@@ -57,8 +76,6 @@ class DatabaseUpdateThread(AppThread):
 
             logger.info('Update internal database')
             mstat.update_database(self.conf)
-
-            self.session.close()
 
             logger.info('Finished update')
 

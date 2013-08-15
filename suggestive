@@ -198,8 +198,9 @@ class ListSearcher(urwid.Edit):
 class LibraryBuffer(Buffer):
     signals = Buffer.signals + ['update_playlist']
 
-    def __init__(self, conf):
+    def __init__(self, conf, session):
         self.conf = conf
+        self.session = session
         self.commands = self.setup_commands()
 
         self.default_orderers = [
@@ -287,6 +288,7 @@ class LibraryBuffer(Buffer):
 
     def update_suggestions(self, *_args):
         logger.info('Update suggestions display')
+
         self.suggestions = self.get_suggestions()
 
         self.list_view = self.suggestion_list()
@@ -294,7 +296,7 @@ class LibraryBuffer(Buffer):
         #self.redraw()
 
     def get_suggestions(self):
-        return self.anl.order_albums(self.orderers)
+        return self.anl.order_albums(self.session, self.orderers)
 
     def enqueue_album(self, album):
         self.enqueue_tracks(album.tracks)
@@ -574,12 +576,14 @@ class MainWindow(urwid.Frame):
 
 
 class Application(Commandable):
-    def __init__(self, conf):
+    def __init__(self, conf, session):
         self.conf = conf
+        self.session = session
+
         self.default_orderers = [
             BaseOrder(),
-            FractionLovedOrder(),
-            BannedOrder()
+            #FractionLovedOrder(),
+            #BannedOrder()
         ]
         self.orderers = list(self.default_orderers)
 
@@ -659,7 +663,7 @@ class Application(Commandable):
         self.top.update_footer(text)
 
     def create_library_buffer(self):
-        buf = LibraryBuffer(self.conf)
+        buf = LibraryBuffer(self.conf, self.session)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
         urwid.connect_signal(buf, 'set_footer', self.update_footer)
         urwid.connect_signal(buf, 'redraw', self.event_loop.draw_screen)
@@ -712,6 +716,7 @@ class Application(Commandable):
         thread.start()
 
     def update_library_event(self):
+        self.session.expire_all()
         self.event_loop.set_alarm_in(0, self.library_buffer.update_suggestions)
 
     def update_playlist_event(self):
@@ -1190,12 +1195,17 @@ def main():
         print('Music database not found; initializing...')
         mstat.update_mpd(conf)
 
-    app = Application(conf)
-
-    try:
-        app.event_loop.run()
-    except KeyboardInterrupt:
-        logger.error("Exited via keyboard interrupt; next time, use 'q'")
+    with mstat.session_scope(conf, commit=False) as main_session:
+        try:
+            app = Application(conf, main_session)
+            app.event_loop.run()
+        except KeyboardInterrupt:
+            logger.error("Exited via keyboard interrupt; next time, use 'q'")
+        except Exception as err:
+            import traceback
+            logger.critical('Encountered exception: {}'.format(err))
+            logger.critical(traceback.format_exc())
+            raise
 
 
 if __name__ == '__main__':
