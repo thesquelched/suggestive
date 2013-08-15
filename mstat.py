@@ -13,6 +13,7 @@ from itertools import chain
 import logging
 from os.path import basename
 from contextlib import contextmanager
+from difflib import get_close_matches
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -212,15 +213,48 @@ class TrackInfoLoader(object):
         db_track_info.loved = loved
         db_track_info.banned = banned
 
+    def find_track(self, session, artist, track):
+        return session.query(Track).\
+            join(Artist).\
+            filter(Track.name_insensitive == track).\
+            filter(Artist.name_insensitive == artist).\
+            first()
+
+    def find_artist(self, session, artist):
+        return session.query(Artist).\
+            filter(Artist.name_insensitive == artist).\
+            first()
+
+    def find_closest_track(self, session, db_artist, track):
+        matches = get_close_matches(
+            track, [t.name for t in db_artist.tracks])
+        if matches:
+            return self.find_track(session, db_artist.name, matches[0])
+
+    def db_track_from_lastfm(self, session, artist_names, artist, track):
+        db_track = self.find_track(session, artist, track)
+
+        if not db_track:
+            db_artist = self.find_artist(session, artist)
+            if not db_artist:
+                artist_matches = get_close_matches(artist, artist_names)
+                if artist_matches:
+                    db_artist = self.find_artist(
+                        session, artist_matches[0])
+
+            if db_artist:
+                db_track = self.find_closest_track(
+                    session, db_artist, track)
+
+        return db_track
+
     def load_track_info(self, session, artist, loved_tracks, banned_tracks):
+        artist_names = [a.name for a in session.query(Artist).all()]
         all_tracks = loved_tracks.union(banned_tracks)
 
         for track in all_tracks:
-            db_track = session.query(Track).\
-                join(Artist).\
-                filter(Track.name_insensitive == track).\
-                filter(Artist.name_insensitive == artist).\
-                first()
+            db_track = self.db_track_from_lastfm(
+                session, artist_names, artist, track)
 
             if db_track:
                 self.update_track_info(
@@ -230,7 +264,7 @@ class TrackInfoLoader(object):
                     track in banned_tracks
                 )
             else:
-                logger.error('Could not database entry for LastFM item: '
+                logger.error('Could not find database entry for LastFM item: '
                              '{} - {}'.format(artist, track))
 
     def get_loved_tracks(self, session):
