@@ -13,9 +13,24 @@ from collections import defaultdict
 from itertools import chain
 import logging
 from os.path import basename
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
+
+
+@contextmanager
+def session_scope(conf, commit=True):
+    session = initialize_sqlalchemy(conf)
+    try:
+        yield session
+        if commit:
+            session.commit()
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def get(data, keys, default=None):
@@ -327,9 +342,7 @@ def set_last_updated(session):
 def update_mpd(config):
     logger.info('Updating database from mpd')
 
-    session = initialize_sqlalchemy(config)
-
-    try:
+    with session_scope(config) as session:
         artists_start = session.query(Artist).count()
         albums_start = session.query(Album).count()
         tracks_start = session.query(Track).count()
@@ -347,18 +360,12 @@ def update_mpd(config):
         logger.info('Inserted {} artists'.format(new_artists))
         logger.info('Inserted {} albums'.format(new_albums))
         logger.info('Inserted {} tracks'.format(new_tracks))
-    except:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
 
 def update_lastfm(config):
     logger.debug('Update database from last.fm')
 
-    session = initialize_sqlalchemy(config)
-    try:
+    with session_scope(config) as session:
         scrobbles_start = session.query(Scrobble).count()
 
         lastfm = initialize_lastfm(config)
@@ -373,11 +380,6 @@ def update_lastfm(config):
         info_loader.load(session)
 
         session.commit()
-    except:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
 
 def update_database(config):
