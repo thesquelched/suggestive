@@ -287,37 +287,6 @@ class Analytics(object):
     def __init__(self, conf):
         self.conf = conf
 
-    def not_recently_played(self):
-        session = mstat.initialize_sqlalchemy(self.conf)
-        return session.query(Album).\
-            outerjoin(Album.tracks).\
-            outerjoin(Track.scrobbles).\
-            group_by(Album.id).\
-            having(func.count(Scrobble.id) == 0)
-
-    def suggest_albums(self, n_albums=None):
-        not_played = self.not_recently_played()
-
-        if n_albums is None:
-            albums = not_played.all()
-        else:
-            albums = not_played.limit(n_albums).all()
-
-        return [Suggestion(album) for album in albums]
-
-    def loved_order(self):
-        album_orderer = FractionLovedOrder()
-
-        session = mstat.initialize_sqlalchemy(self.conf)
-        ordered = album_orderer.order({}, session, None)
-        albums = [album for album, order in sorted(
-            ordered.items(),
-            reverse=True,
-            key=itemgetter(1))
-        ]
-
-        return [Suggestion(album) for album in albums]
-
     def order_albums(self, orderers=None):
         session = mstat.initialize_sqlalchemy(self.conf)
         mpd = mstat.initialize_mpd(self.conf)
