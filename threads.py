@@ -82,3 +82,26 @@ class DatabaseUpdateThread(AppThread):
             (self.callback)()
 
         logger.debug('Released lock')
+
+
+@log_errors
+class ScrobbleInitializeThread(AppThread):
+
+    """Load scrobbles from all time"""
+
+    def __init__(self, conf):
+        self.conf = conf
+
+    def run(self):
+        logger.info('Start updating scrobbles')
+
+        lastfm = mstat.initialize_lastfm(self.conf)
+
+        while True:
+            with db_lock:
+                with mstat.session_scope(self.conf) as session:
+                    if session.query(LoadStatus.scrobbles_initialized).scalar():
+                        return
+
+                    end = session.query(func.min(Scrobble.time)).scalar()
+                    start = end -  timedelta(60)
