@@ -109,8 +109,7 @@ class Config(object):
 
     def scrobble_retention(self):
         """Return seconds to keep LastFM scrobbles"""
-        ret = self.parser['lastfm'].getint('scrobble_days') * SECONDS_IN_DAY
-        return int(time() - ret)
+        return self.parser['lastfm'].getint('scrobble_days')
 
     def database(self):
         """Return the path to the database file"""

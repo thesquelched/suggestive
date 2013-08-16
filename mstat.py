@@ -1,13 +1,12 @@
 from lastfm import LastFM
 from model import (
     Artist, ArtistCorrection, Album, Scrobble, Session, Base, Track,
-    ScrobbleInfo, LastfmTrackInfo)
+    LoadStatus, ScrobbleInfo, LastfmTrackInfo)
 
 import mpd
 from sqlalchemy import create_engine, func
 
-from datetime import datetime
-from time import mktime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from itertools import chain
 import logging
@@ -105,12 +104,12 @@ class ScrobbleLoader(object):
 
         last_upd = last_updated(session)
         if not last_upd:
-            last_upd = self.retention
+            last_upd = datetime.now() - timedelta(self.retention)
 
         logger.info('Get scrobbles since {}'.format(
-            datetime.fromtimestamp(last_upd).strftime('%Y-%m-%d %H:%M')))
+            last_upd.strftime('%Y-%m-%d %H:%M')))
 
-        for item in self.lastfm.scrobbles(user, last_updated=last_upd):
+        for item in self.lastfm.scrobbles(user, start=last_upd):
             self.load_scrobble(session, item)
 
 
@@ -365,17 +364,12 @@ def correct_artist(name, lastfm):
     return (artist, None)
 
 
-def delete_old_scrobbles(session, config):
-    delete_before = datetime.fromtimestamp(config.scrobble_retention())
-    session.query(Scrobble).filter(Scrobble.date < delete_before).delete()
-
-
 def last_updated(session):
-    last_date = session.query(func.max(Scrobble.time)).scalar()
-    if last_date:
-        return int(mktime(last_date.timetuple()))
-    else:
-        return None
+    return session.query(func.max(Scrobble.time)).scalar()
+    #if last_date:
+    #    return int(mktime(last_date.timetuple()))
+    #else:
+    #    return None
 
 
 def update_mpd(config):
@@ -424,3 +418,10 @@ def update_lastfm(config):
 def update_database(config):
     update_mpd(config)
     update_lastfm(config)
+
+
+def initialize_scrobbles(session, config):
+    status = session.query(LoadStatus).first()
+    if not status:
+        status = LoadStatus(scrobbles_initialized=False)
+        session.add(status)

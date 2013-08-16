@@ -2,6 +2,7 @@ import requests
 import json
 import logging
 from collections import defaultdict
+from time import mktime
 
 APIKEY = 'd9d0efb24aec53426d0f8d144c74caa7'
 
@@ -97,15 +98,17 @@ class LastFM(object):
             logger.error('Query resulted in an error: {}', error)
             raise LastfmError("Query '{}' failed".format(method))
 
-    def scrobbles(self, user, last_updated=None):
+    def scrobbles(self, user, start=None, end=None):
         args = {
             'limit': 200,
             'user': user,
             'extended': 1
         }
 
-        if last_updated:
-            args['from'] = last_updated
+        if start:
+            args['from'] = int(mktime(start.timetuple()))
+        if end:
+            args['to'] = int(mktime(end.timetuple()))
 
         for resp in self.query_all('user.getRecentTracks', 'recenttracks',
                                    **args):
