@@ -100,17 +100,22 @@ class ScrobbleLoader(object):
             db_track.scrobbles.append(scrobble)
 
     def load_recent_scrobbles(self, session):
-        user = self.user
-
-        last_upd = last_updated(session)
-        if not last_upd:
-            last_upd = datetime.now() - timedelta(self.retention)
+        start = last_updated(session)
+        if not start:
+            start = datetime.now() - timedelta(self.retention)
 
         logger.info('Get scrobbles since {}'.format(
-            last_upd.strftime('%Y-%m-%d %H:%M')))
+            start.strftime('%Y-%m-%d %H:%M')))
 
-        for item in self.lastfm.scrobbles(user, start=last_upd):
+        return self.load_scrobbles(session, start=start)
+
+    def load_scrobbles(self, session, start=None, end=None):
+        n_scrobbles = 0
+        for item in self.lastfm.scrobbles(self.user, start=start, end=end):
             self.load_scrobble(session, item)
+            n_scrobbles += 1
+
+        return n_scrobbles
 
 
 class MpdLoader(object):
@@ -223,6 +228,8 @@ class TrackInfoLoader(object):
             first()
 
     def find_closest_track(self, session, db_artist, track):
+        logger.debug('Looking for closest track for artist {}'.format(
+            db_artist.name))
         matches = get_close_matches(
             track, [t.name for t in db_artist.tracks])
         if matches:
@@ -236,29 +243,36 @@ class TrackInfoLoader(object):
         else:
             logger.debug('Track {} had no matches'.format(track))
 
-    def db_artist_from_lastfm(self, session, artist_names, artist):
+    def db_artists_from_lastfm(self, session, artist_names, artist):
         db_artist = self.find_artist(session, artist)
-        if not db_artist:
-            artist_matches = get_close_matches(artist, artist_names)
-            if artist_matches:
-                logger.debug("Artist '{}' matches: {}".format(
-                    artist, artist_matches))
-                for match in artist_matches:
-                    db_artist = self.find_artist(
-                        session, match)
-                    if db_artist:
-                        return db_artist
+        if db_artist:
+            yield db_artist
+            return
+
+        artist_matches = get_close_matches(artist, artist_names)
+        if artist_matches:
+            logger.debug("Artist '{}' matches: {}".format(
+                artist, artist_matches))
+            for match in artist_matches:
+                db_artist = self.find_artist(
+                    session, match)
+                if db_artist:
+                    yield db_artist
 
     def db_track_from_lastfm(self, session, artist_names, artist, track):
         db_track = self.find_track(session, artist, track)
+        if db_track:
+            return db_track
 
-        if not db_track:
-            db_artist = self.db_artist_from_lastfm(
-                session, artist_names, artist)
+        db_artists = self.db_artists_from_lastfm(
+            session, artist_names, artist)
 
-            if db_artist:
-                return self.find_closest_track(
+        if db_artists:
+            for db_artist in db_artists:
+                db_track = self.find_closest_track(
                     session, db_artist, track)
+                if db_track:
+                    return db_track
 
     def load_track_info(self, session, artist, loved_tracks, banned_tracks):
         artist_names = [a.name for a in session.query(Artist).all()]
@@ -420,7 +434,7 @@ def update_database(config):
     update_lastfm(config)
 
 
-def initialize_scrobbles(session, config):
+def initialize_scrobbles(session, config, start, end):
     status = session.query(LoadStatus).first()
     if not status:
         status = LoadStatus(scrobbles_initialized=False)
