@@ -1,6 +1,6 @@
 import mstat
 from model import Album, Track, Scrobble, LastfmTrackInfo
-from sqlalchemy import func, Integer
+from sqlalchemy import func, Integer, distinct
 import logging
 from itertools import repeat
 from collections import defaultdict
@@ -252,7 +252,7 @@ class PlaycountOrder(OrderDecorator):
             minimum, maximum = maximum, minimum
 
         self.plays_min = max(0, minimum)
-        self.plays_max = max(self.plays_min, maximum)
+        self.plays_max = maximum
 
     def __repr__(self):
         return '<PlaycountOrder({}, {})>'.format(
@@ -262,7 +262,9 @@ class PlaycountOrder(OrderDecorator):
         results = session.query(Album).\
             join(Track).\
             outerjoin(Scrobble).\
-            add_columns(func.count(Track.id), func.count(Scrobble.id)).\
+            add_columns(
+                func.count(distinct(Track.id)),
+                func.count(Scrobble.id)).\
             group_by(Album.id).\
             all()
 
