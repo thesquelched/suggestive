@@ -1,6 +1,7 @@
 #! /usr/bin/python3
 
-from threads import MpdWatchThread, DatabaseUpdateThread
+from threads import (
+    MpdWatchThread, DatabaseUpdateThread, ScrobbleInitializeThread)
 from analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
     SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)
@@ -11,6 +12,7 @@ import argparse
 import urwid
 import shlex
 import logging
+import threading
 from itertools import chain, islice
 import re
 from mpd import CommandError
@@ -31,10 +33,6 @@ COMMAND_KWARG_RGX = re.compile(r'^(\w+)=(.*?)$')
 
 def album_text(album):
     return '{} - {}'.format(album.artist.name, album.name)
-
-#
-# Threads
-#
 
 
 class CommanderEdit(urwid.Edit):
@@ -583,6 +581,8 @@ class Application(Commandable):
         self.conf = conf
         self.session = session
 
+        self.quit_event = threading.Event()
+
         self.default_orderers = [
             BaseOrder(),
             #FractionLovedOrder(),
@@ -706,15 +706,21 @@ class Application(Commandable):
     def start_db_update(self):
         #self.update_status('Updating database')
         update_thread = DatabaseUpdateThread(
-            self.conf, self.update_library_event)
+            self.conf, self.update_library_event, self.quit_event)
         update_thread.daemon = False
         update_thread.start()
+
+    def start_scrobble_initialize(self):
+        #self.update_status('Updating database')
+        scrobble_thread = ScrobbleInitializeThread(
+            self.conf, self.quit_event)
+        scrobble_thread.daemon = False
+        scrobble_thread.start()
 
     def start_mpd_watch_thread(self):
         #self.update_status('Updating database')
         thread = MpdWatchThread(
-            self.conf,
-            self.update_playlist_event)
+            self.conf, self.update_playlist_event, self.quit_event)
         thread.daemon = True
         thread.start()
 
@@ -734,14 +740,15 @@ class Application(Commandable):
         else:
             return False
 
-    @classmethod
-    def exit(cls):
+    def exit(self):
+        self.quit_event.set()
         raise urwid.ExitMainLoop()
 
     def setup_bindings(self):
         return {
             'q': lambda: self.exit(),
             'u': lambda: self.start_db_update(),
+            's': lambda: self.start_scrobble_initialize(),
             ':': lambda: self.start_command(),
             'p': lambda: self.pause(),
             'ctrl w': lambda: self.buffers.next_buffer()
@@ -1194,7 +1201,6 @@ def initialize_logging(conf):
         format='%(asctime)s %(levelname)s (%(name)s)| %(message)s',
     )
     logging.getLogger('mpd').setLevel(logging.ERROR)
-    logging.getLogger('lastfm').setLevel(logging.ERROR)
     logging.getLogger('requests').setLevel(logging.ERROR)
 
 

@@ -31,7 +31,9 @@ class AppThread(threading.Thread):
 
     """Base class for suggestive threads"""
 
-    pass
+    def __init__(self, quit_event, *args, **kwArgs):
+        super(AppThread, self).__init__(*args, **kwArgs)
+        self.quit_event = quit_event
 
 
 @log_errors
@@ -47,7 +49,7 @@ class MpdWatchThread(AppThread):
     def run(self):
         mpd = mstat.initialize_mpd(self.conf)
 
-        while True:
+        while not self.quit_event.is_set():
             changes = mpd.idle('playlist', 'player')
             if 'playlist' in changes or 'player' in changes:
                 # update playlist
@@ -74,6 +76,9 @@ class DatabaseUpdateThread(AppThread):
             mpd.update()
             logger.info('Finished MPD update')
 
+            if self.quit_event.is_set():
+                return
+
             logger.info('Update internal database')
             mstat.update_database(self.conf)
 
@@ -89,19 +94,29 @@ class ScrobbleInitializeThread(AppThread):
 
     """Load scrobbles from all time"""
 
-    def __init__(self, conf):
+    def __init__(self, conf, *args, **kwArgs):
+        super(ScrobbleInitializeThread, self).__init__(*args, **kwArgs)
         self.conf = conf
 
     def run(self):
+        conf = self.conf
+
         logger.info('Start updating scrobbles')
 
-        lastfm = mstat.initialize_lastfm(self.conf)
+        lastfm = mstat.initialize_lastfm(conf)
+        with mstat.session_scope(conf) as session:
+            earliest = mstat.earliest_scrobble(session)
 
-        while True:
+        batches = lastfm.scrobble_batches(conf.lastfm_user(), end=earliest)
+
+        for batch in batches:
+            if self.quit_event.is_set():
+                return
+
+            logger.debug('ScrobbleInitializeThread: Waiting for lock')
+
             with db_lock:
-                with mstat.session_scope(self.conf) as session:
-                    if session.query(LoadStatus.scrobbles_initialized).scalar():
-                        return
+                logger.debug('ScrobbleInitializeThread: Acquired lock')
 
-                    end = session.query(func.min(Scrobble.time)).scalar()
-                    start = end -  timedelta(60)
+                with mstat.session_scope(conf) as session:
+                    mstat.load_scrobble_batch(session, lastfm, conf, batch)

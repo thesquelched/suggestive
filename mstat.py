@@ -1,7 +1,7 @@
 from lastfm import LastFM
 from model import (
     Artist, ArtistCorrection, Album, Scrobble, Session, Base, Track,
-    LoadStatus, ScrobbleInfo, LastfmTrackInfo)
+    ScrobbleInfo, LastfmTrackInfo)
 
 import mpd
 from sqlalchemy import create_engine, func
@@ -112,6 +112,20 @@ class ScrobbleLoader(object):
     def load_scrobbles(self, session, start=None, end=None):
         n_scrobbles = 0
         for item in self.lastfm.scrobbles(self.user, start=start, end=end):
+            self.load_scrobble(session, item)
+            n_scrobbles += 1
+
+        return n_scrobbles
+
+    def load_scrobbles_from_list(self, session, scrobble_list):
+        scrobble_list = list(scrobble_list)
+        first, last = scrobble_list[0], scrobble_list[-1]
+
+        logger.debug('Loading {} scrobbles from {} to {}'.format(
+            len(scrobble_list), first['date']['#text'], last['date']['#text']))
+
+        n_scrobbles = 0
+        for item in scrobble_list:
             self.load_scrobble(session, item)
             n_scrobbles += 1
 
@@ -434,8 +448,35 @@ def update_database(config):
     update_lastfm(config)
 
 
-def initialize_scrobbles(session, config, start, end):
-    status = session.query(LoadStatus).first()
-    if not status:
-        status = LoadStatus(scrobbles_initialized=False)
-        session.add(status)
+#def initialize_scrobbles(session, config, start, end):
+#def initialize_scrobbles(session, config):
+#    lastfm = initialize_lastfm(config)
+#
+#    earliest = session.query(func.min(Scrobble.time)).scalar()
+#    batches = lastfm.scrobble_batches(config.lastfm_user(), end=earliest)
+#
+#    for i, batch in enumerate(batches):
+#        logger.debug('Loading scrobbles: batch {}'.format(i))
+#
+#        loader = ScrobbleLoader(lastfm, config)
+#        n_loaded = loader.load_scrobbles_from_list(session, batch)
+#
+#        logger.info('Loaded {} scrobbles'.format(n_loaded))
+#
+#        if not n_loaded:
+#            load_status.scrobbles_initialized = True
+#            session.add(load_status)
+#
+#        return load_status.scrobbles_initialized
+
+def earliest_scrobble(session):
+    return session.query(func.min(Scrobble.time)).scalar()
+
+
+def load_scrobble_batch(session, lastfm, conf, batch):
+    if not batch:
+        return 0
+
+    loader = ScrobbleLoader(lastfm, conf)
+
+    return loader.load_scrobbles_from_list(session, batch)

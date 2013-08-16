@@ -99,6 +99,11 @@ class LastFM(object):
             raise LastfmError("Query '{}' failed".format(method))
 
     def scrobbles(self, user, start=None, end=None):
+        for batch in self.scrobble_batches(user, start=start, end=end):
+            for scrobble in batch:
+                yield scrobble
+
+    def scrobble_batches(self, user, start=None, end=None):
         args = {
             'limit': 200,
             'user': user,
@@ -119,8 +124,7 @@ class LastFM(object):
             if 'track' not in recent or not isinstance(recent['track'], list):
                 continue
 
-            for track in recent['track']:
-                yield track
+            yield recent['track']
 
     def loved_tracks(self, user):
         for resp in self.query_all('user.getLovedTracks', 'lovedtracks',
