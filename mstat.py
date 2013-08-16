@@ -448,27 +448,6 @@ def update_database(config):
     update_lastfm(config)
 
 
-#def initialize_scrobbles(session, config, start, end):
-#def initialize_scrobbles(session, config):
-#    lastfm = initialize_lastfm(config)
-#
-#    earliest = session.query(func.min(Scrobble.time)).scalar()
-#    batches = lastfm.scrobble_batches(config.lastfm_user(), end=earliest)
-#
-#    for i, batch in enumerate(batches):
-#        logger.debug('Loading scrobbles: batch {}'.format(i))
-#
-#        loader = ScrobbleLoader(lastfm, config)
-#        n_loaded = loader.load_scrobbles_from_list(session, batch)
-#
-#        logger.info('Loaded {} scrobbles'.format(n_loaded))
-#
-#        if not n_loaded:
-#            load_status.scrobbles_initialized = True
-#            session.add(load_status)
-#
-#        return load_status.scrobbles_initialized
-
 def earliest_scrobble(session):
     return session.query(func.min(Scrobble.time)).scalar()
 
