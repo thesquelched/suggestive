@@ -258,7 +258,8 @@ class LibraryBuffer(Buffer):
         )
 
         commands = {
-            'clear_order': self.clear_orderers,
+            'unorder': self.clear_orderers,
+            'unordered': self.clear_orderers,
         }
 
         commands.update({

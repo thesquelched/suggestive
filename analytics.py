@@ -42,6 +42,9 @@ def choose(N, k):
 
 class OrderDecorator(object):
 
+    TRUTHY = (True, 'True', 'TRUE', 'true', 1, 'yes')
+    NONE = (None, 'None', 'null', '')
+
     def __repr__(self):
         return '<{}()>'.format(self.__class__.__name__)
 
@@ -138,8 +141,6 @@ class BannedOrder(OrderDecorator):
 
     """Remove or demote albums with banned tracks"""
 
-    TRUTHY = (True, 'True', 'TRUE', 'true', 1, 'yes')
-
     def __init__(self, remove_banned=True):
         self.remove = remove_banned in self.TRUTHY
 
@@ -178,9 +179,9 @@ class FractionLovedOrder(OrderDecorator):
         super(FractionLovedOrder, self).__init__()
         self.penalize = penalize_unloved
 
-        if minimum is None:
+        if minimum in self.NONE:
             minimum = 0
-        if maximum is None:
+        if maximum in self.NONE:
             maximum = 1
 
         try:
@@ -240,9 +241,9 @@ class PlaycountOrder(OrderDecorator):
     """Order items based on playcount/scrobbles"""
 
     def __init__(self, minimum=None, maximum=None):
-        if minimum is None:
+        if minimum in self.NONE:
             minimum = 0
-        if maximum is None:
+        if maximum in self.NONE:
             maximum = sys.maxsize
 
         try:
