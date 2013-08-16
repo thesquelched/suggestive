@@ -121,7 +121,7 @@ class ScrobbleLoader(object):
         scrobble_list = list(scrobble_list)
         first, last = scrobble_list[0], scrobble_list[-1]
 
-        logger.debug('Loading {} scrobbles from {} to {}'.format(
+        logger.info('Loading {} scrobbles from {} to {}'.format(
             len(scrobble_list), first['date']['#text'], last['date']['#text']))
 
         n_scrobbles = 0
