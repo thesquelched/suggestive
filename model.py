@@ -14,11 +14,11 @@ class CaseInsensitiveComparator(Comparator):
         return func.lower(self.__clause_element__()) == func.lower(other)
 
 
-class LoadStatus(Base):
-    __tablename__ = 'load_status'
-
-    id = Column(Integer, primary_key=True)
-    last_updated = Column(DateTime)
+#class LoadStatus(Base):
+#    __tablename__ = 'load_status'
+#
+#    id = Column(Integer, primary_key=True)
+#    last_updated = Column(DateTime)
 
 
 class Artist(Base):

@@ -1,10 +1,10 @@
 from lastfm import LastFM
 from model import (
-    Artist, ArtistCorrection, Album, Scrobble, Session, Base, LoadStatus,
-    Track, ScrobbleInfo, LastfmTrackInfo)
+    Artist, ArtistCorrection, Album, Scrobble, Session, Base, Track,
+    ScrobbleInfo, LastfmTrackInfo)
 
 import mpd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 
 from datetime import datetime
 from time import mktime
@@ -112,8 +112,6 @@ class ScrobbleLoader(object):
 
         for item in self.lastfm.scrobbles(user, last_updated=last_upd):
             self.load_scrobble(session, item)
-
-        set_last_updated(session)
 
 
 class MpdLoader(object):
@@ -373,17 +371,11 @@ def delete_old_scrobbles(session, config):
 
 
 def last_updated(session):
-    status = session.query(LoadStatus).first()
-    if status:
-        # return int(status.last_updated.timestamp())
-        return int(mktime(status.last_updated.timetuple()))
+    last_date = session.query(func.max(Scrobble.time)).scalar()
+    if last_date:
+        return int(mktime(last_date.timetuple()))
     else:
         return None
-
-
-def set_last_updated(session):
-    session.query(LoadStatus).delete()
-    session.add(LoadStatus(last_updated=datetime.now()))
 
 
 def update_mpd(config):
