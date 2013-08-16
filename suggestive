@@ -254,10 +254,16 @@ class LibraryBuffer(Buffer):
             )
         )
 
-        return {
+        commands = {
+            'clear_order': self.clear_orderers,
+        }
+
+        commands.update({
             name: self.orderer_func(orderer)
             for name, orderer in orderers.items()
-        }
+        })
+
+        return commands
 
     def orderer_func(self, orderer):
         def add_func(*args, **kwArgs):
@@ -381,7 +387,7 @@ class LibraryBuffer(Buffer):
         self.update_suggestions()
 
     def reset_orderers(self):
-        logger.info('Clear modes')
+        logger.debug('Clear modes')
         if self.orderers != self.default_orderers:
             self.orderers = list(self.default_orderers)
 
@@ -389,6 +395,16 @@ class LibraryBuffer(Buffer):
         else:
             logger.debug('Modes are already at default')
 
+        self.update_footer('suggestive')
+
+    def clear_orderers(self):
+        logger.debug('Clear all orderers')
+
+        self.orderers = [BaseOrder()]
+        logger.debug('Orderers: {}'.format(
+            ', '.join(map(repr, self.orderers))))
+
+        self.update_suggestions()
         self.update_footer('suggestive')
 
 
@@ -582,13 +598,6 @@ class Application(Commandable):
         self.session = session
 
         self.quit_event = threading.Event()
-
-        self.default_orderers = [
-            BaseOrder(),
-            #FractionLovedOrder(),
-            #BannedOrder()
-        ]
-        self.orderers = list(self.default_orderers)
 
         self.bindings = self.setup_bindings()
         self.commands = self.setup_commands()
