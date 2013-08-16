@@ -229,24 +229,39 @@ class TrackInfoLoader(object):
         matches = get_close_matches(
             track, [t.name for t in db_artist.tracks])
         if matches:
-            return self.find_track(session, db_artist.name, matches[0])
+            logger.debug('Track {} matches: {}'.format(
+                track, matches))
+            for match in matches:
+                db_track = self.find_track(
+                    session, db_artist.name, match)
+                if db_track:
+                    return db_track
+        else:
+            logger.debug('Track {} had no matches'.format(track))
+
+    def db_artist_from_lastfm(self, session, artist_names, artist):
+        db_artist = self.find_artist(session, artist)
+        if not db_artist:
+            artist_matches = get_close_matches(artist, artist_names)
+            if artist_matches:
+                logger.debug("Artist '{}' matches: {}".format(
+                    artist, artist_matches))
+                for match in artist_matches:
+                    db_artist = self.find_artist(
+                        session, match)
+                    if db_artist:
+                        return db_artist
 
     def db_track_from_lastfm(self, session, artist_names, artist, track):
         db_track = self.find_track(session, artist, track)
 
         if not db_track:
-            db_artist = self.find_artist(session, artist)
-            if not db_artist:
-                artist_matches = get_close_matches(artist, artist_names)
-                if artist_matches:
-                    db_artist = self.find_artist(
-                        session, artist_matches[0])
+            db_artist = self.db_artist_from_lastfm(
+                session, artist_names, artist)
 
             if db_artist:
-                db_track = self.find_closest_track(
+                return self.find_closest_track(
                     session, db_artist, track)
-
-        return db_track
 
     def load_track_info(self, session, artist, loved_tracks, banned_tracks):
         artist_names = [a.name for a in session.query(Artist).all()]
