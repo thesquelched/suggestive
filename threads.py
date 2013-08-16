@@ -101,7 +101,7 @@ class ScrobbleInitializeThread(AppThread):
     def run(self):
         conf = self.conf
 
-        logger.info('Start updating scrobbles')
+        logger.info('Start initializing scrobbles')
 
         lastfm = mstat.initialize_lastfm(conf)
         with mstat.session_scope(conf) as session:
@@ -120,3 +120,5 @@ class ScrobbleInitializeThread(AppThread):
 
                 with mstat.session_scope(conf) as session:
                     mstat.load_scrobble_batch(session, lastfm, conf, batch)
+
+        logger.info('Finished initializing scrobbles')
