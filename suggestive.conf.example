@@ -41,9 +41,18 @@
 #status_bg = #08f
 
 [playlist]
-# Customize playlist screen
+# Customize playlist buffer
 
 # Format for the status bar. Possible variables:
 #   status, time_elapsed, time_total, title, artist, album_artist, album,
 #   filename, track, date
 #status_format = {status}: {artist} - {title} [{time_elapsed}/{time_total}]
+
+[library]
+# Customize library buffer
+
+# Ignore any leading 'The' in an artist's name for sorting purposes
+#ignore_artist_the = true
+
+# Default commands for library ordering, separated by a semicolon
+#default_order = loved minimum=0 maximum=1; banned remove_banned=true

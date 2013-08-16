@@ -1,6 +1,5 @@
 from configparser import ConfigParser
 from os.path import expanduser, expandvars
-from time import time
 import re
 import logging
 
@@ -69,7 +68,9 @@ class Config(object):
                           '[{time_elapsed}/{time_total}]',
         ),
         library=dict(
-            ignore_artist_the=True
+            ignore_artist_the=True,
+            default_order='loved minimum=0 maximum=1;'
+                          'banned remove_banned=true'
         ),
     )
 
@@ -203,3 +204,8 @@ class Config(object):
             return logging.DEBUG
         else:
             return logging.INFO
+
+    def default_orderers(self):
+        """Return the default orderers"""
+        raw = self.parser['library']['default_order']
+        return [cmd.strip() for cmd in re.split(r'\s*;\s*', raw)]

@@ -203,14 +203,10 @@ class LibraryBuffer(Buffer):
         self.session = session
         self.commands = self.setup_commands()
 
-        self.default_orderers = [
-            BaseOrder(),
-            FractionLovedOrder(),
-            BannedOrder()
-        ]
-        self.orderers = list(self.default_orderers)
-
         self.anl = Analytics(conf)
+
+        self.orderers = [BaseOrder()]
+        self.default_orderers = self.init_default_orderers(conf)
 
         self.suggestions = []
 
@@ -230,6 +226,13 @@ class LibraryBuffer(Buffer):
             kwArgs.update(defaults)
             return orderer(*args, **kwArgs)
         return orderer_func
+
+    def init_default_orderers(self, conf):
+        order_commands = conf.default_orderers()
+        for cmd in order_commands:
+            self.execute_command(cmd)
+
+        return self.orderers
 
     def setup_orderers(self):
         return {

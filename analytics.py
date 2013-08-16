@@ -138,8 +138,10 @@ class BannedOrder(OrderDecorator):
 
     """Remove or demote albums with banned tracks"""
 
+    TRUTHY = (True, 'True', 'TRUE', 'true', 1, 'yes')
+
     def __init__(self, remove_banned=True):
-        self.remove = bool(remove_banned)
+        self.remove = remove_banned in self.TRUTHY
 
     def __repr__(self):
         return '<BannedOrder({})>'.format(self.remove)
