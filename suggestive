@@ -359,10 +359,11 @@ class LibraryBuffer(Buffer):
 
         if pattern:
             logger.info('SEARCH FOR: {}'.format(pattern))
-            found = self.list_view.search(pattern)
+            n_found = self.list_view.search(pattern)
 
-            if found:
-                status = 'Found {} matches'.format(found)
+            if n_found:
+                status = 'Found {} match{}'.format(
+                    n_found, 'es' if n_found > 1 else '')
             else:
                 status = 'No items matching {}'.format(pattern)
 
