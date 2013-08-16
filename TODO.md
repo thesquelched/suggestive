@@ -11,7 +11,7 @@ New features
 ------------
 - Recently played screen that displays whether a track is loved
 - Mark songs loved
-- Sync scrobbles from all time
+- ~~Sync scrobbles from all time~~
 - Command completion
 - ~~Song progress~~
 - Color code part of track title (like blue album, red artist, yellow song)
