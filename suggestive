@@ -206,7 +206,7 @@ class LibraryBuffer(Buffer):
         self.anl = Analytics(conf)
 
         self.orderers = [BaseOrder()]
-        self.default_orderers = self.init_default_orderers(conf)
+        self.default_orderers = list(self.init_default_orderers(conf))
 
         self.suggestions = []
 
@@ -398,6 +398,8 @@ class LibraryBuffer(Buffer):
             self.update_suggestions()
         else:
             logger.debug('Modes are already at default')
+            logger.debug('Orderers: {}'.format(
+                ', '.join(map(repr, self.orderers))))
 
         self.update_footer('suggestive')
 
