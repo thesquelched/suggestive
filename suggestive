@@ -1192,10 +1192,18 @@ class SelectableTrack(urwid.WidgetWrap):
         self.parent = parent
         self.track = track
         self.track_no = track_no
-        text = ' + {} - {}'.format(track_no, track.name)
-        super(SelectableTrack, self).__init__(urwid.SelectableIcon(text))
+        super(SelectableTrack, self).__init__(
+            urwid.SelectableIcon(self.text(track, track_no)))
 
         self._command_map = AlbumListCommands()
+
+    @classmethod
+    def text(cls, track, track_no):
+        text = '{} - {}'.format(track_no, track.name)
+        if track.lastfm_info and track.lastfm_info.loved:
+            return ' * ' + text
+        else:
+            return '   ' + text
 
     def keypress(self, size, key):
         if self._command_map[key] == 'enqueue':
