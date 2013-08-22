@@ -530,7 +530,11 @@ class PlaylistBuffer(Buffer):
         return body
 
     def update(self, *args):
-        current_position = self.playlist.focus_position
+        current_position = 0
+        try:
+            current_position = self.playlist.focus_position
+        except IndexError:
+            pass
 
         items = self.playlist_items()
 
