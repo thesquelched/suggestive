@@ -55,4 +55,4 @@
 #ignore_artist_the = true
 
 # Default commands for library ordering, separated by a semicolon
-#default_order = loved minimum=0 maximum=1; banned remove_banned=true
+#default_order = loved min=0 max=1; banned remove_banned=true
