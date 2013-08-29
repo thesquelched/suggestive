@@ -120,30 +120,62 @@ class Commandable(object):
 
 
 class BufferList(object):
+    def __init__(self):
+        self.buffers = []
 
     def next_buffer(self):
-        try:
-            self.focus_position += 1
-            while not isinstance(self.focus, Buffer):
-                self.focus_position += 1
+        current_buffer = self.focus
 
-        except IndexError:
+        logger.debug('Current buffers: {}'.format(self.buffers))
+
+        try:
+            idx = self.buffers.index(current_buffer)
+            next_buffer = self.buffers[idx + 1]
+            self.go_to_buffer(next_buffer)
+        except (IndexError, ValueError):
             self.focus_position = 0
+
+        #try:
+        #    self.focus_position += 1
+        #    while not isinstance(self.focus, Buffer):
+        #        self.focus_position += 1
+
+        #except IndexError:
+        #    self.focus_position = 0
 
     def add(self, buf, *options):
         self.contents.append((buf, self.options(*options)))
+
+    def current_buffer(self):
+        return self.focus
+
+    def buffer_index(self, buf):
+        buffers = [item[0] for item in self.contents]
+        return buffers.index(buf)
+
+    def go_to_buffer(self, buf):
+        if not buf.will_accept_focus():
+            return
+
+        try:
+            idx = self.buffer_index(buf)
+
+            self.focus_position = idx
+        except ValueError:
+            pass
 
     def remove(self, buf):
         if len(self.contents) == 1:
             return False
 
         try:
-            buffers = [item[0] for item in self.contents]
-            idx = buffers.index(buf)
+            idx = self.buffer_index(buf)
             self.contents.pop(idx)
 
             while not isinstance(self.focus, Buffer):
                 self.contents.pop(idx)
+
+            self.buffers.remove(buf)
 
             return True
 
@@ -152,12 +184,26 @@ class BufferList(object):
 
 
 class HorizontalBufferList(urwid.Pile, BufferList):
-    pass
+
+    def __init__(self):
+        BufferList.__init__(self)
+        urwid.Pile.__init__(self, [])
+
+    def add(self, buf, *options):
+        self.buffers.append(buf)
+
+        super(HorizontalBufferList, self).add(buf, *options)
 
 
 class VerticalBufferList(urwid.Columns, BufferList):
 
+    def __init__(self):
+        BufferList.__init__(self)
+        urwid.Columns.__init__(self, [])
+
     def add(self, buf):
+        self.buffers.append(buf)
+
         if len(self.contents) > 0:
             fill = urwid.AttrMap(urwid.SolidFill(), 'status')
             super(VerticalBufferList, self).add(fill, 'given')
@@ -214,6 +260,9 @@ class Buffer(urwid.Frame, Commandable):
             return True
         else:
             return False
+
+    def will_accept_focus(self):
+        return True
 
 
 class ListSearcher(urwid.Edit):
@@ -471,9 +520,13 @@ class PlaylistBuffer(Buffer):
 
         self.update_status('Playlist')
 
+    def will_accept_focus(self):
+        mpd = mstat.initialize_mpd(self.conf)
+        return len(mpd.playlistinfo()) > 0
+
     def setup_bindings(self):
         return {
-            'c': self.clear_mpd_playlist,
+            #'c': self.clear_mpd_playlist,
             'd': self.delete_track,
             'enter': self.play_track,
         }
@@ -658,9 +711,9 @@ class Application(Commandable):
         self.orientation = self.conf.orientation()
 
         if self.orientation == 'vertical':
-            self.buffers = VerticalBufferList([])
+            self.buffers = VerticalBufferList()
         else:
-            self.buffers = HorizontalBufferList([])
+            self.buffers = HorizontalBufferList()
 
         self.top = MainWindow(conf, self.buffers)
         self.event_loop = self.main_loop()
@@ -694,9 +747,9 @@ class Application(Commandable):
                            else 'horizontal')
 
         if orientation == 'vertical':
-            buffers = VerticalBufferList([])
+            buffers = VerticalBufferList()
         else:
-            buffers = HorizontalBufferList([])
+            buffers = HorizontalBufferList()
 
         if self.library_buffer.active:
             buffers.add(self.library_buffer)
@@ -805,7 +858,8 @@ class Application(Commandable):
             'u': lambda: self.start_db_update(),
             ':': lambda: self.start_command(),
             'p': lambda: self.pause(),
-            'ctrl w': lambda: self.buffers.next_buffer()
+            'ctrl w': lambda: self.buffers.next_buffer(),
+            'c': self.clear_playlist,
         }
 
     def setup_commands(self):
@@ -815,6 +869,11 @@ class Application(Commandable):
             'q': self.exit,
             'orientation': self.change_orientation,
         }
+
+    def clear_playlist(self):
+        self.playlist_buffer.clear_mpd_playlist()
+        if self.buffers.current_buffer() is self.playlist_buffer:
+            self.buffers.go_to_buffer(self.library_buffer)
 
     def pause(self):
         mpd = mstat.initialize_mpd(self.conf)
