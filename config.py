@@ -69,7 +69,7 @@ class Config(object):
         ),
         library=dict(
             ignore_artist_the=True,
-            default_order='loved minimum=0 maximum=1;'
+            default_order='loved min=0 max=1;'
                           'banned remove_banned=true'
         ),
     )

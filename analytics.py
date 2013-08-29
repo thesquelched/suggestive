@@ -175,8 +175,17 @@ class FractionLovedOrder(OrderDecorator):
 
     """Order by fraction of tracks loved"""
 
-    def __init__(self, minimum=None, maximum=None, penalize_unloved=False):
+    def __init__(self, penalize_unloved=False, **kwArgs):
         super(FractionLovedOrder, self).__init__()
+
+        maximum = kwArgs.pop('max', None)
+        minimum = kwArgs.pop('min', None)
+
+        if kwArgs:
+            arg = list(kwArgs.keys())[0]
+            raise TypeError("FractionLovedOrder got an unexpected keyword "
+                            "argument '{}'".format(arg))
+
         self.penalize = penalize_unloved
 
         if minimum in self.NONE:
@@ -240,7 +249,15 @@ class PlaycountOrder(OrderDecorator):
 
     """Order items based on playcount/scrobbles"""
 
-    def __init__(self, minimum=None, maximum=None):
+    def __init__(self, **kwArgs):
+        maximum = kwArgs.pop('max', None)
+        minimum = kwArgs.pop('min', None)
+
+        if kwArgs:
+            arg = list(kwArgs.keys())[0]
+            raise TypeError("PlaycountOrder got an unexpected keyword "
+                            "argument '{}'".format(arg))
+
         if minimum in self.NONE:
             minimum = 0
         if maximum in self.NONE:

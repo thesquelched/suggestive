@@ -84,8 +84,8 @@ Library
 - `<ESC>` - Clear all filters/orderers, restoring the default ordering
 - `:album <name>` - Only display albums matching `name` (case-insensitive)
 - `:artist <name>` - Only display albums of the artist matching `name` (case-insensitive)
-- `:loved <minimum=0.0> <maximum=1.0>` - Display albums in order of fraction of tracks loved. You may optional specify the minimum or maximum fraction of loved tracks for an album to be displayed
-- `:playcount <minimum=0.0> <maximum=None>` - Display albums in order of fractional playcount (i.e. number of scrobbles / number of tracks).  Note that this number can be greater than 1
+- `:loved <min=0.0> <max=1.0>` - Display albums in order of fraction of tracks loved. You may optional specify the minimum or maximum fraction of loved tracks for an album to be displayed
+- `:playcount <min=0.0> <max=None>` - Display albums in order of fractional playcount (i.e. number of scrobbles / number of tracks).  Note that this number can be greater than 1
 - `:banned <remove_banned=true>` - Penalize (or remove) albums with banned tracks from the library
 - `:sort` - Sort albums using the string 'artist - album'
 - `:unorder` - Remove all orderings
