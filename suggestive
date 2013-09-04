@@ -280,6 +280,26 @@ class ListSearcher(urwid.Edit):
         return True
 
 
+class Prompt(urwid.Edit):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['prompt_done']
+
+    def __init__(self, prompt, *metadata):
+        super(Prompt, self).__init__(prompt)
+        self.metadata = metadata
+
+    def keypress(self, size, key):
+        if key == 'enter':
+            urwid.emit_signal(self, 'prompt_done', self.get_edit_text(),
+                              *self.metadata)
+        elif key == 'esc':
+            urwid.emit_signal(self, 'prompt_done', None, *self.metadata)
+        else:
+            super(Prompt, self).keypress(size, key)
+
+        return True
+
+
 class LibraryBuffer(Buffer):
     signals = Buffer.signals + ['update_playlist']
 
@@ -345,6 +365,7 @@ class LibraryBuffer(Buffer):
         commands = {
             'unorder': self.clear_orderers,
             'unordered': self.clear_orderers,
+            'love': self.love_selection,
         }
 
         commands.update({
@@ -353,6 +374,36 @@ class LibraryBuffer(Buffer):
         })
 
         return commands
+
+    def love_selection(self):
+        current = self.list_view.focus.original_widget
+        tracks = current.tracks()
+
+        self.prompt = Prompt(
+            'Mark {} tracks loved? [Y/n]: '.format(len(tracks)),
+            tracks)
+        urwid.connect_signal(self.prompt, 'prompt_done',
+                             self.complete_love_selection)
+        footer = urwid.AttrMap(self.prompt, 'footer')
+        self.update_footer(footer)
+        self.update_focus('footer')
+
+    def complete_love_selection(self, value, tracks):
+        urwid.disconnect_signal(self, self.prompt, 'prompt_done',
+                                self.complete_love_selection)
+        self.update_focus('body')
+
+        if value is None:
+            return
+        elif value == '':
+            value = 'y'
+
+        if value.lower()[0] == 'y':
+            fm = mstat.initialize_lastfm(self.conf)
+            for track in tracks:
+                mstat.love_track(self.session, fm, track)
+
+            self.session.commit()
 
     def orderer_func(self, orderer):
         def add_func(*args, **kwArgs):
@@ -1284,6 +1335,9 @@ class SelectableAlbum(urwid.WidgetWrap):
         else:
             return key
 
+    def tracks(self):
+        return self.album.tracks
+
 
 class SelectableTrack(urwid.WidgetWrap):
     __metaclass__ = urwid.signals.MetaSignals
@@ -1313,6 +1367,9 @@ class SelectableTrack(urwid.WidgetWrap):
             urwid.emit_signal(self, 'play', self.track)
         else:
             return key
+
+    def tracks(self):
+        return [self.track]
 
 
 def initialize_logging(conf):
