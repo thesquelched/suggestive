@@ -1,22 +1,20 @@
-#! /usr/bin/python3
-
-from threads import (
+from suggestive.threads import (
     MpdWatchThread, DatabaseUpdateThread, ScrobbleInitializeThread)
-from analytics import (
+from suggestive.analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
     SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)
-import mstat
-from config import Config
+import suggestive.mstat as mstat
+from suggestive.config import Config
 
 import argparse
 import urwid
 import shlex
 import logging
 import threading
-from itertools import chain, islice
 import re
-from mpd import CommandError
 import os.path
+from itertools import chain, islice
+from mpd import CommandError
 
 logger = logging.getLogger('main')
 logger.addHandler(logging.NullHandler())
@@ -1429,7 +1427,7 @@ def initialize_logging(conf):
     logging.getLogger('requests').setLevel(logging.ERROR)
 
 
-def main(args):
+def run(args):
     conf = Config(args)
     initialize_logging(conf)
 
@@ -1458,9 +1456,9 @@ def main(args):
             raise
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='Suggestive')
     parser.add_argument('--log', '-l', help='Log file path')
     parser.add_argument('--config', '-c', help='Config file path')
 
-    main(parser.parse_args())
+    run(parser.parse_args())

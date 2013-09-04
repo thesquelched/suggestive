@@ -1,15 +1,14 @@
-from lastfm import LastFM
-from model import (
+from suggestive.lastfm import LastFM
+from suggestive.model import (
     Artist, ArtistCorrection, Album, Scrobble, Session, Base, Track,
     ScrobbleInfo, LastfmTrackInfo)
 
 import mpd
+import logging
 from sqlalchemy import create_engine, func
-
 from datetime import datetime, timedelta
 from collections import defaultdict
 from itertools import chain
-import logging
 from os.path import basename
 from contextlib import contextmanager
 from difflib import get_close_matches

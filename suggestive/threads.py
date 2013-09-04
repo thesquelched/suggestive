@@ -1,4 +1,4 @@
-import mstat
+import suggestive.mstat as mstat
 import threading
 import logging
 import traceback

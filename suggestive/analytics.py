@@ -1,12 +1,13 @@
-import mstat
-from model import Album, Track, Scrobble, LastfmTrackInfo
-from sqlalchemy import func, Integer, distinct
+import suggestive.mstat as mstat
+from suggestive.model import Album, Track, Scrobble, LastfmTrackInfo
+
 import logging
+import re
+import sys
+from sqlalchemy import func, Integer, distinct
 from itertools import repeat
 from collections import defaultdict
 from operator import itemgetter
-import re
-import sys
 from datetime import datetime
 
 
