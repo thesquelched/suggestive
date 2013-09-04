@@ -28,7 +28,8 @@ class Config(object):
             default_buffers='library,playlist',
             orientation='horizontal',
             log='%(conf_dir)s/log.txt',
-            verbose=False
+            verbose=False,
+            session_file='%(conf_dir)s/session',
         ),
         mpd=dict(
             host='localhost',
@@ -38,6 +39,7 @@ class Config(object):
             scrobble_days=180,
             # user
             # api_key
+            # api_secret
         ),
         appearance=dict(
             album_fg='#000',
@@ -107,6 +109,14 @@ class Config(object):
     def lastfm_apikey(self):
         """Return LastFM API key"""
         return self.parser['lastfm']['api_key']
+
+    def lastfm_secret_key(self):
+        """Return LastFM secret key"""
+        return self.parser['lastfm']['api_secret']
+
+    def lastfm_session_file(self):
+        """Return LastFM session file"""
+        return expand(self.parser['general']['session_file'])
 
     def scrobble_retention(self):
         """Return seconds to keep LastFM scrobbles"""

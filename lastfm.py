@@ -3,6 +3,7 @@ import json
 import logging
 from collections import defaultdict
 from time import mktime
+from hashlib import md5
 
 APIKEY = 'd9d0efb24aec53426d0f8d144c74caa7'
 
@@ -11,6 +12,10 @@ logger.addHandler(logging.NullHandler())
 
 
 class LastfmError(Exception):
+    pass
+
+
+class AuthenticationError(LastfmError):
     pass
 
 
@@ -50,9 +55,47 @@ class LastFM(object):
     """
 
     URL = 'http://ws.audioscrobbler.com/2.0/'
+    _NO_SIGN = set(['format', 'api_sig'])
 
-    def __init__(self, api_key):
+    def __init__(self, api_key, session_file, api_secret=None):
         self.key = api_key
+        self.secret = api_secret
+        self.session_file = session_file
+        self.session_key = None
+        self.token = None
+
+        if api_secret is not None:
+            self.session_key = self.load_session()
+            if self.session_key is None:
+                self.token = self.get_token()
+                input('http://www.last.fm/api/auth/?'
+                      'api_key={}&token={}'.format(self.key, self.token))
+                self.session_key = self.get_session_key()
+                self.save_session()
+
+    def load_session(self):
+        try:
+            with open(self.session_file) as handle:
+                return handle.read().strip()
+        except IOError:
+            return None
+
+    def save_session(self):
+        if self.session_key is None:
+            raise IOError("Can't save session key; no session_key found")
+        with open(self.session_file, 'w') as handle:
+            handle.write(self.session_key)
+
+    def get_session_key(self):
+        resp = self.query('auth.getSession', token=self.token, sign=True)
+        if 'error' in resp:
+            raise AuthenticationError(resp.get('message', 'Unknown Error'))
+
+        return resp['session']['key']
+
+    def get_token(self):
+        resp = self.query('auth.getToken', sign=True)
+        return resp['token']
 
     def query_all(self, method, *keys, **kwArgs):
         resp = self.query(method, **kwArgs)
@@ -76,26 +119,46 @@ class LastFM(object):
             kwArgs.update({'page': pageno})
             yield self.query(method, **kwArgs)
 
+    def sign(self, **params):
+        if self.session_key is not None:
+            params.update(sk=self.session_key)
+
+        key_str = ''.join('{}{}'.format(key, params[key])
+                          for key in sorted(params)
+                          if key not in self._NO_SIGN)
+        with_secret = '{}{}'.format(key_str, self.secret)
+        return md5(with_secret.encode('UTF-8')).hexdigest()
+
+    def query_params(self, method, sign=False, format='json', **kwArgs):
+        params = dict(
+            method=method,
+            api_key=self.key,
+        )
+        if format is not None:
+            params.update(format=format)
+        params.update(kwArgs)
+
+        if sign:
+            params.update(api_sig=self.sign(**params), sk=self.session_key)
+
+        return params
+
     @retry()
-    def query(self, method, **kwArgs):
+    def query(self, method, sign=False, **kwArgs):
         """
         Send a Last.FM query for the given method, returing the parsed JSON
         response
         """
-        params = dict(
-            method=method,
-            api_key=self.key,
-            format='json',
-        )
-        params.update(kwArgs)
+        params = self.query_params(method, sign=sign, **kwArgs)
 
         try:
             resp = requests.post(self.URL, params=params)
             if not resp.ok:
+                logger.debug(resp.content)
                 raise ValueError('Response was invalid')
             return json.loads(resp.text)
         except (ValueError, requests.exceptions.RequestException) as error:
-            logger.error('Query resulted in an error: {}', error)
+            logger.error('Query resulted in an error: {}'.format(error))
             raise LastfmError("Query '{}' failed".format(method))
 
     def scrobbles(self, user, start=None, end=None):
