@@ -368,7 +368,11 @@ def initialize_mpd(config):
 
 
 def initialize_lastfm(config):
-    return LastFM(config.lastfm_apikey())
+    return LastFM(
+        config.lastfm_apikey(),
+        config.lastfm_session_file(),
+        api_secret=config.lastfm_secret_key()
+    )
 
 
 def correct_artist(name, lastfm):

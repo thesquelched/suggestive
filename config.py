@@ -112,7 +112,7 @@ class Config(object):
 
     def lastfm_secret_key(self):
         """Return LastFM secret key"""
-        return self.parser['lastfm']['api_secret']
+        return self.parser['lastfm'].get('api_secret', None)
 
     def lastfm_session_file(self):
         """Return LastFM session file"""
