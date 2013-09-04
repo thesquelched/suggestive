@@ -465,7 +465,7 @@ def load_scrobble_batch(session, lastfm, conf, batch):
     return loader.load_scrobbles_from_list(session, batch)
 
 
-def love_track(session, lastfm, track):
+def set_track_loved(session, lastfm, track, loved=True):
     fm_info = track.lastfm_info
     if fm_info is None:
         fm_info = LastfmTrackInfo()
@@ -473,10 +473,14 @@ def love_track(session, lastfm, track):
         session.add(fm_info)
 
     # Mark loved in DB
-    fm_info.loved = True
+    fm_info.loved = bool(loved)
 
     # Mark loved in LastFM
-    success = lastfm.love_track(track.artist.name, track.name)
-    logger.info("Marking '{} - {}' loved... {}".format(
-        track.artist.name, track.name, 'successful' if success else 'failed'))
+    method = lastfm.love_track if loved else lastfm.unlove_track
+    success = method(track.artist.name, track.name)
+    logger.info("Marking '{} - {}' {}... {}".format(
+        track.artist.name,
+        track.name,
+        'loved' if loved else 'unloved',
+        'successful' if success else 'failed'))
     return success

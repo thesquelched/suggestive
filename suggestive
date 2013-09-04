@@ -366,6 +366,7 @@ class LibraryBuffer(Buffer):
             'unorder': self.clear_orderers,
             'unordered': self.clear_orderers,
             'love': self.love_selection,
+            'unlove': self.unlove_selection,
         }
 
         commands.update({
@@ -401,9 +402,41 @@ class LibraryBuffer(Buffer):
         if value.lower()[0] == 'y':
             fm = mstat.initialize_lastfm(self.conf)
             for track in tracks:
-                mstat.love_track(self.session, fm, track)
+                mstat.set_track_loved(self.session, fm, track)
 
             self.session.commit()
+            self.update_suggestions()
+
+    def unlove_selection(self):
+        current = self.list_view.focus.original_widget
+        tracks = current.tracks()
+
+        self.prompt = Prompt(
+            'Mark {} tracks unloved? [Y/n]: '.format(len(tracks)),
+            tracks)
+        urwid.connect_signal(self.prompt, 'prompt_done',
+                             self.complete_unlove_selection)
+        footer = urwid.AttrMap(self.prompt, 'footer')
+        self.update_footer(footer)
+        self.update_focus('footer')
+
+    def complete_unlove_selection(self, value, tracks):
+        urwid.disconnect_signal(self, self.prompt, 'prompt_done',
+                                self.complete_love_selection)
+        self.update_focus('body')
+
+        if value is None:
+            return
+        elif value == '':
+            value = 'y'
+
+        if value.lower()[0] == 'y':
+            fm = mstat.initialize_lastfm(self.conf)
+            for track in tracks:
+                mstat.set_track_loved(self.session, fm, track, loved=False)
+
+            self.session.commit()
+            self.update_suggestions()
 
     def orderer_func(self, orderer):
         def add_func(*args, **kwArgs):

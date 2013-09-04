@@ -273,3 +273,13 @@ Press Enter to continue...""".format(self.key, self.token)
             logger.error('Unable to love track: {}'.format(
                 resp.get('message', 'Unknown Error')))
             return False
+
+    def unlove_track(self, artist, track):
+        resp = self.query('track.unlove', artist=artist, track=track,
+                          sign=True)
+        if resp.get('status') == 'ok':
+            return True
+        else:
+            logger.error('Unable to unlove track: {}'.format(
+                resp.get('message', 'Unknown Error')))
+            return False
