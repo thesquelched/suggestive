@@ -1336,6 +1336,12 @@ def main(args):
         print('Music database not found; initializing...')
         mstat.update_mpd(conf)
 
+    # Request API write access from user
+    session_file = conf.lastfm_session_file()
+    if conf.lastfm_secret_key() and not os.path.exists(session_file):
+        fm = mstat.initialize_lastfm(conf)
+        assert(fm.session_key is not None)
+
     with mstat.session_scope(conf, commit=False) as main_session:
         try:
             app = Application(conf, main_session)

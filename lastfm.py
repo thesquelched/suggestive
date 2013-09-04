@@ -68,25 +68,38 @@ class LastFM(object):
             self.session_key = self.load_session()
             if self.session_key is None:
                 self.token = self.get_token()
-                input('http://www.last.fm/api/auth/?'
-                      'api_key={}&token={}'.format(self.key, self.token))
+                self.get_user_permission()
                 self.session_key = self.get_session_key()
                 self.save_session()
+
+    def get_user_permission(self):
+        message = """\
+No LastFM session found; to authorize suggestive, visit this URL and click
+'Yes, allow access', then return to this window:
+
+    http://www.last.fm/api/auth/?api_key={}&token={}
+
+Press Enter to continue...""".format(self.key, self.token)
+        input(message)
 
     def load_session(self):
         try:
             with open(self.session_file) as handle:
                 return handle.read().strip()
         except IOError:
+            logger.warn('Could not LastFM session key from file')
             return None
 
     def save_session(self):
+        logger.info('Saving session key to file')
         if self.session_key is None:
             raise IOError("Can't save session key; no session_key found")
         with open(self.session_file, 'w') as handle:
             handle.write(self.session_key)
 
     def get_session_key(self):
+        logger.info('Acquiring new LastFM session')
+
         resp = self.query('auth.getSession', token=self.token, sign=True)
         if 'error' in resp:
             raise AuthenticationError(resp.get('message', 'Unknown Error'))
@@ -94,6 +107,7 @@ class LastFM(object):
         return resp['session']['key']
 
     def get_token(self):
+        logger.info('Acquiring new LastFM API token')
         resp = self.query('auth.getToken', sign=True)
         return resp['token']
 
@@ -250,3 +264,12 @@ class LastFM(object):
             return albums_by_artist[artist.correction.name]
         else:
             return []
+
+    def love_track(self, artist, track):
+        resp = self.query('track.love', artist=artist, track=track, sign=True)
+        if resp.get('status') == 'ok':
+            return True
+        else:
+            logger.error('Unable to love track: {}'.format(
+                resp.get('message', 'Unknown Error')))
+            return False
