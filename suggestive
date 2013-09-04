@@ -382,6 +382,7 @@ class LibraryBuffer(Buffer):
 
         self.prompt = Prompt(
             'Mark {} tracks loved? [Y/n]: '.format(len(tracks)),
+            current,
             tracks)
         urwid.connect_signal(self.prompt, 'prompt_done',
                              self.complete_love_selection)
@@ -389,7 +390,7 @@ class LibraryBuffer(Buffer):
         self.update_footer(footer)
         self.update_focus('footer')
 
-    def complete_love_selection(self, value, tracks):
+    def complete_love_selection(self, value, selection, tracks):
         urwid.disconnect_signal(self, self.prompt, 'prompt_done',
                                 self.complete_love_selection)
         self.update_focus('body')
@@ -405,7 +406,8 @@ class LibraryBuffer(Buffer):
                 mstat.set_track_loved(self.session, fm, track)
 
             self.session.commit()
-            self.update_suggestions()
+            selection.update_text()
+            self.redraw()
 
     def unlove_selection(self):
         current = self.list_view.focus.original_widget
@@ -413,6 +415,7 @@ class LibraryBuffer(Buffer):
 
         self.prompt = Prompt(
             'Mark {} tracks unloved? [Y/n]: '.format(len(tracks)),
+            current,
             tracks)
         urwid.connect_signal(self.prompt, 'prompt_done',
                              self.complete_unlove_selection)
@@ -420,7 +423,7 @@ class LibraryBuffer(Buffer):
         self.update_footer(footer)
         self.update_focus('footer')
 
-    def complete_unlove_selection(self, value, tracks):
+    def complete_unlove_selection(self, value, selection, tracks):
         urwid.disconnect_signal(self, self.prompt, 'prompt_done',
                                 self.complete_love_selection)
         self.update_focus('body')
@@ -436,7 +439,8 @@ class LibraryBuffer(Buffer):
                 mstat.set_track_loved(self.session, fm, track, loved=False)
 
             self.session.commit()
-            self.update_suggestions()
+            selection.update_text()
+            self.redraw()
 
     def orderer_func(self, orderer):
         def add_func(*args, **kwArgs):
@@ -1360,6 +1364,9 @@ class SelectableAlbum(urwid.WidgetWrap):
 
         self._command_map = AlbumListCommands()
 
+    def update_text(self):
+        self._w.set_text(album_text(self.album))
+
     def keypress(self, size, key):
         if self._command_map[key] == 'enqueue':
             urwid.emit_signal(self, 'enqueue', self.album)
@@ -1384,6 +1391,9 @@ class SelectableTrack(urwid.WidgetWrap):
             urwid.SelectableIcon(self.text(track, track_no)))
 
         self._command_map = AlbumListCommands()
+
+    def update_text(self):
+        self._w.set_text(self.text(self.track, self.track_no))
 
     @classmethod
     def text(cls, track, track_no):
