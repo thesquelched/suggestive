@@ -89,6 +89,8 @@ Library
 - `:banned <remove_banned=true>` - Penalize (or remove) albums with banned tracks from the library
 - `:sort` - Sort albums using the string 'artist - album'
 - `:unorder` - Remove all orderings
+- `:love` - Mark the selected album/track loved in LastFM
+- `:unlove` - Mark the selected album/track unloved in LastFM
 
 
 Configuration
