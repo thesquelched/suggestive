@@ -956,6 +956,7 @@ class Application(Commandable):
             'library': self.open_library,
             'q': self.exit,
             'orientation': self.change_orientation,
+            'or': self.change_orientation,
         }
 
     def clear_playlist(self):
@@ -1399,9 +1400,11 @@ class SelectableTrack(urwid.WidgetWrap):
     def text(cls, track, track_no):
         text = '{} - {}'.format(track_no, track.name)
         if track.lastfm_info and track.lastfm_info.loved:
-            return ' * ' + text
+            return text + ' [L]'
+        elif track.lastfm_info and track.lastfm_info.banned:
+            return text + ' [B]'
         else:
-            return '   ' + text
+            return text
 
     def keypress(self, size, key):
         if self._command_map[key] == 'enqueue':
