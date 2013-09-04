@@ -9,8 +9,9 @@ Bug fixes
 
 New features
 ------------
-- Recently played screen that displays whether a track is loved
-- Mark songs loved
+- 'Recently played' buffer that displays whether a track is loved
+- ~~Mark songs loved~~
+- Mark songs loved in playlist
 - ~~Sync scrobbles from all time~~
 - Command completion
 - ~~Song progress~~
