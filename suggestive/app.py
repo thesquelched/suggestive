@@ -35,7 +35,7 @@ def album_text(album):
 
 class CommanderEdit(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['command_done']
+    signals = ['command_done', 'autocomplete']
 
     def __init__(self, history):
         super(CommanderEdit, self).__init__(':')
@@ -50,10 +50,15 @@ class CommanderEdit(urwid.Edit):
             urwid.emit_signal(self, 'command_done', None)
         elif key in ('up', 'down'):
             self.get_history(key)
+        elif key == 'tab':
+            self.autocomplete()
         else:
             super(CommanderEdit, self).keypress(size, key)
 
         return True
+
+    def autocomplete(self):
+        urwid.emit_signal(self, 'autocomplete', self.get_edit_text())
 
     def get_history(self, key):
         if not self.history:
@@ -969,9 +974,21 @@ class Application(Commandable):
     def start_command(self):
         self.edit = CommanderEdit(self.command_history)
         urwid.connect_signal(self.edit, 'command_done', self.command_done)
+        urwid.connect_signal(self.edit, 'autocomplete', self.autocomplete)
         footer = urwid.AttrMap(self.edit, 'footer')
         self.top.set_footer(footer)
         self.top.set_focus('footer')
+
+    def autocomplete(self, partial):
+        all_commands = dict(
+            list(self.commands.items()) +
+            list(self.buffers.focus.commands.items())
+        )
+        matches = [cmd for cmd in all_commands if cmd.startswith(partial)]
+        logger.debug('Matching: {}'.format(matches))
+        if matches:
+            self.edit.set_edit_text(matches[0])
+            self.edit.set_edit_pos(len(matches[0]))
 
     def command_done(self, command):
         self.top.set_focus('body')
