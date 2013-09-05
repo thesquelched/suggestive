@@ -600,8 +600,9 @@ class PlaylistView(urwid.ListBox):
 class PlaylistBuffer(Buffer):
     ITEM_FORMAT = '{artist} - {album} - {title}'
 
-    def __init__(self, conf):
+    def __init__(self, conf, session):
         self.conf = conf
+        self.session = session
         self.status_format = conf.playlist_status_format()
 
         self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
@@ -620,6 +621,12 @@ class PlaylistBuffer(Buffer):
             #'c': self.clear_mpd_playlist,
             'd': self.delete_track,
             'enter': self.play_track,
+        }
+
+    def setup_commands(self):
+        return {
+            'love': self.love_track,
+            'unlove': self.unlove_track,
         }
 
     def delete_track(self):
@@ -753,6 +760,90 @@ class PlaylistBuffer(Buffer):
 
         self.update()
 
+    def love_track(self):
+        current_position = self.playlist.focus_position
+
+        if current_position is None:
+            return
+
+        track = mstat.get_playlist_track(self.session, self.conf,
+                                         current_position)
+        if track is None:
+            logger.debug('Could not find track to love')
+            return
+
+        self.prompt = Prompt(
+            'Mark track loved? [Y/n]: ',
+            self.playlist.focus.original_widget,
+            track)
+
+        urwid.connect_signal(self.prompt, 'prompt_done',
+                             self.complete_love_track)
+
+        footer = urwid.AttrMap(self.prompt, 'footer')
+
+        self.update_footer(footer)
+        self.update_focus('footer')
+
+    def complete_love_track(self, value, selection, track):
+        urwid.disconnect_signal(self, self.prompt, 'prompt_done',
+                                self.complete_love_track)
+        self.update_focus('body')
+
+        if value is None:
+            return
+        elif value == '':
+            value = 'y'
+
+        if value.lower()[0] == 'y':
+            fm = mstat.initialize_lastfm(self.conf)
+            mstat.set_track_loved(self.session, fm, track)
+
+            #selection.update_text()
+            self.redraw()
+
+    def unlove_track(self):
+        current_position = self.playlist.focus_position
+
+        if current_position is None:
+            return
+
+        track = mstat.get_playlist_track(self.session, self.conf,
+                                         current_position)
+        if track is None:
+            logger.debug('Could not find track to unlove')
+            return
+
+        self.prompt = Prompt(
+            'Mark track unloved? [Y/n]: ',
+            self.playlist.focus.original_widget,
+            track)
+
+        urwid.connect_signal(self.prompt, 'prompt_done',
+                             self.complete_unlove_track)
+
+        footer = urwid.AttrMap(self.prompt, 'footer')
+
+        self.update_footer(footer)
+        self.update_focus('footer')
+
+    def complete_unlove_track(self, value, selection, track):
+        urwid.disconnect_signal(self, self.prompt, 'prompt_done',
+                                self.complete_unlove_track)
+        self.update_focus('body')
+
+        if value is None:
+            return
+        elif value == '':
+            value = 'y'
+
+        if value.lower()[0] == 'y':
+            fm = mstat.initialize_lastfm(self.conf)
+            mstat.set_track_unloved(self.session, fm, track)
+
+            #selection.update_text()
+            self.redraw()
+
 
 class MainWindow(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
@@ -875,7 +966,7 @@ class Application(Commandable):
         return buf
 
     def create_playlist_buffer(self):
-        buf = PlaylistBuffer(self.conf)
+        buf = PlaylistBuffer(self.conf, self.session)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
         urwid.connect_signal(buf, 'set_footer', self.update_footer)
         urwid.connect_signal(buf, 'redraw', self.event_loop.draw_screen)

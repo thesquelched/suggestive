@@ -483,3 +483,16 @@ def set_track_loved(session, lastfm, track, loved=True):
         'loved' if loved else 'unloved',
         'successful' if success else 'failed'))
     return success
+
+
+def get_playlist_track(session, config, index):
+    mpd = initialize_mpd(config)
+
+    tracks_info = mpd.playlistinfo(index)
+    if tracks_info:
+        info = tracks_info[0]
+        return session.query(Track).\
+            filter_by(filename=info['file']).\
+            first()
+    else:
+        return None
