@@ -155,6 +155,9 @@ class MpdLoader(object):
             if not album:
                 continue
 
+            logger.debug("Loading {} tracks from album '{}'".format(
+                len(info_list), album))
+
             db_album = session.query(Album).filter_by(
                 name_insensitive=album).first()
             if not db_album:
@@ -169,7 +172,11 @@ class MpdLoader(object):
         for artist, albums in by_artist_album.items():
             # ignore missing artists
             if not artist:
+                logger.error('No artist found')
                 continue
+
+            logger.debug("Loading {} albums from artist '{}'".format(
+                len(albums), artist))
 
             db_artist = session.query(Artist).filter_by(
                 name_insensitive=artist).first()
@@ -186,6 +193,8 @@ class MpdLoader(object):
 
         missing = files_in_mpd - files_in_db
         if missing:
+            logger.info('Found {} files in mpd library that are missing '
+                        'from suggestive database'.format(len(missing)))
             missing_info = list(
                 chain.from_iterable(self.mpd.listallinfo(path)
                                     for path in missing))
