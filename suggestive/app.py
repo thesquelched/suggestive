@@ -10,6 +10,7 @@ from suggestive.analytics import (
 import suggestive.mstat as mstat
 from suggestive.config import Config
 from suggestive.command import CommanderEdit, Commandable
+from suggestive.widget import ListSearcher, Prompt
 
 import argparse
 import urwid
@@ -177,41 +178,6 @@ class Buffer(urwid.Frame, Commandable):
             return False
 
     def will_accept_focus(self):
-        return True
-
-
-class ListSearcher(urwid.Edit):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['search_done']
-
-    def keypress(self, size, key):
-        if key == 'enter':
-            urwid.emit_signal(self, 'search_done', self.get_edit_text())
-        elif key == 'esc':
-            urwid.emit_signal(self, 'search_done', None)
-        else:
-            super(ListSearcher, self).keypress(size, key)
-
-        return True
-
-
-class Prompt(urwid.Edit):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['prompt_done']
-
-    def __init__(self, prompt, *metadata):
-        super(Prompt, self).__init__(prompt)
-        self.metadata = metadata
-
-    def keypress(self, size, key):
-        if key == 'enter':
-            urwid.emit_signal(self, 'prompt_done', self.get_edit_text(),
-                              *self.metadata)
-        elif key == 'esc':
-            urwid.emit_signal(self, 'prompt_done', None, *self.metadata)
-        else:
-            super(Prompt, self).keypress(size, key)
-
         return True
 
 
