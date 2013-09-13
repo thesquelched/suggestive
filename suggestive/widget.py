@@ -1,21 +1,6 @@
 import urwid
 
 
-class ListSearcher(urwid.Edit):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['search_done']
-
-    def keypress(self, size, key):
-        if key == 'enter':
-            urwid.emit_signal(self, 'search_done', self.get_edit_text())
-        elif key == 'esc':
-            urwid.emit_signal(self, 'search_done', None)
-        else:
-            super(ListSearcher, self).keypress(size, key)
-
-        return True
-
-
 class Prompt(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['prompt_done']

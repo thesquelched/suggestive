@@ -10,7 +10,7 @@ from suggestive.analytics import (
 import suggestive.mstat as mstat
 from suggestive.config import Config
 from suggestive.command import CommanderEdit, Commandable
-from suggestive.widget import ListSearcher, Prompt
+from suggestive.widget import Prompt
 
 import argparse
 import urwid
@@ -406,8 +406,8 @@ class LibraryBuffer(Buffer):
             mpd.playid(ids[0])
 
     def start_search(self, reverse=False):
-        self.edit = ListSearcher('/')
-        urwid.connect_signal(self.edit, 'search_done', self.search_done,
+        self.edit = Prompt('/')
+        urwid.connect_signal(self.edit, 'prompt_done', self.search_done,
                              reverse)
         footer = urwid.AttrMap(self.edit, 'footer')
         self.update_footer(footer)
@@ -416,7 +416,7 @@ class LibraryBuffer(Buffer):
     def search_done(self, pattern, reverse=False):
         logger.debug('Reverse: {}'.format(reverse))
         self.update_focus('body')
-        urwid.disconnect_signal(self, self.edit, 'search_done',
+        urwid.disconnect_signal(self, self.edit, 'prompt_done',
                                 self.search_done)
 
         if pattern:
