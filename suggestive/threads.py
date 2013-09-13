@@ -1,4 +1,5 @@
 import suggestive.mstat as mstat
+from suggestive.lastfm import LastfmError
 import threading
 import logging
 import traceback
@@ -107,7 +108,12 @@ class ScrobbleInitializeThread(AppThread):
         with mstat.session_scope(conf) as session:
             earliest = mstat.earliest_scrobble(session)
 
-        batches = lastfm.scrobble_batches(conf.lastfm_user(), end=earliest)
+        try:
+            batches = lastfm.scrobble_batches(conf.lastfm_user(), end=earliest)
+        except LastfmError as err:
+            logger.error('Could not contact LastFM server')
+            logger.debug(err)
+            batches = []
 
         for batch in batches:
             if self.quit_event.is_set():

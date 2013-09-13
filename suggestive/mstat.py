@@ -1,4 +1,4 @@
-from suggestive.lastfm import LastFM
+from suggestive.lastfm import LastFM, LastfmError
 from suggestive.model import (
     Artist, ArtistCorrection, Album, Scrobble, Session, Base, Track,
     ScrobbleInfo, LastfmTrackInfo)
@@ -457,7 +457,12 @@ def update_lastfm(config):
 
 def update_database(config):
     update_mpd(config)
-    update_lastfm(config)
+
+    try:
+        update_lastfm(config)
+    except LastfmError as err:
+        logger.error('Could not contact LastFM server during database update')
+        logger.debug(err)
 
 
 def earliest_scrobble(session):

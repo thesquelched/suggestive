@@ -1,3 +1,7 @@
+"""
+Main application/UI
+"""
+
 from suggestive.threads import (
     MpdWatchThread, DatabaseUpdateThread, ScrobbleInitializeThread)
 from suggestive.analytics import (
