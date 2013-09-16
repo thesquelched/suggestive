@@ -479,14 +479,14 @@ def load_scrobble_batch(session, lastfm, conf, batch):
 
 
 def set_track_loved(session, lastfm, track, loved=True):
-    fm_info = track.lastfm_info
-    if fm_info is None:
-        fm_info = LastfmTrackInfo()
-        track.lastfm_info = fm_info
-        session.add(fm_info)
+    db_track_info = track.lastfm_info
+    if db_track_info is None:
+        db_track_info = LastfmTrackInfo()
+        track.lastfm_info = db_track_info
+        session.add(db_track_info)
 
     # Mark loved in DB
-    fm_info.loved = bool(loved)
+    db_track_info.loved = bool(loved)
 
     # Mark loved in LastFM
     method = lastfm.love_track if loved else lastfm.unlove_track
