@@ -53,7 +53,6 @@ class AlbumListCommands(urwid.CommandMap):
         'cursor page down': ('ctrl f', 'page down'),
         'quit': ('q',),
         'update': ('u',),
-        'reload': ('r',),
 
         GO_TO_TOP: ('g', 'home'),
         GO_TO_BOTTOM: ('G', 'end'),

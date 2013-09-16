@@ -19,6 +19,7 @@ from suggestive.bindings import (
 import argparse
 import urwid
 import logging
+from logging.handlers import RotatingFileHandler
 import threading
 import re
 import os.path
@@ -27,6 +28,8 @@ from mpd import CommandError
 
 logger = logging.getLogger('main')
 logger.addHandler(logging.NullHandler())
+
+MEGABYTES = 1024 * 1024
 
 
 def album_text(album):
@@ -918,6 +921,7 @@ class Application(Commandable):
             'p': lambda: self.pause(),
             'ctrl w': lambda: self.buffers.next_buffer(),
             'c': self.clear_playlist,
+            'r': self.update_library_event,
         }
 
     def setup_commands(self):
@@ -1401,12 +1405,27 @@ class SelectableTrack(urwid.WidgetWrap):
 
 
 def initialize_logging(conf):
-    logging.basicConfig(
-        level=conf.log_level(),
-        filename=conf.log_file(),
-        filemode='a',
-        format='%(asctime)s %(levelname)s (%(name)s)| %(message)s',
+    handler = RotatingFileHandler(
+        conf.log_file(),
+        mode='a',
+        backupCount=3,
+        maxBytes=1 * MEGABYTES,
     )
+
+    handler.setLevel(conf.log_level())
+
+    fmt = logging.Formatter(
+        fmt='%(asctime)s %(levelname)s (%(name)s)| %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    handler.setFormatter(fmt)
+
+    #logging.basicConfig(
+    #    level=conf.log_level(),
+    #    filename=conf.log_file(),
+    #    filemode='a',
+    #    format='%(asctime)s %(levelname)s (%(name)s)| %(message)s',
+    #)
     logging.getLogger('mpd').setLevel(logging.ERROR)
     logging.getLogger('requests').setLevel(logging.ERROR)
 
