@@ -873,7 +873,8 @@ class Application(Commandable):
             self.library_buffer.active = True
 
     def start_db_update(self):
-        #self.update_status('Updating database')
+        self.library_buffer.update_status('Library (updating...)')
+
         update_thread = DatabaseUpdateThread(
             self.conf, self.update_library_event, self.quit_event)
         update_thread.daemon = False
@@ -896,6 +897,7 @@ class Application(Commandable):
     def update_library_event(self):
         self.session.expire_all()
         self.event_loop.set_alarm_in(0, self.library_buffer.update_suggestions)
+        self.library_buffer.update_status('Library')
 
     def update_playlist_event(self):
         self.playlist_buffer.update()
