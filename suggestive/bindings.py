@@ -1,20 +1,37 @@
 import urwid
 
-
-SEARCH_NEXT = 'search_next'
-SEARCH_PREV = 'search_prev'
+# Movement
+UP = 'cursor up'
+DOWN = 'cursor down'
+LEFT = 'cursor left'
+RIGHT = 'cursor right'
+PAGE_UP = 'cursor page up'
+PAGE_DOWN = 'cursor page down'
 GO_TO_TOP = 'cursor max left'
 GO_TO_BOTTOM = 'cursor max right'
+
+# Searching
+SEARCH_NEXT = 'search_next'
+SEARCH_PREV = 'search_prev'
+
+# Library commands
+ENQUEUE = 'enqueue'
+PLAY = 'play'
+EXPAND = 'expand'
+
+# Miscellaneous
+QUIT = 'quit'
+UPDATE = 'update'
 
 
 class ListCommands(urwid.CommandMap):
     DEFAULT_BINDINGS = {
-        'cursor up': ('k', 'up'),
-        'cursor down': ('j', 'down'),
-        'cursor left': ('h', 'left'),
-        'cursor right': ('l', 'right'),
-        'cursor page up': ('ctrl b', 'page up'),
-        'cursor page down': ('ctrl f', 'page down'),
+        UP: ('k', 'up'),
+        DOWN: ('j', 'down'),
+        LEFT: ('h', 'left'),
+        RIGHT: ('l', 'right'),
+        PAGE_UP: ('ctrl b', 'page up'),
+        PAGE_DOWN: ('ctrl f', 'page down'),
 
         GO_TO_TOP: ('g', 'home'),
         GO_TO_BOTTOM: ('G', 'end'),
@@ -45,23 +62,24 @@ class ListCommands(urwid.CommandMap):
 
 class AlbumListCommands(urwid.CommandMap):
     DEFAULT_BINDINGS = {
-        'cursor up': ('k', 'up'),
-        'cursor down': ('j', 'down'),
-        'cursor left': ('h', 'left'),
-        'cursor right': ('l', 'right'),
-        'cursor page up': ('ctrl b', 'page up'),
-        'cursor page down': ('ctrl f', 'page down'),
-        'quit': ('q',),
-        'update': ('u',),
-
+        UP: ('k', 'up'),
+        DOWN: ('j', 'down'),
+        LEFT: ('h', 'left'),
+        RIGHT: ('l', 'right'),
+        PAGE_UP: ('ctrl b', 'page up'),
+        PAGE_DOWN: ('ctrl f', 'page down'),
         GO_TO_TOP: ('g', 'home'),
         GO_TO_BOTTOM: ('G', 'end'),
+
+        QUIT: ('q',),
+        UPDATE: ('u',),
+
         SEARCH_NEXT: ('n',),
         SEARCH_PREV: ('N',),
 
-        'enqueue': (' ',),
-        'play': ('enter',),
-        'expand': ('z',),
+        ENQUEUE: (' ',),
+        PLAY: ('enter',),
+        EXPAND: ('z',),
     }
 
     @classmethod

@@ -1,3 +1,5 @@
+from suggestive.bindings import ListCommands
+
 import urwid
 
 
@@ -19,3 +21,10 @@ class Prompt(urwid.Edit):
             super(Prompt, self).keypress(size, key)
 
         return True
+
+
+class PlaylistView(urwid.ListBox):
+
+    def __init__(self, *args, **kwArgs):
+        super(PlaylistView, self).__init__(*args, **kwArgs)
+        self._command_map = ListCommands()

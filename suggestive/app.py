@@ -7,13 +7,11 @@ from suggestive.threads import (
 from suggestive.analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
     SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)
-import suggestive.mstat as mstat
 from suggestive.config import Config
 from suggestive.command import CommanderEdit, Commandable
-from suggestive.widget import Prompt
-from suggestive.bindings import (
-    ListCommands, AlbumListCommands, SEARCH_NEXT, SEARCH_PREV, GO_TO_TOP,
-    GO_TO_BOTTOM)
+from suggestive.widget import Prompt, PlaylistView
+import suggestive.bindings as bindings
+import suggestive.mstat as mstat
 
 
 import argparse
@@ -469,11 +467,11 @@ class LibraryBuffer(Buffer):
         self.update_footer('suggestive')
 
 
-class PlaylistView(urwid.ListBox):
-
-    def __init__(self, *args, **kwArgs):
-        super(PlaylistView, self).__init__(*args, **kwArgs)
-        self._command_map = ListCommands()
+#class PlaylistView(urwid.ListBox):
+#
+#    def __init__(self, *args, **kwArgs):
+#        super(PlaylistView, self).__init__(*args, **kwArgs)
+#        self._command_map = ListCommands()
 
 
 class PlaylistBuffer(Buffer):
@@ -1015,87 +1013,6 @@ class Application(Commandable):
         return mainloop
 
 
-#class ListCommands(urwid.CommandMap):
-#    DEFAULT_BINDINGS = {
-#        'cursor up': ('k', 'up'),
-#        'cursor down': ('j', 'down'),
-#        'cursor left': ('h', 'left'),
-#        'cursor right': ('l', 'right'),
-#        'cursor page up': ('ctrl b', 'page up'),
-#        'cursor page down': ('ctrl f', 'page down'),
-#
-#        GO_TO_TOP: ('g', 'home'),
-#        GO_TO_BOTTOM: ('G', 'end'),
-#    }
-#
-#    @classmethod
-#    def _flatten(cls, bindings):
-#        flattened = {}
-#        for action, keys in bindings.items():
-#            flattened.update({key: action for key in keys})
-#
-#        return flattened
-#
-#    def __init__(self, *args, **kwArgs):
-#        super(ListCommands, self).__init__()
-#        self.update(self._flatten(self.DEFAULT_BINDINGS))
-#        self.update(*args, **kwArgs)
-#
-#    def update(self, *args, **kwArgs):
-#        if args and isinstance(args[0], dict):
-#            bindings = args[0]
-#        else:
-#            bindings = kwArgs
-#
-#        for key, command in bindings.items():
-#            self.__setitem__(key, command)
-#
-#
-#class AlbumListCommands(urwid.CommandMap):
-#    DEFAULT_BINDINGS = {
-#        'cursor up': ('k', 'up'),
-#        'cursor down': ('j', 'down'),
-#        'cursor left': ('h', 'left'),
-#        'cursor right': ('l', 'right'),
-#        'cursor page up': ('ctrl b', 'page up'),
-#        'cursor page down': ('ctrl f', 'page down'),
-#        'quit': ('q',),
-#        'update': ('u',),
-#        'reload': ('r',),
-#
-#        GO_TO_TOP: ('g', 'home'),
-#        GO_TO_BOTTOM: ('G', 'end'),
-#        SEARCH_NEXT: ('n',),
-#        SEARCH_PREV: ('N',),
-#
-#        'enqueue': (' ',),
-#        'play': ('enter',),
-#        'expand': ('z',),
-#    }
-#
-#    @classmethod
-#    def _flatten(cls, bindings):
-#        flattened = {}
-#        for action, keys in bindings.items():
-#            flattened.update({key: action for key in keys})
-#
-#        return flattened
-#
-#    def __init__(self, *args, **kwArgs):
-#        super(AlbumListCommands, self).__init__()
-#        self.update(self._flatten(self.DEFAULT_BINDINGS))
-#        self.update(*args, **kwArgs)
-#
-#    def update(self, *args, **kwArgs):
-#        if args and isinstance(args[0], dict):
-#            bindings = args[0]
-#        else:
-#            bindings = kwArgs
-#
-#        for key, command in bindings.items():
-#            self.__setitem__(key, command)
-
-
 class AlbumSearcher(object):
 
     def __init__(self, pattern, items, current):
@@ -1224,7 +1141,7 @@ class AlbumList(urwid.ListBox):
         self.app = app
         self.searcher = None
 
-        self._command_map = AlbumListCommands()
+        self._command_map = bindings.AlbumListCommands()
 
     def search(self, pattern, reverse=False):
         self.searcher = None
@@ -1325,11 +1242,12 @@ class AlbumList(urwid.ListBox):
 
     def keypress(self, size, key):
         cmd = self._command_map[key]
-        if cmd in (SEARCH_NEXT, SEARCH_PREV):
-            backward = (cmd == SEARCH_PREV)
+        if cmd in (bindings.SEARCH_NEXT, bindings.SEARCH_PREV):
+            backward = (cmd == bindings.SEARCH_PREV)
             self.next_search_item(backward=backward)
-        elif cmd in (GO_TO_TOP, GO_TO_BOTTOM):
-            self.set_focus(0 if cmd == GO_TO_TOP else len(self.body) - 1)
+        elif cmd in (bindings.GO_TO_TOP, bindings.GO_TO_BOTTOM):
+            n_items = len(self.body)
+            self.set_focus(0 if cmd == bindings.GO_TO_TOP else n_items - 1)
         elif cmd == 'expand':
             self.toggle_expand()
         else:
@@ -1351,7 +1269,7 @@ class SelectableAlbum(urwid.WidgetWrap):
         text = album_text(album)
         super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
 
-        self._command_map = AlbumListCommands()
+        self._command_map = bindings.AlbumListCommands()
 
     def update_text(self):
         self._w.set_text(album_text(self.album))
@@ -1379,7 +1297,7 @@ class SelectableTrack(urwid.WidgetWrap):
         super(SelectableTrack, self).__init__(
             urwid.SelectableIcon(self.text(track, track_no)))
 
-        self._command_map = AlbumListCommands()
+        self._command_map = bindings.AlbumListCommands()
 
     def update_text(self):
         self._w.set_text(self.text(self.track, self.track_no))
