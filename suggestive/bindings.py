@@ -19,23 +19,15 @@ ENQUEUE = 'enqueue'
 PLAY = 'play'
 EXPAND = 'expand'
 
-# Miscellaneous
-QUIT = 'quit'
-UPDATE = 'update'
 
+class Bindings(urwid.CommandMap):
 
-class ListCommands(urwid.CommandMap):
-    DEFAULT_BINDINGS = {
-        UP: ('k', 'up'),
-        DOWN: ('j', 'down'),
-        LEFT: ('h', 'left'),
-        RIGHT: ('l', 'right'),
-        PAGE_UP: ('ctrl b', 'page up'),
-        PAGE_DOWN: ('ctrl f', 'page down'),
-
-        GO_TO_TOP: ('g', 'home'),
-        GO_TO_BOTTOM: ('G', 'end'),
-    }
+    def __init__(self, *args, **kwArgs):
+        super(Bindings, self).__init__()
+        if args and isinstance(args[0], dict):
+            self.update(self._flatten(args[0]))
+        else:
+            self.update(**kwArgs)
 
     @classmethod
     def _flatten(cls, bindings):
@@ -44,11 +36,6 @@ class ListCommands(urwid.CommandMap):
             flattened.update({key: action for key in keys})
 
         return flattened
-
-    def __init__(self, *args, **kwArgs):
-        super(ListCommands, self).__init__()
-        self.update(self._flatten(self.DEFAULT_BINDINGS))
-        self.update(*args, **kwArgs)
 
     def update(self, *args, **kwArgs):
         if args and isinstance(args[0], dict):
@@ -59,47 +46,34 @@ class ListCommands(urwid.CommandMap):
         for key, command in bindings.items():
             self.__setitem__(key, command)
 
+ListCommands = Bindings({
+    UP: ('k', 'up'),
+    DOWN: ('j', 'down'),
+    LEFT: ('h', 'left'),
+    RIGHT: ('l', 'right'),
+    PAGE_UP: ('ctrl b', 'page up'),
+    PAGE_DOWN: ('ctrl f', 'page down'),
 
-class AlbumListCommands(urwid.CommandMap):
-    DEFAULT_BINDINGS = {
-        UP: ('k', 'up'),
-        DOWN: ('j', 'down'),
-        LEFT: ('h', 'left'),
-        RIGHT: ('l', 'right'),
-        PAGE_UP: ('ctrl b', 'page up'),
-        PAGE_DOWN: ('ctrl f', 'page down'),
-        GO_TO_TOP: ('g', 'home'),
-        GO_TO_BOTTOM: ('G', 'end'),
+    GO_TO_TOP: ('g', 'home'),
+    GO_TO_BOTTOM: ('G', 'end'),
+})
 
-        QUIT: ('q',),
-        UPDATE: ('u',),
 
-        SEARCH_NEXT: ('n',),
-        SEARCH_PREV: ('N',),
+AlbumListCommands = Bindings({
+    UP: ('k', 'up'),
+    DOWN: ('j', 'down'),
+    LEFT: ('h', 'left'),
+    RIGHT: ('l', 'right'),
+    PAGE_UP: ('ctrl b', 'page up'),
+    PAGE_DOWN: ('ctrl f', 'page down'),
 
-        ENQUEUE: (' ',),
-        PLAY: ('enter',),
-        EXPAND: ('z',),
-    }
+    GO_TO_TOP: ('g', 'home'),
+    GO_TO_BOTTOM: ('G', 'end'),
 
-    @classmethod
-    def _flatten(cls, bindings):
-        flattened = {}
-        for action, keys in bindings.items():
-            flattened.update({key: action for key in keys})
+    SEARCH_NEXT: ('n',),
+    SEARCH_PREV: ('N',),
 
-        return flattened
-
-    def __init__(self, *args, **kwArgs):
-        super(AlbumListCommands, self).__init__()
-        self.update(self._flatten(self.DEFAULT_BINDINGS))
-        self.update(*args, **kwArgs)
-
-    def update(self, *args, **kwArgs):
-        if args and isinstance(args[0], dict):
-            bindings = args[0]
-        else:
-            bindings = kwArgs
-
-        for key, command in bindings.items():
-            self.__setitem__(key, command)
+    ENQUEUE: (' ',),
+    PLAY: ('enter',),
+    EXPAND: ('z',),
+})

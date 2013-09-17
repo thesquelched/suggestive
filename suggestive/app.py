@@ -1141,7 +1141,7 @@ class AlbumList(urwid.ListBox):
         self.app = app
         self.searcher = None
 
-        self._command_map = bindings.AlbumListCommands()
+        self._command_map = bindings.AlbumListCommands
 
     def search(self, pattern, reverse=False):
         self.searcher = None
@@ -1269,7 +1269,7 @@ class SelectableAlbum(urwid.WidgetWrap):
         text = album_text(album)
         super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
 
-        self._command_map = bindings.AlbumListCommands()
+        self._command_map = bindings.AlbumListCommands
 
     def update_text(self):
         self._w.set_text(album_text(self.album))
@@ -1297,7 +1297,7 @@ class SelectableTrack(urwid.WidgetWrap):
         super(SelectableTrack, self).__init__(
             urwid.SelectableIcon(self.text(track, track_no)))
 
-        self._command_map = bindings.AlbumListCommands()
+        self._command_map = bindings.AlbumListCommands
 
     def update_text(self):
         self._w.set_text(self.text(self.track, self.track_no))

@@ -27,4 +27,4 @@ class PlaylistView(urwid.ListBox):
 
     def __init__(self, *args, **kwArgs):
         super(PlaylistView, self).__init__(*args, **kwArgs)
-        self._command_map = ListCommands()
+        self._command_map = ListCommands
