@@ -9,9 +9,11 @@ from suggestive.analytics import (
     SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)
 from suggestive.config import Config
 from suggestive.command import CommanderEdit, Commandable
-from suggestive.widget import Prompt, SuggestiveListBox
+from suggestive.widget import (
+    Prompt, SuggestiveListBox, SelectableAlbum, SelectableTrack)
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
+from suggestive.util import album_text
 
 
 import argparse
@@ -30,10 +32,6 @@ logger.addHandler(logging.NullHandler())
 MEGABYTES = 1024 * 1024
 
 
-def album_text(album):
-    return '{} - {}'.format(album.artist.name, album.name)
-
-
 class BufferList(object):
     def __init__(self):
         self.buffers = []
@@ -49,14 +47,6 @@ class BufferList(object):
             self.go_to_buffer(next_buffer)
         except (IndexError, ValueError):
             self.focus_position = 0
-
-        #try:
-        #    self.focus_position += 1
-        #    while not isinstance(self.focus, Buffer):
-        #        self.focus_position += 1
-
-        #except IndexError:
-        #    self.focus_position = 0
 
     def add(self, buf, *options):
         self.contents.append((buf, self.options(*options)))
@@ -711,7 +701,6 @@ class PlaylistBuffer(Buffer):
             fm = mstat.initialize_lastfm(self.conf)
             mstat.set_track_unloved(self.session, fm, track)
 
-            #selection.update_text()
             self.redraw()
 
 
@@ -724,7 +713,6 @@ class MainWindow(urwid.Frame):
         self.conf = conf
 
         # Signals
-        #urwid.connect_signal(self, 'set_status', self.update_status)
         urwid.connect_signal(self, 'set_footer', self.update_footer)
         urwid.connect_signal(self, 'set_focus', self.update_focus)
 
@@ -735,12 +723,6 @@ class MainWindow(urwid.Frame):
 
     def update_focus(self, to_focus):
         self.set_focus(to_focus)
-
-    #def update_status(self, text, error=False):
-    #    status = urwid.Text(text)
-    #    footer = urwid.AttrMap(status, 'status error' if error else 'status')
-
-    #    self.set_footer(footer)
 
 
 class Application(Commandable):
@@ -872,14 +854,12 @@ class Application(Commandable):
         update_thread.start()
 
     def start_scrobble_initialize(self):
-        #self.update_status('Updating database')
         scrobble_thread = ScrobbleInitializeThread(
             self.conf, self.quit_event)
         scrobble_thread.daemon = False
         scrobble_thread.start()
 
     def start_mpd_watch_thread(self):
-        #self.update_status('Updating database')
         thread = MpdWatchThread(
             self.conf, self.update_playlist_event, self.quit_event)
         thread.daemon = True
@@ -1250,65 +1230,6 @@ class AlbumList(urwid.ListBox):
         super(AlbumList, self).keypress(size, None)
 
         return True
-
-
-class SelectableLibraryItem(urwid.WidgetWrap):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['enqueue', 'play']
-
-    _command_map = bindings.AlbumListCommands
-    content = None
-
-    def keypress(self, size, key):
-        if self._command_map[key] == 'enqueue':
-            urwid.emit_signal(self, 'enqueue', self.content)
-        elif self._command_map[key] == 'play':
-            urwid.emit_signal(self, 'play', self.content)
-        else:
-            return key
-
-
-class SelectableAlbum(SelectableLibraryItem):
-
-    def __init__(self, suggestion):
-        self.content = self.album = suggestion.album
-        self.expanded = False
-        text = album_text(self.album)
-        super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
-
-    def update_text(self):
-        self._w.set_text(album_text(self.album))
-
-    def tracks(self):
-        return self.album.tracks
-
-
-class SelectableTrack(SelectableLibraryItem):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['enqueue', 'play']
-
-    def __init__(self, parent, track, track_no):
-        self.parent = parent
-        self.content = self.track = track
-        self.track_no = track_no
-        super(SelectableTrack, self).__init__(
-            urwid.SelectableIcon(self.text(track, track_no)))
-
-    def update_text(self):
-        self._w.set_text(self.text(self.track, self.track_no))
-
-    @classmethod
-    def text(cls, track, track_no):
-        text = '{} - {}'.format(track_no, track.name)
-        if track.lastfm_info and track.lastfm_info.loved:
-            return text + ' [L]'
-        elif track.lastfm_info and track.lastfm_info.banned:
-            return text + ' [B]'
-        else:
-            return text
-
-    def tracks(self):
-        return [self.track]
 
 
 def initialize_logging(conf):
