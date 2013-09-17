@@ -23,8 +23,8 @@ class Prompt(urwid.Edit):
         return True
 
 
-class PlaylistView(urwid.ListBox):
+class SuggestiveListBox(urwid.ListBox):
 
     def __init__(self, *args, **kwArgs):
-        super(PlaylistView, self).__init__(*args, **kwArgs)
+        super(SuggestiveListBox, self).__init__(*args, **kwArgs)
         self._command_map = ListCommands

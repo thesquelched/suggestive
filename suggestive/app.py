@@ -9,7 +9,7 @@ from suggestive.analytics import (
     SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)
 from suggestive.config import Config
 from suggestive.command import CommanderEdit, Commandable
-from suggestive.widget import Prompt, PlaylistView
+from suggestive.widget import Prompt, SuggestiveListBox
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 
@@ -24,7 +24,7 @@ import os.path
 from itertools import chain, islice
 from mpd import CommandError
 
-logger = logging.getLogger('main')
+logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
 
 MEGABYTES = 1024 * 1024
@@ -467,13 +467,6 @@ class LibraryBuffer(Buffer):
         self.update_footer('suggestive')
 
 
-#class PlaylistView(urwid.ListBox):
-#
-#    def __init__(self, *args, **kwArgs):
-#        super(PlaylistView, self).__init__(*args, **kwArgs)
-#        self._command_map = ListCommands()
-
-
 class PlaylistBuffer(Buffer):
     ITEM_FORMAT = '{artist} - {album} - {title}'
 
@@ -484,7 +477,7 @@ class PlaylistBuffer(Buffer):
 
         self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
         walker = urwid.SimpleFocusListWalker(self.playlist_items())
-        self.playlist = PlaylistView(walker)
+        self.playlist = SuggestiveListBox(walker)
         super(PlaylistBuffer, self).__init__(self.playlist)
 
         self.update_status('Playlist')
@@ -1259,45 +1252,47 @@ class AlbumList(urwid.ListBox):
         return True
 
 
-class SelectableAlbum(urwid.WidgetWrap):
+class SelectableLibraryItem(urwid.WidgetWrap):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['enqueue', 'play']
 
-    def __init__(self, suggestion):
-        self.album = album = suggestion.album
-        self.expanded = False
-        text = album_text(album)
-        super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
-
-        self._command_map = bindings.AlbumListCommands
-
-    def update_text(self):
-        self._w.set_text(album_text(self.album))
+    _command_map = bindings.AlbumListCommands
+    content = None
 
     def keypress(self, size, key):
         if self._command_map[key] == 'enqueue':
-            urwid.emit_signal(self, 'enqueue', self.album)
+            urwid.emit_signal(self, 'enqueue', self.content)
         elif self._command_map[key] == 'play':
-            urwid.emit_signal(self, 'play', self.album)
+            urwid.emit_signal(self, 'play', self.content)
         else:
             return key
+
+
+class SelectableAlbum(SelectableLibraryItem):
+
+    def __init__(self, suggestion):
+        self.content = self.album = suggestion.album
+        self.expanded = False
+        text = album_text(self.album)
+        super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
+
+    def update_text(self):
+        self._w.set_text(album_text(self.album))
 
     def tracks(self):
         return self.album.tracks
 
 
-class SelectableTrack(urwid.WidgetWrap):
+class SelectableTrack(SelectableLibraryItem):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['enqueue', 'play']
 
     def __init__(self, parent, track, track_no):
         self.parent = parent
-        self.track = track
+        self.content = self.track = track
         self.track_no = track_no
         super(SelectableTrack, self).__init__(
             urwid.SelectableIcon(self.text(track, track_no)))
-
-        self._command_map = bindings.AlbumListCommands
 
     def update_text(self):
         self._w.set_text(self.text(self.track, self.track_no))
@@ -1312,14 +1307,6 @@ class SelectableTrack(urwid.WidgetWrap):
         else:
             return text
 
-    def keypress(self, size, key):
-        if self._command_map[key] == 'enqueue':
-            urwid.emit_signal(self, 'enqueue', self.track)
-        elif self._command_map[key] == 'play':
-            urwid.emit_signal(self, 'play', self.track)
-        else:
-            return key
-
     def tracks(self):
         return [self.track]
 
@@ -1332,20 +1319,18 @@ def initialize_logging(conf):
         maxBytes=1 * MEGABYTES,
     )
 
-    handler.setLevel(conf.log_level())
-
     fmt = logging.Formatter(
-        fmt='%(asctime)s %(levelname)s (%(name)s)| %(message)s',
+        '%(asctime)s %(levelname)s (%(name)s)| %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     handler.setFormatter(fmt)
+    handler.setLevel(conf.log_level())
 
-    #logging.basicConfig(
-    #    level=conf.log_level(),
-    #    filename=conf.log_file(),
-    #    filemode='a',
-    #    format='%(asctime)s %(levelname)s (%(name)s)| %(message)s',
-    #)
+    root = logging.getLogger()
+    root.addHandler(handler)
+    root.setLevel(conf.log_level())
+
+    # Disable other loggers
     logging.getLogger('mpd').setLevel(logging.ERROR)
     logging.getLogger('requests').setLevel(logging.ERROR)
 
