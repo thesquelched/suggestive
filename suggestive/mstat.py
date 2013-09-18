@@ -186,10 +186,32 @@ class MpdLoader(object):
 
             self.load_artist_albums(session, db_artist, albums)
 
+    def delete_orphaned(self, session, deleted):
+        if deleted:
+            logger.info('Deleting {} files from DB that do not exist in '
+                        'MPD library'.format(len(deleted)))
+            tracks_to_delete = session.query(Track).\
+                filter(Track.filename.in_(deleted)).\
+                all()
+
+            for track in tracks_to_delete:
+                session.delete(track)
+
+        info_to_delete = session.query(LastfmTrackInfo).\
+            filter(LastfmTrackInfo.track == None).\
+            all()
+        logger.debug('Found {} orphaned LastfmTrackInfo objects'.format(
+            len(info_to_delete)))
+
+        for info in info_to_delete:
+            session.delete(info)
+
     def load(self, session):
         files_in_mpd = set(self.mpd.list('file'))
         files_in_db = set(item.filename for item in session.query(
             Track.filename).all())
+
+        self.delete_orphaned(session, files_in_db - files_in_mpd)
 
         missing = files_in_mpd - files_in_db
         if missing:
