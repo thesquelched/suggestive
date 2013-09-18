@@ -69,25 +69,23 @@ class DatabaseUpdateThread(AppThread):
         self.conf = conf
 
     def run(self):
+        logger.info('Start MPD update')
+        mpd = mstat.initialize_mpd(self.conf)
+        mpd.update()
+        logger.info('Finished MPD update')
+
+        if self.quit_event.is_set():
+            return
+
         logger.debug('Waiting for lock')
-
         with db_lock:
-            logger.info('Start MPD update')
-            mpd = mstat.initialize_mpd(self.conf)
-            mpd.update()
-            logger.info('Finished MPD update')
-
-            if self.quit_event.is_set():
-                return
-
             logger.info('Update internal database')
             mstat.update_database(self.conf)
 
             logger.info('Finished update')
 
-            (self.callback)()
-
         logger.debug('Released lock')
+        (self.callback)()
 
 
 @log_errors

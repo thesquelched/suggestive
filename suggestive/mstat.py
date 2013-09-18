@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, func
 from datetime import datetime, timedelta
 from collections import defaultdict
 from itertools import chain
-from os.path import basename
+from os.path import basename, dirname
 from contextlib import contextmanager
 from difflib import get_close_matches
 
@@ -206,6 +206,26 @@ class MpdLoader(object):
         for info in info_to_delete:
             session.delete(info)
 
+    def remove_duplicates(self, session):
+        albums_with_dups = session.query(Album).\
+            join(Track, Track.album_id == Album.id).\
+            group_by(Album.name, Track.name).\
+            having(func.count(Track.id) > 1).\
+            all()
+
+        logger.info('Found {} albums with duplicate tracks'.format(
+            len(albums_with_dups)))
+
+        for album in albums_with_dups:
+            mpd_info = self.mpd.find('album', album.name)
+            dirs = set(dirname(info['file']) for info in mpd_info)
+
+            if len(dirs) > 1:
+                logger.warn(
+                    "Album '{} - {}' contains tracks in multiple "
+                    "directories: {}".format(
+                        album.artist.name, album.name, ', '.join(dirs)))
+
     def load(self, session):
         files_in_mpd = set(self.mpd.list('file'))
         files_in_db = set(item.filename for item in session.query(
@@ -231,6 +251,8 @@ class MpdLoader(object):
                     by_artist_album[artist][info.get('album')].append(info)
 
             self.load_by_artist_album(session, by_artist_album)
+
+        self.remove_duplicates(session)
 
     def initialize(self, session):
         for artist in self.mpd.list('artist'):

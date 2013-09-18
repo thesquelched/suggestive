@@ -71,6 +71,7 @@ class Track(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     filename = Column(String, nullable=False, unique=True)
+    is_duplicate = Column(Boolean, default=False)
     lastfm_info = relationship(
         "LastfmTrackInfo", uselist=False, backref="track")
     album_id = Column(Integer, ForeignKey('album.id'))

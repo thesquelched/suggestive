@@ -5,7 +5,7 @@ Bug fixes
 ---------
 - ESC shouldn't move cursor to the top of the screen
 - ~~Track ordering is not correct~~
-- Update should remove items that have been delete from the MPD DB
+- ~~Update should remove items that have been delete from the MPD DB~~
 - Loving songs in playlist should cause library redraw if album is expanded
 
 New features
