@@ -19,3 +19,4 @@ New features
 - Color code part of track title (like blue album, red artist, yellow song)
 - ~~Multiple screens (library, now playing, etc)~~
 - Custom orderer combinations in config file
+- Link albums so that they are always displayed as one
