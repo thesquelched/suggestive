@@ -7,13 +7,31 @@ Python MPD client with integrated Last.FM
 Installation
 ============
 
-Prerequisites
--------------
-
 `suggestive` required python 3.2 or higher.
 
+Installation via git
+--------------------
+
 ```bash
-$ sudo pip-3.2 install urwid python-mpd2 SQLAlchemy requests
+$ git clone https://github.com/thesquelched/suggestive.git
+$ cd suggestive
+$ python3 setup.py install
+```
+
+Usage
+=====
+
+```bash
+$ suggestive -h
+usage: suggestive [-h] [--log LOG] [--config CONFIG]
+
+Suggestive
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --log LOG, -l LOG     Log file path
+  --config CONFIG, -c CONFIG
+                        Config file path
 ```
 
 Bindings
