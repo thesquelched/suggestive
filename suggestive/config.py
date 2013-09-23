@@ -37,9 +37,9 @@ class Config(object):
         ),
         lastfm=dict(
             scrobble_days=180,
-            # user
-            # api_key
-            # api_secret
+            user='',
+            api_key='',
+            api_secret='',
         ),
         appearance=dict(
             album_fg='#000',
@@ -86,6 +86,17 @@ class Config(object):
 
         parser.read(map(expand, paths))
         self.parser = self.override_config(parser, args) if args else parser
+
+    def check_config(self):
+        conf_url = 'https://github.com/thesquelched/suggestive#configuration'
+        if not self.lastfm_apikey():
+            return 'Could not determine LastFM API key; see {}'.format(
+                conf_url)
+        if not self.lastfm_user():
+            return 'Could not determine LastFM user; see {}'.format(
+                conf_url)
+
+        return None
 
     @classmethod
     def override_config(cls, parser, args):

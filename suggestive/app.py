@@ -23,6 +23,7 @@ from logging.handlers import RotatingFileHandler
 import threading
 import re
 import os.path
+import sys
 from itertools import chain, islice
 from mpd import CommandError
 
@@ -1260,7 +1261,10 @@ def run(args):
     conf = Config(args)
     initialize_logging(conf)
 
-    logger.info('Starting event loop')
+    msg = conf.check_config()
+    if msg is not None:
+        print(msg)
+        sys.exit(1)
 
     if not os.path.exists(conf.database()):
         print('Music database not found; initializing...')
@@ -1274,6 +1278,7 @@ def run(args):
 
     with mstat.session_scope(conf, commit=False) as main_session:
         try:
+            logger.info('Starting event loop')
             app = Application(conf, main_session)
             app.event_loop.run()
         except KeyboardInterrupt:
