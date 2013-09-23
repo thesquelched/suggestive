@@ -131,7 +131,7 @@ General commands
 - `q` - quit
 - `playlist` - toggle playlist buffer
 - `library` - toggle library buffer
-- `orientation` - toggle between vertical and horizontal orientations
+- `orientation` - (Alias: `or`) toggle between vertical and horizontal orientations
 
 
 Library
@@ -140,10 +140,10 @@ Library
 `suggestive` tries to order your library so that albums you'd probably like to listen to are close to the top, while albums you don't like are towards the bottom.  However, you can change what's displayed using one or more filters or orderers.  Note that you can compose multiple filters/orderers by issuing succesive commands.
 
 - `<ESC>` - Clear all filters/orderers, restoring the default ordering
-- `:album <name>` - Only display albums matching `name` (case-insensitive)
-- `:artist <name>` - Only display albums of the artist matching `name` (case-insensitive)
-- `:loved <min=0.0> <max=1.0>` - Display albums in order of fraction of tracks loved. You may optional specify the minimum or maximum fraction of loved tracks for an album to be displayed
-- `:playcount <min=0.0> <max=None>` - Display albums in order of fractional playcount (i.e. number of scrobbles / number of tracks).  Note that this number can be greater than 1
+- `:album <name>` - (Alias: `al`) Only display albums matching `name` (case-insensitive)
+- `:artist <name>` - (Alias: `ar`) Only display albums of the artist matching `name` (case-insensitive)
+- `:loved <min=0.0> <max=1.0>` - (Alias: `lo`) Display albums in order of fraction of tracks loved. You may optional specify the minimum or maximum fraction of loved tracks for an album to be displayed
+- `:playcount <min=0.0> <max=None>` - (Alias: `pc`) Display albums in order of fractional playcount (i.e. number of scrobbles / number of tracks).  Note that this number can be greater than 1
 - `:banned <remove_banned=true>` - Penalize (or remove) albums with banned tracks from the library
 - `:sort` - Sort albums using the string 'artist - album'
 - `:unorder` - Remove all orderings
