@@ -13,6 +13,7 @@
 [lastfm]
 #user = my_lastfm_user
 #api_key = 0123456789abcdefghijklmnopqrstuv
+#api_secret = 345678iugcfdr6789iojhg78uiujhg
 
 [appearance]
 # Customize color scheme. You may specify any valid urwid color
