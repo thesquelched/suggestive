@@ -34,6 +34,45 @@ optional arguments:
                         Config file path
 ```
 
+Configuration
+=============
+
+`suggestive` looks for a configuration file in the following places (in-order):
+
+2. `$HOME/.suggestive.conf`
+3. `/etc/suggestive.conf`
+
+You can also force a certain config path using the `-c` option. Before you can run `suggestive`, you must supply two pieces of information: your Last.FM username and a Last.FM API key.  You can sign up for an API key [here](http://www.last.fm/api/accounts).
+
+Here is a minimal `suggestive` configuration file:
+
+```
+[lastfm]
+user = my_lastfm_user
+api_key = 0123456789abcdefghijklmnopqrstuv
+
+# For LastFM write access (optional)
+api_secret = 141iojhu789uihy78uiho9uih89080
+```
+
+A [sample configuration file](suggestive.conf.example) is available.
+
+
+Known Issues
+============
+
+`suggestive` is still very early in development, although it is quite
+functional already.  However, there are some outstanding issues.  If you any
+any issues not listed here, please open up an issue.
+
+- Non-fatal exceptions may temporarily show up in the terminal
+- Opening/closing new buffers doesn't work well for vertical orientation
+- Minor drawing issues when modifying the playlist buffer
+- Loving a track in the playlist buffer will not be immediately reflected in
+  the library if that album is currently expanded.  Toggling the expansion
+  fixes the problem.
+
+
 Bindings
 ========
 
@@ -110,27 +149,3 @@ Library
 - `:unorder` - Remove all orderings
 - `:love` - Mark the selected album/track loved in LastFM
 - `:unlove` - Mark the selected album/track unloved in LastFM
-
-
-Configuration
-=============
-
-`suggestive` looks for a configuration file in the following places (in-order):
-
-2. `$HOME/.suggestive.conf`
-3. `/etc/suggestive.conf`
-
-You can also force a certain config path using the `-c` option. Before you can run `suggestive`, you must supply two pieces of information: your Last.FM username and a Last.FM API key.  You can sign up for an API key [here](http://www.last.fm/api/accounts).
-
-Here is a minimal `suggestive` configuration file:
-
-```
-[lastfm]
-user = my_lastfm_user
-api_key = 0123456789abcdefghijklmnopqrstuv
-
-# For LastFM write access (optional)
-api_secret = 141iojhu789uihy78uiho9uih89080
-```
-
-A sample configuration file is included with suggestive.
