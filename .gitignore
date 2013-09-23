@@ -6,3 +6,7 @@ test.py
 .ropeproject
 *.csv
 !albums.csv
+build
+dist
+installtest
+*.egg-info

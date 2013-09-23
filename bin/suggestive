@@ -1,3 +1,0 @@
-#! /bin/sh
-
-/usr/bin/env /usr/bin/python3 -m suggestive $@
