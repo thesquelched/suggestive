@@ -14,9 +14,9 @@ except ImportError:
     kwArgs = {}
 
 
-setup(
+setu(
     name='suggestive',
-    version='0.1.0',
+    version='0.2.0',
     description='Python MPD client with integrated Last.FM support',
     author='Scott Kruger',
     author_email='thesquelched+python@gmail.com',
