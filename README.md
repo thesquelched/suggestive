@@ -149,3 +149,21 @@ Library
 - `:unorder` - Remove all orderings
 - `:love` - Mark the selected album/track loved in LastFM
 - `:unlove` - Mark the selected album/track unloved in LastFM
+
+
+Development
+===========
+
+Database Migrations
+-------------------
+
+I use `alembic` to generate migrations for `suggestive`'s internal sqlite
+database.  To generate database migrations:
+
+1. Install the latest version of `suggestive` and run it at least once to
+   migrate to the latest database version
+2. Copy `alembic.ini.template` to `alembic.ini`
+3. Replace `<INSERT SUGGESTIVE DB PATH HERE>` with the path to your
+   `suggestive` database, e.g. `/home/myuser/.suggsetive/music.db`.
+4. Make changes to the database model
+5. Create a new migration file: `alembic revision --autogenerate -m '<COMMIT MESSAGE>'`

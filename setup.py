@@ -4,8 +4,9 @@ try:
         install_requires=[
             'urwid>=1.1.1',
             'python-mpd2>=0.5.1',
-            'SQLAlchemy>=0.8.1',
             'requests>=1.2.3',
+            'SQLAlchemy>=0.8.1',
+            'alembic>=0.6.0',
         ],
     )
 except ImportError:
