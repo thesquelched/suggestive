@@ -379,10 +379,7 @@ class LibraryBuffer(Buffer):
             track['track'] = int(trackno)
 
         sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
-        ids = [mpd.addid(track['file']) for track in sorted_tracks]
-
-        urwid.emit_signal(self, 'update_playlist')
-        return ids
+        return [mpd.addid(track['file']) for track in sorted_tracks]
 
     def play_tracks(self, tracks):
         mpd = mstat.initialize_mpd(self.conf)
@@ -497,16 +494,12 @@ class PlaylistBuffer(Buffer):
             mpd = mstat.initialize_mpd(self.conf)
             mpd.delete(current_position)
 
-            self.update()
-
     def play_track(self):
         current_position = self.playlist.focus_position
 
         if current_position is not None:
             mpd = mstat.initialize_mpd(self.conf)
             mpd.play(current_position)
-
-            self.update()
 
     def format_track(self, track):
         replace = {key: 'Unknown' for key in self.format_keys}
