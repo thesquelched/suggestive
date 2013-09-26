@@ -547,6 +547,10 @@ def set_track_loved(session, lastfm, track, loved=True):
     return success
 
 
+def set_track_unloved(session, lastfm, track):
+    set_track_loved(session, lastfm, track, loved=False)
+
+
 def get_playlist_track(session, config, index):
     mpd = initialize_mpd(config)
 

@@ -247,6 +247,21 @@ class LibraryBuffer(Buffer):
 
         return commands
 
+    def find_track_selection(self, track):
+        o_widgets = (w.original_widget for w in self.list_view.body)
+        match = (w for w in o_widgets
+                 if isinstance(w, SelectableTrack) and w.track == track)
+        return next(match, None)
+
+    def love_track(self, track, loved=True):
+        selection = self.find_track_selection(track)
+        logger.debug('Found: {}'.format(selection))
+        if selection is not None:
+            self.love_tracks(selection, [track], loved=loved)
+
+    def unlove_track(self, track):
+        self.love_track(track, loved=False)
+
     def love_selection(self):
         current = self.list_view.focus.original_widget
         tracks = current.tracks()
@@ -272,13 +287,16 @@ class LibraryBuffer(Buffer):
             value = 'y'
 
         if value.lower()[0] == 'y':
-            fm = mstat.initialize_lastfm(self.conf)
-            for track in tracks:
-                mstat.set_track_loved(self.session, fm, track)
+            self.love_tracks(selection, tracks)
 
-            self.session.commit()
-            selection.update_text()
-            self.redraw()
+    def love_tracks(self, selection, tracks, loved=True):
+        fm = mstat.initialize_lastfm(self.conf)
+        for track in tracks:
+            mstat.set_track_loved(self.session, fm, track, loved=loved)
+
+        self.session.commit()
+        selection.update_text()
+        self.redraw()
 
     def unlove_selection(self):
         current = self.list_view.focus.original_widget
@@ -305,13 +323,10 @@ class LibraryBuffer(Buffer):
             value = 'y'
 
         if value.lower()[0] == 'y':
-            fm = mstat.initialize_lastfm(self.conf)
-            for track in tracks:
-                mstat.set_track_loved(self.session, fm, track, loved=False)
+            self.unlove_tracks(selection, tracks)
 
-            self.session.commit()
-            selection.update_text()
-            self.redraw()
+    def unlove_tracks(self, selection, tracks):
+        self.love_tracks(selection, tracks, loved=False)
 
     def orderer_func(self, orderer):
         def add_func(*args, **kwArgs):
@@ -456,6 +471,7 @@ class LibraryBuffer(Buffer):
 
 
 class PlaylistBuffer(Buffer):
+    signals = Buffer.signals + ['love_track', 'unlove_track']
     ITEM_FORMAT = '{artist} - {album} - {title}'
 
     def __init__(self, conf, session):
@@ -650,11 +666,12 @@ class PlaylistBuffer(Buffer):
             value = 'y'
 
         if value.lower()[0] == 'y':
-            fm = mstat.initialize_lastfm(self.conf)
-            mstat.set_track_loved(self.session, fm, track)
+            urwid.emit_signal(self, 'love_track', track)
+            #fm = mstat.initialize_lastfm(self.conf)
+            #mstat.set_track_loved(self.session, fm, track)
 
-            #selection.update_text()
-            self.redraw()
+            ##selection.update_text()
+            #self.redraw()
 
     def unlove_track(self):
         current_position = self.playlist.focus_position
@@ -692,10 +709,11 @@ class PlaylistBuffer(Buffer):
             value = 'y'
 
         if value.lower()[0] == 'y':
-            fm = mstat.initialize_lastfm(self.conf)
-            mstat.set_track_unloved(self.session, fm, track)
+            urwid.emit_signal(self, 'unlove_track', track)
+            #fm = mstat.initialize_lastfm(self.conf)
+            #mstat.set_track_unloved(self.session, fm, track)
 
-            self.redraw()
+            #self.redraw()
 
 
 class MainWindow(urwid.Frame):
@@ -754,6 +772,15 @@ class Application(Commandable):
             self.library_buffer,
             'update_playlist',
             self.playlist_buffer.update)
+        urwid.connect_signal(
+            self.playlist_buffer,
+            'love_track',
+            self.library_buffer.love_track)
+        urwid.connect_signal(
+            self.playlist_buffer,
+            'unlove_track',
+            self.library_buffer.unlove_track)
+
         self.setup_buffers()
 
         self.update_footer_text('suggestive')

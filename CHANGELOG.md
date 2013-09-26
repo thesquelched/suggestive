@@ -5,6 +5,8 @@ Bug Fixes
 ----------
 - Expanding an album now puts the album at the top of the screen, so that
   all of the tracks are visible
+- (Un)loving a track in the playlist will be reflected in the corresponding
+  expanded album in the library, if any
 
 
 Version 0.2.0
