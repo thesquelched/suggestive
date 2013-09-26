@@ -10,3 +10,4 @@ build
 dist
 installtest
 *.egg-info
+alembic.ini

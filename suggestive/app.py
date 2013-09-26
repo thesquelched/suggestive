@@ -14,6 +14,7 @@ from suggestive.widget import (
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 from suggestive.util import album_text
+from suggestive.migrate import migrate
 
 
 import argparse
@@ -161,7 +162,6 @@ class Buffer(urwid.Frame, Commandable):
     def dispatch(self, key):
         if key in self.bindings:
             func = self.bindings[key]
-            logger.debug('KEYBIND: {}'.format(func))
             func()
             return True
         else:
@@ -877,7 +877,6 @@ class Application(Commandable):
     def dispatch(self, key):
         if key in self.bindings:
             func = self.bindings[key]
-            logger.debug('KEYBIND: {}'.format(func))
             func()
             return True
         else:
@@ -1269,6 +1268,9 @@ def run(args):
     if not os.path.exists(conf.database()):
         print('Music database not found; initializing...')
         mstat.update_mpd(conf)
+
+    # Migrate to latest database configuration
+    migrate(conf)
 
     # Request API write access from user
     session_file = conf.lastfm_session_file()
