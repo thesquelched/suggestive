@@ -400,8 +400,12 @@ class TrackInfoLoader(object):
             )
 
 
+def sqlalchemy_url(config):
+    return 'sqlite:///{}'.format(config.database())
+
+
 def initialize_sqlalchemy(config, echo=False):
-    path = 'sqlite:///{}'.format(config.database())
+    path = sqlalchemy_url(config)
     engine = create_engine(path, echo=bool(echo))
     Session.configure(bind=engine)
 
