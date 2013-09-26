@@ -31,7 +31,7 @@ from mpd import CommandError
 logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
 
-MEGABYTES = 1024 * 1024
+MEGABYTE = 1024 * 1024
 
 
 class BufferList(object):
@@ -1237,7 +1237,7 @@ def initialize_logging(conf):
         conf.log_file(),
         mode='a',
         backupCount=3,
-        maxBytes=1 * MEGABYTES,
+        maxBytes=1 * MEGABYTE,
     )
 
     fmt = logging.Formatter(
