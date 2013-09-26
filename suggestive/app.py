@@ -1171,6 +1171,7 @@ class AlbumList(urwid.ListBox):
             self.body.insert(current + 1, item)
 
         album_widget.original_widget.expanded = True
+        self.set_focus_valign('top')
         #self.body.insert(current + 1, self.focus)
 
     def collapse_album(self, album_widget):
