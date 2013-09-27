@@ -472,7 +472,7 @@ class LibraryBuffer(Buffer):
 
 class PlaylistBuffer(Buffer):
     signals = Buffer.signals + ['love_track', 'unlove_track']
-    ITEM_FORMAT = '{artist} - {album} - {title}'
+    ITEM_FORMAT = '{artist} - {album} - {title}{suffix}'
 
     def __init__(self, conf, session):
         self.conf = conf
@@ -518,8 +518,20 @@ class PlaylistBuffer(Buffer):
             mpd.play(current_position)
 
     def format_track(self, track):
+        db_track = mstat.database_track_from_mpd(self.session, track)
+        info = db_track.lastfm_info
+        if info is None:
+            suffix = ''
+        elif info.loved:
+            suffix = ' [L]'
+        elif info.banned:
+            suffix = ' [B]'
+        else:
+            suffix = ''
+
         replace = {key: 'Unknown' for key in self.format_keys}
         replace.update(track)
+        replace.update(suffix=suffix)
 
         return self.ITEM_FORMAT.format(**replace)
 

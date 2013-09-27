@@ -562,3 +562,7 @@ def get_playlist_track(session, config, index):
             first()
     else:
         return None
+
+
+def database_track_from_mpd(session, track_info):
+    return session.query(Track).filter_by(filename=track_info['file']).first()

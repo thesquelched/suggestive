@@ -8,6 +8,10 @@ Bug Fixes
 - (Un)loving a track in the playlist will be reflected in the corresponding
   expanded album in the library, if any
 
+Improvements
+------------
+- Playlist displays whether a track is loved or banned
+
 
 Version 0.2.0
 =============
