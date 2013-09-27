@@ -1,7 +1,6 @@
 suggestive
 ==========
 
-<!--#Use MPD and Last.FM to suggest music to listen to-->
 Python MPD client with integrated Last.FM
 
 Installation
@@ -67,10 +66,6 @@ any issues not listed here, please open up an issue.
 
 - Non-fatal exceptions may temporarily show up in the terminal
 - Opening/closing new buffers doesn't work well for vertical orientation
-- Minor drawing issues when modifying the playlist buffer
-- Loving a track in the playlist buffer will not be immediately reflected in
-  the library if that album is currently expanded.  Toggling the expansion
-  fixes the problem.
 
 
 Bindings
