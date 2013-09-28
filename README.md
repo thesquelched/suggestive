@@ -41,7 +41,10 @@ Configuration
 2. `$HOME/.suggestive.conf`
 3. `/etc/suggestive.conf`
 
-You can also force a certain config path using the `-c` option. Before you can run `suggestive`, you must supply two pieces of information: your Last.FM username and a Last.FM API key.  You can sign up for an API key [here](http://www.last.fm/api/accounts).
+You can also force a certain config path using the `-c` option. Before you can
+run `suggestive`, you must supply two pieces of information: your Last.FM
+username and a Last.FM API key.  You can sign up for an API key
+[here](http://www.last.fm/api/accounts).
 
 Here is a minimal `suggestive` configuration file:
 
@@ -61,11 +64,15 @@ Known Issues
 ============
 
 `suggestive` is still very early in development, although it is quite
-functional already.  However, there are some outstanding issues.  If you any
-any issues not listed here, please open up an issue.
+functional already.  However, there are some outstanding issues:
 
 - Non-fatal exceptions may temporarily show up in the terminal
 - Opening/closing new buffers doesn't work well for vertical orientation
+
+Sometimes, you can resolve an issue by deleting/renaming the `suggestive`
+database file (`$HOME/.suggestive/music.db` by default), and then re-running
+suggestive, which will rebuild the database.  If this does not resolve the
+problem, please open up a GitHub issue.
 
 
 Bindings
