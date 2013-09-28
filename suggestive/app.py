@@ -14,7 +14,7 @@ from suggestive.widget import (
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 from suggestive.util import album_text
-from suggestive.migrate import migrate
+import suggestive.migrate as migrate
 
 
 import argparse
@@ -1300,10 +1300,11 @@ def run(args):
 
     if not os.path.exists(conf.database()):
         print('Music database not found; initializing...')
+        migrate.initialize_database(conf)
         mstat.update_mpd(conf)
 
     # Migrate to latest database configuration
-    migrate(conf)
+    migrate.migrate(conf)
 
     # Request API write access from user
     session_file = conf.lastfm_session_file()

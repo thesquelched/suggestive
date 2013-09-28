@@ -1,6 +1,11 @@
 try:
     from setuptools import setup
     kwArgs = dict(
+        package_data={
+            'suggestive': ['alembic/env.py',
+                           'alembic/script.py.mako',
+                           'alembic/versions/*.py'],
+        },
         install_requires=[
             'urwid>=1.1.1',
             'python-mpd2>=0.5.1',
