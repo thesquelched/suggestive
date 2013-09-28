@@ -1,5 +1,5 @@
-Development
-===========
+Version 0.2.1
+=============
 
 Bug Fixes
 ----------
@@ -7,6 +7,7 @@ Bug Fixes
   all of the tracks are visible
 - (Un)loving a track in the playlist will be reflected in the corresponding
   expanded album in the library, if any
+- Added missing alembic package data
 
 Improvements
 ------------
