@@ -163,7 +163,8 @@ class Config(object):
         if self.use_256_colors():
             return (name, '', '', '', fg, bg)
         else:
-            return (name, fg, bg)
+            #return (name, fg, bg)
+            return (name, 'default', 'default')
 
     def palette(self):
         """Return the terminal color palette"""
