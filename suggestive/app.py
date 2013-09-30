@@ -904,7 +904,8 @@ class Application(Commandable):
         self.library_buffer.update_status('Library')
 
     def update_playlist_event(self):
-        self.playlist_buffer.update()
+        self.event_loop.set_alarm_in(0, self.playlist_buffer.update)
+        #self.playlist_buffer.update()
 
     def dispatch(self, key):
         if key in self.bindings:
