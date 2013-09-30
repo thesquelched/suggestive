@@ -237,6 +237,8 @@ class MpdLoader(object):
         if missing:
             logger.info('Found {} files in mpd library that are missing '
                         'from suggestive database'.format(len(missing)))
+            logger.debug('Missing files:\n  {}'.format(
+                '\n  '.join(missing)))
             missing_info = list(
                 chain.from_iterable(self.mpd.listallinfo(path)
                                     for path in missing))
