@@ -297,6 +297,7 @@ class LibraryBuffer(Buffer):
         self.session.commit()
         selection.update_text()
         self.redraw()
+        urwid.emit_signal(self, 'update_playlist')
 
     def unlove_selection(self):
         current = self.list_view.focus.original_widget
