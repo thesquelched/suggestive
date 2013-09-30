@@ -100,8 +100,9 @@ class SortOrder(OrderDecorator):
 
     """Sort by 'Artist - Album'"""
 
-    def __init__(self, ignore_artist_the=True):
+    def __init__(self, ignore_artist_the=True, reverse=False):
         self.ignore_artist_the = bool(ignore_artist_the)
+        self.reverse = (not bool(reverse))
 
     def _format(self, album):
         artist = album.artist.name
@@ -111,7 +112,7 @@ class SortOrder(OrderDecorator):
         return '{} - {}'.format(artist, album.name)
 
     def order(self, albums, session, mpd):
-        sorted_albums = sorted(albums, key=self._format, reverse=True)
+        sorted_albums = sorted(albums, key=self._format, reverse=self.reverse)
         return {album: i for i, album in enumerate(sorted_albums, 1)}
 
 
@@ -120,6 +121,9 @@ class ModifiedOrder(OrderDecorator):
     """Sort by modified date"""
 
     FMT = '%Y-%m-%dT%H:%M:%SZ'
+
+    def __init__(self, reverse=False):
+        self.reverse = bool(reverse)
 
     @classmethod
     def get_date(cls, album, mpd):
@@ -134,7 +138,8 @@ class ModifiedOrder(OrderDecorator):
     def order(self, albums, session, mpd):
         sorted_albums = sorted(
             albums,
-            key=lambda album: self.get_date(album, mpd))
+            key=lambda album: self.get_date(album, mpd),
+            reverse=self.reverse)
         return {album: i for i, album in enumerate(sorted_albums, 1)}
 
 
@@ -176,8 +181,9 @@ class FractionLovedOrder(OrderDecorator):
 
     """Order by fraction of tracks loved"""
 
-    def __init__(self, penalize_unloved=False, **kwArgs):
+    def __init__(self, reverse=False, penalize_unloved=False, **kwArgs):
         super(FractionLovedOrder, self).__init__()
+        self.reverse = bool(reverse)
 
         maximum = kwArgs.pop('max', None)
         minimum = kwArgs.pop('min', None)
@@ -241,16 +247,20 @@ class FractionLovedOrder(OrderDecorator):
         f_loved = n_loved / n_tracks
 
         if n_loved > 0:
-            return 1 + f_loved
+            order = 1 + f_loved
         else:
-            return 1.0 / n_tracks if self.penalize else 1.0
+            order = 1.0 / n_tracks if self.penalize else 1.0
+
+        return 1 / order if self.reverse else order
 
 
 class PlaycountOrder(OrderDecorator):
 
     """Order items based on playcount/scrobbles"""
 
-    def __init__(self, **kwArgs):
+    def __init__(self, reverse=False, **kwArgs):
+        self.reverse = bool(reverse)
+
         maximum = kwArgs.pop('max', None)
         minimum = kwArgs.pop('min', None)
 
@@ -295,9 +305,12 @@ class PlaycountOrder(OrderDecorator):
             if album not in neworder or n_tracks == 0:
                 continue
 
-            album_plays = n_scrobbles / n_tracks
-            if self.plays_min <= album_plays <= self.plays_max:
-                neworder[album] *= album_plays
+            plays = n_scrobbles / n_tracks
+            if self.plays_min <= plays <= self.plays_max:
+                if self.reverse:
+                    neworder[album] *= 1 / plays if plays > 0 else 1
+                else:
+                    neworder[album] *= plays
             else:
                 if album in neworder:
                     del neworder[album]
