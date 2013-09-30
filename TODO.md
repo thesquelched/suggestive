@@ -20,3 +20,4 @@ New features
 - ~~Multiple screens (library, now playing, etc)~~
 - Custom orderer combinations in config file
 - Link albums so that they are always displayed as one
+- Binding to filter on album/artist in playlist
