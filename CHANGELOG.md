@@ -12,6 +12,7 @@ Bug Fixes
 Improvements
 ------------
 - Playlist displays whether a track is loved or banned
+- Playlist now has go-to-top/bottom bindings (`g` and `G`, respectively)
 
 
 Version 0.2.0

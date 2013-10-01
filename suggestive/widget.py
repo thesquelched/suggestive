@@ -30,6 +30,19 @@ class SuggestiveListBox(urwid.ListBox):
         super(SuggestiveListBox, self).__init__(*args, **kwArgs)
         self._command_map = bindings.ListCommands
 
+    def keypress(self, size, key):
+        cmd = self._command_map[key]
+        if cmd in (bindings.GO_TO_TOP, bindings.GO_TO_BOTTOM):
+            n_items = len(self.body)
+            self.set_focus(0 if cmd == bindings.GO_TO_TOP else n_items - 1)
+        else:
+            return super(SuggestiveListBox, self).keypress(size, key)
+
+        # Necessary to get list focus to redraw
+        super(SuggestiveListBox, self).keypress(size, None)
+
+        return True
+
 
 class SelectableLibraryItem(urwid.WidgetWrap):
     __metaclass__ = urwid.signals.MetaSignals

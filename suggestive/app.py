@@ -160,6 +160,8 @@ class Buffer(urwid.Frame, Commandable):
         return True
 
     def dispatch(self, key):
+        logger.debug('Keypress to {}: {}'.format(
+            self.__class__.__name__, key))
         if key in self.bindings:
             func = self.bindings[key]
             func()
@@ -1131,7 +1133,7 @@ class ReverseAlbumSearcher(AlbumSearcher):
         ]
 
 
-class AlbumList(urwid.ListBox):
+class AlbumList(SuggestiveListBox):
 
     def __init__(self, app, *args, **kwArgs):
         super(AlbumList, self).__init__(*args, **kwArgs)
@@ -1244,9 +1246,6 @@ class AlbumList(urwid.ListBox):
         if cmd in (bindings.SEARCH_NEXT, bindings.SEARCH_PREV):
             backward = (cmd == bindings.SEARCH_PREV)
             self.next_search_item(backward=backward)
-        elif cmd in (bindings.GO_TO_TOP, bindings.GO_TO_BOTTOM):
-            n_items = len(self.body)
-            self.set_focus(0 if cmd == bindings.GO_TO_TOP else n_items - 1)
         elif cmd == 'expand':
             self.toggle_expand()
         else:
