@@ -256,8 +256,7 @@ class LibraryBuffer(Buffer):
     def love_track(self, track, loved=True):
         selection = self.find_track_selection(track)
         logger.debug('Found: {}'.format(selection))
-        if selection is not None:
-            self.love_tracks(selection, [track], loved=loved)
+        self.love_tracks(selection, [track], loved=loved)
 
     def unlove_track(self, track):
         self.love_track(track, loved=False)
@@ -295,7 +294,8 @@ class LibraryBuffer(Buffer):
             mstat.set_track_loved(self.session, fm, track, loved=loved)
 
         self.session.commit()
-        selection.update_text()
+        if selection is not None:
+            selection.update_text()
         self.redraw()
         urwid.emit_signal(self, 'update_playlist')
 
@@ -680,11 +680,6 @@ class PlaylistBuffer(Buffer):
 
         if value.lower()[0] == 'y':
             urwid.emit_signal(self, 'love_track', track)
-            #fm = mstat.initialize_lastfm(self.conf)
-            #mstat.set_track_loved(self.session, fm, track)
-
-            ##selection.update_text()
-            #self.redraw()
 
     def unlove_track(self):
         current_position = self.playlist.focus_position
@@ -723,10 +718,6 @@ class PlaylistBuffer(Buffer):
 
         if value.lower()[0] == 'y':
             urwid.emit_signal(self, 'unlove_track', track)
-            #fm = mstat.initialize_lastfm(self.conf)
-            #mstat.set_track_unloved(self.session, fm, track)
-
-            #self.redraw()
 
 
 class MainWindow(urwid.Frame):
