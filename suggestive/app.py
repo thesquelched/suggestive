@@ -160,8 +160,6 @@ class Buffer(urwid.Frame, Commandable):
         return True
 
     def dispatch(self, key):
-        logger.debug('Keypress to {}: {}'.format(
-            self.__class__.__name__, key))
         if key in self.bindings:
             func = self.bindings[key]
             func()
