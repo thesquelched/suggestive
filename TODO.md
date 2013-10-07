@@ -10,7 +10,6 @@ Bug fixes
 
 New features
 ------------
-- 'Recently played' buffer that displays whether a track is loved
 - ~~Mark songs loved~~
 - ~~Mark songs loved in playlist~~
 - ~~Sync scrobbles from all time~~
@@ -21,3 +20,4 @@ New features
 - Custom orderer combinations in config file
 - Link albums so that they are always displayed as one
 - Binding to filter on album/artist in playlist
+- Playlist search
