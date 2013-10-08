@@ -1,7 +1,7 @@
 suggestive
 ==========
 
-Python MPD client with integrated Last.FM
+Python MPD client with integrated Last.FM support
 
 Installation
 ============
