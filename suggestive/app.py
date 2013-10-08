@@ -14,6 +14,7 @@ from suggestive.widget import (
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 from suggestive.util import album_text
+from suggestive.search import Searcher
 import suggestive.migrate as migrate
 
 
@@ -25,7 +26,7 @@ import threading
 import re
 import os.path
 import sys
-from itertools import chain, islice
+from itertools import chain
 from mpd import CommandError
 
 logger = logging.getLogger('suggestive')
@@ -1011,126 +1012,6 @@ class Application(Commandable):
         return mainloop
 
 
-class AlbumSearcher(object):
-
-    def __init__(self, pattern, items, current):
-        self.pattern = pattern
-
-        self.matches, self.match_index = self.search(items, current)
-
-    def _order_items(self, items):
-        raise NotImplementedError
-
-    def _current_position(self, items, current):
-        raise NotImplementedError
-
-    def _indices(items):
-        raise NotImplementedError
-
-    def current_match(self):
-        return self.matches[self.match_index]
-
-    def search(self, items, current):
-        current = self._current_position(items, current)
-        items = self._order_items(items)
-
-        ordered = chain(
-            islice(items, current, None),
-            islice(items, 0, current)
-        )
-
-        albums = (item.original_widget.album for item in ordered)
-        search_items = (album_text(album) for album in albums)
-
-        indices = self._indices(search_items)
-        matches = [
-            (current + index) % len(items) for index in indices
-        ]
-
-        if not matches:
-            raise ValueError('No matches found')
-
-        if matches[0] == current and len(matches) > 1:
-            match_index = 1
-        else:
-            match_index = 0
-
-        logger.debug('{} matches found'.format(len(matches)))
-
-        return matches, match_index
-
-    def find_closest_match(self, current, backward=False):
-        if backward:
-            return next(
-                (len(self.matches) - idx - 1 for idx, position
-                 in enumerate(reversed(self.matches))
-                 if position < current),
-                len(self.matches) - 1
-            )
-        else:
-            return next(
-                (idx for idx, position in enumerate(self.matches)
-                 if position > current),
-                0
-            )
-
-    def next_match(self, current, backward=False):
-        if current != self.matches[self.match_index]:
-            index = self.find_closest_match(current, backward=backward)
-        else:
-            index = self.match_index + (-1 if backward else 1)
-
-        if index < 0:
-            return len(self.matches) - 1
-        elif index >= len(self.matches):
-            return 0
-        else:
-            return index
-
-    def next_search_item(self, current, backward=False):
-        if not self.matches or self.match_index is None:
-            logger.debug('No search found')
-            return None
-
-        index = self.next_match(current, backward=backward)
-        return self.matches[index]
-
-
-class ForwardAlbumSearcher(AlbumSearcher):
-
-    @classmethod
-    def _order_items(self, items):
-        return list(items)
-
-    @classmethod
-    def _current_position(self, _items, current):
-        return current
-
-    def _indices(self, items):
-        return [
-            i for i, item in enumerate(items)
-            if re.search(self.pattern, item, re.I) is not None
-        ]
-
-
-class ReverseAlbumSearcher(AlbumSearcher):
-
-    @classmethod
-    def _order_items(self, items):
-        return list(reversed(items))
-
-    @classmethod
-    def _current_position(self, items, current):
-        return len(items) - current - 1
-
-    def _indices(self, items):
-        n_items = len(items)
-        return [
-            (n_items - i - 1) for i, item in enumerate(items)
-            if re.search(self.pattern, item, re.I) is not None
-        ]
-
-
 class AlbumList(SuggestiveListBox):
 
     def __init__(self, app, *args, **kwArgs):
@@ -1144,7 +1025,8 @@ class AlbumList(SuggestiveListBox):
     def search(self, pattern, reverse=False):
         self.searcher = None
 
-        searcher = ReverseAlbumSearcher if reverse else ForwardAlbumSearcher
+        #searcher = ReverseAlbumSearcher if reverse else ForwardAlbumSearcher
+        searcher = Searcher
 
         try:
             self.searcher = searcher(

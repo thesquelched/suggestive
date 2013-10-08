@@ -59,6 +59,9 @@ class SelectableLibraryItem(urwid.WidgetWrap):
         else:
             return key
 
+    def text(self):
+        return self._w.get_text()[0]
+
 
 class SelectableAlbum(SelectableLibraryItem):
 
