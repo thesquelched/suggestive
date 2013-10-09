@@ -4,6 +4,30 @@ import shlex
 
 
 COMMAND_KWARG_RGX = re.compile(r'^(\w+)=(.*?)$')
+TRUTHY = (True, 'True', 'TRUE', 'true', 1, 'yes')
+
+
+def convert(ptype, value):
+    if value == '':
+        return None
+    elif ptype is bool:
+        return True if value in TRUTHY else False
+    else:
+        return ptype(value)
+
+
+def typed(**params):
+    def decorator(func):
+        def decorated(self, *args, **kwArgs):
+            for name, ptype in params.items():
+                if name not in kwArgs:
+                    continue
+
+                kwArgs[name] = convert(ptype, kwArgs[name])
+
+            return func(self, *args, **kwArgs)
+        return decorated
+    return decorator
 
 
 class CommanderEdit(urwid.Edit):
