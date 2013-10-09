@@ -238,6 +238,7 @@ class LibraryBuffer(Buffer):
         )
 
         commands = {
+            'reset': self.reset_orderers,
             'unorder': self.clear_orderers,
             'unordered': self.clear_orderers,
             'love': self.love_selection,
@@ -339,10 +340,16 @@ class LibraryBuffer(Buffer):
         return add_func
 
     def setup_bindings(self):
-        return {
+        keybinds = {
             '/': lambda: self.start_search(),
-            'esc': lambda: self.reset_orderers(),
         }
+
+        if self.conf.esc_resets_orderers():
+            keybinds.update({
+                'esc': lambda: self.reset_orderers(),
+            })
+
+        return keybinds
 
     def suggestion_list(self):
         body = []

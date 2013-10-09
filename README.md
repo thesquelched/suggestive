@@ -143,7 +143,8 @@ Library
 
 `suggestive` tries to order your library so that albums you'd probably like to listen to are close to the top, while albums you don't like are towards the bottom.  However, you can change what's displayed using one or more filters or orderers.  Note that you can compose multiple filters/orderers by issuing succesive commands.
 
-- `<ESC>` - Clear all filters/orderers, restoring the default ordering
+- `<ESC>` - Clear all filters/orderers, restoring the default ordering (may be
+  disabled with the `library/esc_resets_orderers` config option)
 - `:album <name>` - (Alias: `al`) Only display albums matching `name`
   (case-insensitive)
 - `:artist <name>` - (Alias: `ar`) Only display albums of the artist matching
@@ -157,7 +158,8 @@ Library
 - `:banned <remove_banned=true>` - Penalize (or remove) albums with banned
   tracks from the library
 - `:sort <reverse=false>` - Sort albums using the string 'artist - album'
-- `:unorder` - Remove all orderings
+- `:reset` - Reset library order to default
+- `:unorder` - Remove all orderings (Alias: `unordered`)
 - `:love` - Mark the selected album/track loved in LastFM
 - `:unlove` - Mark the selected album/track unloved in LastFM
 

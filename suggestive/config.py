@@ -74,6 +74,7 @@ class Config(object):
             default_order='loved min=0 max=1;'
                           'banned remove_banned=true',
             show_score=False,
+            esc_resets_orderers=True,
         ),
     )
 
@@ -236,3 +237,7 @@ class Config(object):
     def show_score(self):
         """Return True if the library should show album order scores"""
         return self.parser.getboolean('library', 'show_score')
+
+    def esc_resets_orderers(self):
+        """Return True if the escape key should clear library orderers"""
+        return self.parser.getboolean('library', 'esc_resets_orderers')

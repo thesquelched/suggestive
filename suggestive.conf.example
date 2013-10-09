@@ -61,3 +61,6 @@
 
 # Show the ordering score for albums
 # show_score = false
+
+# Reset library order with the 'escape' key
+# esc_resets_orderers = false
