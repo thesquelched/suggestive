@@ -58,3 +58,6 @@
 
 # Default commands for library ordering, separated by a semicolon
 #default_order = loved min=0 max=1; banned remove_banned=true
+
+# Show the ordering score for albums
+# show_score = false

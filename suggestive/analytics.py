@@ -17,8 +17,9 @@ logger.addHandler(logging.NullHandler())
 
 class Suggestion(object):
 
-    def __init__(self, album):
+    def __init__(self, album, order=None):
         self.album = album
+        self.order = order
         #self.loved = [
         #    track for track in album.tracks
         #    if track.lastfm_info and track.lastfm_info.loved
@@ -333,10 +334,9 @@ class Analytics(object):
         for album_orderer in orderers:
             ordered = album_orderer.order(ordered, session, mpd)
 
-        albums = [album for album, order in sorted(
+        sorted_order = sorted(
             ordered.items(),
             reverse=True,
             key=itemgetter(1))
-        ]
 
-        return [Suggestion(album) for album in albums]
+        return [Suggestion(album, order) for album, order in sorted_order]

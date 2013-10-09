@@ -134,6 +134,8 @@ General commands
 - `playlist` - toggle playlist buffer
 - `library` - toggle library buffer
 - `orientation` - (Alias: `or`) toggle between vertical and horizontal orientations
+- `score <show=bool>` - Toggle or set whether or not to show the ordering score
+  in the library
 
 
 Library

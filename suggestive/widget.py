@@ -65,10 +65,14 @@ class SelectableLibraryItem(urwid.WidgetWrap):
 
 class SelectableAlbum(SelectableLibraryItem):
 
-    def __init__(self, suggestion):
+    def __init__(self, suggestion, show_score=False):
         self.content = self.album = suggestion.album
         self.expanded = False
+
         text = album_text(self.album)
+        if show_score:
+            text = '{} ({:.4g})'.format(text, suggestion.order)
+
         super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
 
     def update_text(self):

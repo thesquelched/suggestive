@@ -72,7 +72,8 @@ class Config(object):
         library=dict(
             ignore_artist_the=True,
             default_order='loved min=0 max=1;'
-                          'banned remove_banned=true'
+                          'banned remove_banned=true',
+            show_score=False,
         ),
     )
 
@@ -231,3 +232,7 @@ class Config(object):
         """Return the default orderers"""
         raw = self.parser['library']['default_order']
         return [cmd.strip() for cmd in re.split(r'\s*;\s*', raw)]
+
+    def show_score(self):
+        """Return True if the library should show album order scores"""
+        return self.parser.getboolean('library', 'show_score')

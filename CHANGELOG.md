@@ -13,6 +13,7 @@ Improvements
 ------------
 - Playlist displays whether a track is loved or banned
 - Playlist now has go-to-top/bottom bindings (`g` and `G`, respectively)
+- Toggle whether or not to display album order scores in the library
 
 
 Version 0.2.0

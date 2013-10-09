@@ -8,7 +8,7 @@ from suggestive.analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
     SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)
 from suggestive.config import Config
-from suggestive.command import CommanderEdit, Commandable
+from suggestive.command import CommanderEdit, Commandable, typed
 from suggestive.widget import (
     Prompt, SuggestiveListBox, SelectableAlbum, SelectableTrack)
 import suggestive.bindings as bindings
@@ -177,6 +177,9 @@ class LibraryBuffer(Buffer):
 
     def __init__(self, conf, session):
         self.conf = conf
+
+        self.show_score = conf.show_score()
+
         self.session = session
         self.commands = self.setup_commands()
 
@@ -344,7 +347,7 @@ class LibraryBuffer(Buffer):
     def suggestion_list(self):
         body = []
         for suggestion in self.suggestions:
-            item = SelectableAlbum(suggestion)
+            item = SelectableAlbum(suggestion, self.show_score)
 
             urwid.connect_signal(item, 'enqueue', self.enqueue_album)
             urwid.connect_signal(item, 'play', self.play_album)
@@ -930,12 +933,22 @@ class Application(Commandable):
             'q': self.exit,
             'orientation': self.change_orientation,
             'or': self.change_orientation,
+            'score': self.toggle_show_score,
         }
 
     def clear_playlist(self):
         self.playlist_buffer.clear_mpd_playlist()
         if self.buffers.current_buffer() is self.playlist_buffer:
             self.buffers.go_to_buffer(self.library_buffer)
+
+    @typed(show=bool)
+    def toggle_show_score(self, show=None):
+        current = self.library_buffer.show_score
+        logger.debug('Toggle show score; current={}, show={}'.format(
+            current, show))
+        if show is None or bool(show) != current:
+            self.library_buffer.show_score = not current
+            self.library_buffer.update_suggestions()
 
     def pause(self):
         mpd = mstat.initialize_mpd(self.conf)
