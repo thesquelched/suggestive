@@ -21,3 +21,4 @@ New features
 - Link albums so that they are always displayed as one
 - Binding to filter on album/artist in playlist
 - Playlist search
+- Command to perform MPD update on selected album
