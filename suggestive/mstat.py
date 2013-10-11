@@ -56,8 +56,8 @@ class ScrobbleLoader(object):
 
         db_scrobble_info = session.query(ScrobbleInfo).\
             filter(
-                ScrobbleInfo.title_insensitive == track and
-                ScrobbleInfo.artist_insensitive == artist and
+                ScrobbleInfo.title_insensitive == track,
+                ScrobbleInfo.artist_insensitive == artist,
                 ScrobbleInfo.album_insensitive == album).\
             first()
 
@@ -89,10 +89,11 @@ class ScrobbleLoader(object):
         session.add(scrobble)
 
         db_track = session.query(Track).\
-            join(Artist, Album).\
+            join(Track.artist).\
+            join(Track.album).\
             filter(
-                Artist.name_insensitive == artist and
-                Album.name_insensitive == album and
+                Artist.name_insensitive == artist,
+                Album.name_insensitive == album,
                 Track.name_insensitive == track).\
             first()
 
@@ -232,7 +233,9 @@ class MpdLoader(object):
     def segregate_track_info(self, missing_info):
         by_artist = defaultdict(list)
         for info in missing_info:
-            by_artist[info.get('artist')].append(info)
+            artist = info.get('albumartist', info.get('artist'))
+
+            by_artist[artist].append(info)
 
         by_artist_album = defaultdict(lambda: defaultdict(list))
         for artist, info_list in by_artist.items():
@@ -270,10 +273,6 @@ class MpdLoader(object):
 
         self.remove_duplicates(session)
 
-    def initialize(self, session):
-        for artist in self.mpd.list('artist'):
-            self.load_artist(session, artist)
-
 
 class TrackInfoLoader(object):
 
@@ -301,7 +300,7 @@ class TrackInfoLoader(object):
         return session.query(Track).\
             join(Artist).\
             filter(
-                Track.name_insensitive == track and
+                Track.name_insensitive == track,
                 Artist.name_insensitive == artist).\
             first()
 
