@@ -90,9 +90,10 @@ class ScrobbleLoader(object):
 
         db_track = session.query(Track).\
             join(Artist, Album).\
-            filter(Artist.name_insensitive == artist).\
-            filter(Album.name_insensitive == album).\
-            filter(Track.name_insensitive == track).\
+            filter(
+                Artist.name_insensitive == artist and
+                Album.name_insensitive == album and
+                Track.name_insensitive == track).\
             first()
 
         if db_track:
@@ -155,11 +156,13 @@ class MpdLoader(object):
             if not album:
                 continue
 
-            logger.debug("Loading {} tracks from album '{}'".format(
-                len(info_list), album))
+            logger.debug("Loading {} tracks from '{} - {}'".format(
+                len(info_list), db_artist.name, album))
 
-            db_album = session.query(Album).filter_by(
-                name_insensitive=album).first()
+            db_album = session.query(Album).\
+                filter(Album.name_insensitive == album).\
+                filter(Album.artist == db_artist).\
+                first()
             if not db_album:
                 db_album = Album(name=album)
                 db_artist.albums.append(db_album)
@@ -226,6 +229,25 @@ class MpdLoader(object):
                     "directories: {}".format(
                         album.artist.name, album.name, ', '.join(dirs)))
 
+    def segregate_track_info(self, missing_info):
+        by_artist = defaultdict(list)
+        for info in missing_info:
+            by_artist[info.get('artist')].append(info)
+
+        by_artist_album = defaultdict(lambda: defaultdict(list))
+        for artist, info_list in by_artist.items():
+            for info in info_list:
+                by_artist_album[artist][info.get('album')].append(info)
+
+        for artist, by_album in by_artist_album.items():
+            for album, tracks in by_album.items():
+                track_txt = 'Tracks:\n  {}'.format(
+                    '\n  '.join(info['file'] for info in tracks))
+                logger.debug('Tracks for {} - {}:\n  '.format(
+                    artist, album, track_txt))
+
+        return by_artist_album
+
     def load(self, session):
         files_in_mpd = set(self.mpd.list('file'))
         files_in_db = set(item.filename for item in session.query(
@@ -243,15 +265,7 @@ class MpdLoader(object):
                 chain.from_iterable(self.mpd.listallinfo(path)
                                     for path in missing))
 
-            by_artist = defaultdict(list)
-            for info in missing_info:
-                by_artist[info.get('artist')].append(info)
-
-            by_artist_album = defaultdict(lambda: defaultdict(list))
-            for artist, info_list in by_artist.items():
-                for info in info_list:
-                    by_artist_album[artist][info.get('album')].append(info)
-
+            by_artist_album = self.segregate_track_info(missing_info)
             self.load_by_artist_album(session, by_artist_album)
 
         self.remove_duplicates(session)
@@ -286,8 +300,9 @@ class TrackInfoLoader(object):
     def find_track(self, session, artist, track):
         return session.query(Track).\
             join(Artist).\
-            filter(Track.name_insensitive == track).\
-            filter(Artist.name_insensitive == artist).\
+            filter(
+                Track.name_insensitive == track and
+                Artist.name_insensitive == artist).\
             first()
 
     def find_artist(self, session, artist):

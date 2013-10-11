@@ -8,6 +8,10 @@ Bug Fixes
 - (Un)loving a track in the playlist will be reflected in the corresponding
   expanded album in the library, if any
 - Added missing alembic package data
+- Fixed issue in which tracks from different albums with the same name were
+  associated with the same album
+- `suggestive` database updates now correctly wait for the MPD database to
+  finish updating
 
 Improvements
 ------------
