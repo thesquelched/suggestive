@@ -1,3 +1,13 @@
+Development
+===========
+
+Bug Fixes
+---------
+
+Improvements
+------------
+
+
 Version 0.2.1
 =============
 
