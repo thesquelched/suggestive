@@ -10,15 +10,15 @@ Bug fixes
 
 New features
 ------------
-- ~~Mark songs loved~~
-- ~~Mark songs loved in playlist~~
-- ~~Sync scrobbles from all time~~
 - Less crappy command completion
-- ~~Song progress~~
 - Color code part of track title (like blue album, red artist, yellow song)
-- ~~Multiple screens (library, now playing, etc)~~
 - Custom orderer combinations in config file
 - Link albums so that they are always displayed as one
 - Binding to filter on album/artist in playlist
 - Playlist search
 - Command to perform MPD update on selected album
+- ~~Mark songs loved~~
+- ~~Mark songs loved in playlist~~
+- ~~Sync scrobbles from all time~~
+- ~~Song progress~~
+- ~~Multiple screens (library, now playing, etc)~~
