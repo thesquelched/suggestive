@@ -72,6 +72,8 @@ class DatabaseUpdateThread(AppThread):
         logger.info('Start MPD update')
         mpd = mstat.initialize_mpd(self.conf)
         mpd.update()
+        mpd.idle('update')
+
         logger.info('Finished MPD update')
 
         if self.quit_event.is_set():
