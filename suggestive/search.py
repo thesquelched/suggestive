@@ -29,7 +29,7 @@ class Searcher(object):
             islice(items, 0, current)
         )
 
-        items_text = [item.original_widget.text() for item in items_wrap]
+        items_text = [item.original_widget.item_text() for item in items_wrap]
         indices = self._indices(items_text)
 
         matches = [(current + index) % n_items for index in indices]

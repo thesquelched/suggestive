@@ -59,7 +59,7 @@ class SelectableLibraryItem(urwid.WidgetWrap):
         else:
             return key
 
-    def text(self):
+    def item_text(self):
         return self._w.get_text()[0]
 
 
