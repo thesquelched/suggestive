@@ -4,6 +4,7 @@ Development
 Improvements
 ------------
 - Search can now be performed forward or backward
+- Playlist now supports search and shares the same pattern with the library
 
 Bug Fixes
 ---------
