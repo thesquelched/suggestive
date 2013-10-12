@@ -15,6 +15,7 @@ import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 from suggestive.util import album_text
 import suggestive.migrate as migrate
+from suggestive.search import LazySearcher
 
 
 import argparse
@@ -37,6 +38,9 @@ MEGABYTE = 1024 * 1024
 class BufferList(object):
     def __init__(self):
         self.buffers = []
+
+    def __iter__(self):
+        return iter(self.buffers)
 
     def next_buffer(self):
         current_buffer = self.focus
@@ -96,6 +100,9 @@ class HorizontalBufferList(urwid.Pile, BufferList):
         BufferList.__init__(self)
         urwid.Pile.__init__(self, [])
 
+    def __iter__(self):
+        return BufferList.__iter__(self)
+
     def add(self, buf, *options):
         self.buffers.append(buf)
 
@@ -107,6 +114,9 @@ class VerticalBufferList(urwid.Columns, BufferList):
     def __init__(self):
         BufferList.__init__(self)
         urwid.Columns.__init__(self, [])
+
+    def __iter__(self):
+        return BufferList.__iter__(self)
 
     def add(self, buf):
         self.buffers.append(buf)
@@ -147,10 +157,7 @@ class Buffer(urwid.Frame, Commandable):
         urwid.emit_signal(self, 'redraw')
 
     def setup_bindings(self):
-        return {
-            '/': lambda: self.start_search(),
-            '?': lambda: self.start_search(reverse=True),
-        }
+        return {}
 
     def setup_commands(self):
         return {}
@@ -173,6 +180,12 @@ class Buffer(urwid.Frame, Commandable):
     def will_accept_focus(self):
         return True
 
+    def search(self, searcher):
+        raise NotImplementedError
+
+    def next_search(self):
+        raise NotImplementedError
+
 
 class LibraryBuffer(Buffer):
     signals = Buffer.signals + ['update_playlist']
@@ -189,6 +202,7 @@ class LibraryBuffer(Buffer):
 
         self.orderers = [BaseOrder()]
         self.default_orderers = list(self.init_default_orderers(conf))
+        self.searcher = None
 
         self.suggestions = []
 
@@ -199,6 +213,12 @@ class LibraryBuffer(Buffer):
 
         super(LibraryBuffer, self).__init__(self.list_view)
         self.update_status('Library')
+
+    def search(self, searcher):
+        self.list_view.search(searcher)
+
+    def next_search(self):
+        self.list_view.next_search_item()
 
     def orderer_command(self, orderer, defaults):
         if not defaults:
@@ -376,7 +396,6 @@ class LibraryBuffer(Buffer):
 
         self.list_view = self.suggestion_list()
         self.set_body(self.list_view)
-        #self.redraw()
 
     def get_suggestions(self):
         return self.anl.order_albums(self.session, self.orderers)
@@ -420,24 +439,6 @@ class LibraryBuffer(Buffer):
         ids = self.enqueue_tracks(tracks)
         if ids:
             mpd.playid(ids[0])
-
-    def start_search(self, reverse=False):
-        self.edit = Prompt('/')
-        urwid.connect_signal(self.edit, 'prompt_done', self.search_done,
-                             reverse)
-        footer = urwid.AttrMap(self.edit, 'footer')
-        self.update_footer(footer)
-        self.update_focus('footer')
-
-    def search_done(self, pattern, reverse=False):
-        logger.debug('Reverse: {}'.format(reverse))
-        self.update_focus('body')
-        urwid.disconnect_signal(self, self.edit, 'prompt_done',
-                                self.search_done)
-
-        if pattern:
-            logger.info('SEARCH FOR: {}'.format(pattern))
-            self.list_view.search(pattern, reverse=reverse)
 
     def add_orderer(self, orderer_class, *args, **kwArgs):
         orderer = orderer_class(*args, **kwArgs)
@@ -484,6 +485,7 @@ class PlaylistBuffer(Buffer):
         self.conf = conf
         self.session = session
         self.status_format = conf.playlist_status_format()
+        self.searcher = None
 
         self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
         walker = urwid.SimpleFocusListWalker(self.playlist_items())
@@ -493,23 +495,11 @@ class PlaylistBuffer(Buffer):
 
         self.update_status('Playlist')
 
-    def start_search(self, reverse=False):
-        self.edit = Prompt('/')
-        urwid.connect_signal(self.edit, 'prompt_done', self.search_done,
-                             reverse)
-        footer = urwid.AttrMap(self.edit, 'footer')
-        self.update_footer(footer)
-        self.update_focus('footer')
+    def search(self, searcher):
+        self.playlist.search(searcher)
 
-    def search_done(self, pattern, reverse=False):
-        logger.debug('Reverse: {}'.format(reverse))
-        self.update_focus('body')
-        urwid.disconnect_signal(self, self.edit, 'prompt_done',
-                                self.search_done)
-
-        if pattern:
-            logger.info('SEARCH FOR: {}'.format(pattern))
-            self.playlist.search(pattern, reverse=reverse)
+    def next_search(self):
+        self.playlist.next_search_item()
 
     def will_accept_focus(self):
         mpd = mstat.initialize_mpd(self.conf)
@@ -924,7 +914,6 @@ class Application(Commandable):
 
     def update_playlist_event(self):
         self.event_loop.set_alarm_in(0, self.playlist_buffer.update)
-        #self.playlist_buffer.update()
 
     def dispatch(self, key):
         if key in self.bindings:
@@ -947,6 +936,8 @@ class Application(Commandable):
             'ctrl w': lambda: self.buffers.next_buffer(),
             'c': self.clear_playlist,
             'r': self.update_library_event,
+            '/': lambda: self.start_search(),
+            '?': lambda: self.start_search(reverse=True),
         }
 
     def setup_commands(self):
@@ -976,6 +967,29 @@ class Application(Commandable):
     def pause(self):
         mpd = mstat.initialize_mpd(self.conf)
         mpd.pause()
+
+    def start_search(self, reverse=False):
+        self.edit = Prompt('/')
+        urwid.connect_signal(self.edit, 'prompt_done', self.search_done,
+                             reverse)
+        footer = urwid.AttrMap(self.edit, 'footer')
+        self.update_footer(footer)
+        self.top.update_focus('footer')
+
+    def search_done(self, pattern, reverse=False):
+        logger.debug('Reverse: {}'.format(reverse))
+        self.top.update_focus('body')
+        urwid.disconnect_signal(self, self.edit, 'prompt_done',
+                                self.search_done)
+
+        if pattern:
+            logger.info('SEARCH FOR: {}'.format(pattern))
+            searcher = LazySearcher(pattern, reverse=reverse)
+
+            for buf in self.buffers:
+                buf.search(searcher)
+
+            self.buffers.current_buffer().next_search()
 
     def start_command(self):
         self.edit = CommanderEdit(self.command_history)
@@ -1093,7 +1107,6 @@ class AlbumList(SuggestiveListBox):
 
         album_widget.original_widget.expanded = True
         self.set_focus_valign('top')
-        #self.body.insert(current + 1, self.focus)
 
     def collapse_album(self, album_widget):
         current = self.focus_position

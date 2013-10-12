@@ -1,6 +1,5 @@
 import suggestive.bindings as bindings
 from suggestive.util import album_text
-from suggestive.search import LazySearcher
 
 import urwid
 import logging
@@ -41,9 +40,8 @@ class SuggestiveListBox(urwid.ListBox):
     def update_footer(self, *args, **kwArgs):
         urwid.emit_signal(self, 'set_footer', *args, **kwArgs)
 
-    def search(self, pattern, reverse=False):
-        self.searcher = LazySearcher(pattern, reverse)
-        self.next_search_item()
+    def search(self, searcher):
+        self.searcher = searcher
 
     def get_next_search(self, backward=False):
         if self.searcher is None:
@@ -52,7 +50,6 @@ class SuggestiveListBox(urwid.ListBox):
 
         index = self.searcher.next_item(self.body, self.focus_position,
                                         backward=backward)
-        logger.debug('INDEX: {}'.format(index))
         if index is None:
             raise ValueError('No match found')
 
