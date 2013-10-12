@@ -16,8 +16,8 @@ New features
 - Custom orderer combinations in config file
 - Link albums so that they are always displayed as one
 - Binding to filter on album/artist in playlist
-- Playlist search
 - Command to perform MPD update on selected album
+- ~~Playlist search~~
 - ~~Backwards search~~
 - ~~Mark songs loved~~
 - ~~Mark songs loved in playlist~~

@@ -10,11 +10,10 @@ from suggestive.analytics import (
 from suggestive.config import Config
 from suggestive.command import CommanderEdit, Commandable, typed
 from suggestive.widget import (
-    Prompt, SuggestiveListBox, SelectableAlbum, SelectableTrack)
+    Prompt, SuggestiveListBox, SelectableAlbum, SelectableTrack, PlaylistItem)
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 from suggestive.util import album_text
-from suggestive.search import LazySearcher
 import suggestive.migrate as migrate
 
 
@@ -148,7 +147,10 @@ class Buffer(urwid.Frame, Commandable):
         urwid.emit_signal(self, 'redraw')
 
     def setup_bindings(self):
-        return {}
+        return {
+            '/': lambda: self.start_search(),
+            '?': lambda: self.start_search(reverse=True),
+        }
 
     def setup_commands(self):
         return {}
@@ -340,10 +342,7 @@ class LibraryBuffer(Buffer):
         return add_func
 
     def setup_bindings(self):
-        keybinds = {
-            '/': lambda: self.start_search(),
-            '?': lambda: self.start_search(reverse=True),
-        }
+        keybinds = super(LibraryBuffer, self).setup_bindings()
 
         if self.conf.esc_resets_orderers():
             keybinds.update({
@@ -489,20 +488,42 @@ class PlaylistBuffer(Buffer):
         self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
         walker = urwid.SimpleFocusListWalker(self.playlist_items())
         self.playlist = SuggestiveListBox(walker)
+        urwid.connect_signal(self.playlist, 'set_footer', self.update_footer)
         super(PlaylistBuffer, self).__init__(self.playlist)
 
         self.update_status('Playlist')
+
+    def start_search(self, reverse=False):
+        self.edit = Prompt('/')
+        urwid.connect_signal(self.edit, 'prompt_done', self.search_done,
+                             reverse)
+        footer = urwid.AttrMap(self.edit, 'footer')
+        self.update_footer(footer)
+        self.update_focus('footer')
+
+    def search_done(self, pattern, reverse=False):
+        logger.debug('Reverse: {}'.format(reverse))
+        self.update_focus('body')
+        urwid.disconnect_signal(self, self.edit, 'prompt_done',
+                                self.search_done)
+
+        if pattern:
+            logger.info('SEARCH FOR: {}'.format(pattern))
+            self.playlist.search(pattern, reverse=reverse)
 
     def will_accept_focus(self):
         mpd = mstat.initialize_mpd(self.conf)
         return len(mpd.playlistinfo()) > 0
 
     def setup_bindings(self):
-        return {
+        keybinds = super(PlaylistBuffer, self).setup_bindings()
+        keybinds.update({
             #'c': self.clear_mpd_playlist,
             'd': self.delete_track,
             'enter': self.play_track,
-        }
+        })
+
+        return keybinds
 
     def setup_commands(self):
         return {
@@ -554,7 +575,7 @@ class PlaylistBuffer(Buffer):
 
         body = []
         for position, track in enumerate(playlist):
-            text = urwid.SelectableIcon(self.format_track(track))
+            text = PlaylistItem(self.format_track(track))
             if position == current_position:
                 styles = ('playing', 'playing focus')
             else:
@@ -1028,41 +1049,13 @@ class Application(Commandable):
 
 
 class AlbumList(SuggestiveListBox):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['set_footer']
-
     def __init__(self, app, *args, **kwArgs):
         super(AlbumList, self).__init__(*args, **kwArgs)
 
+        # TODO: dirty, filthy hack. Do bindings externally and pass in conf
         self.app = app
-        self.searcher = None
 
         self._command_map = bindings.AlbumListCommands
-
-    def search(self, pattern, reverse=False):
-        self.searcher = LazySearcher(pattern, reverse)
-        self.next_search_item()
-
-    def get_next_search(self, backward=False):
-        if self.searcher is None:
-            logger.debug('No search found')
-            return
-
-        index = self.searcher.next_item(self.body, self.focus_position,
-                                        backward=backward)
-        if index is None:
-            raise ValueError('No search found')
-
-        return index
-
-    def next_search_item(self, backward=False):
-        try:
-            self.set_focus(self.get_next_search(backward))
-        except ValueError:
-            self.update_footer('No match found')
-
-    def update_footer(self, *args, **kwArgs):
-        urwid.emit_signal(self, 'set_footer', *args, **kwArgs)
 
     def sort_tracks(self, tracks):
         track_and_num = []
@@ -1137,10 +1130,7 @@ class AlbumList(SuggestiveListBox):
 
     def keypress(self, size, key):
         cmd = self._command_map[key]
-        if cmd in (bindings.SEARCH_NEXT, bindings.SEARCH_PREV):
-            backward = (cmd == bindings.SEARCH_PREV)
-            self.next_search_item(backward=backward)
-        elif cmd == 'expand':
+        if cmd == 'expand':
             self.toggle_expand()
         else:
             return super(AlbumList, self).keypress(size, key)

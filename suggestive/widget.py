@@ -1,7 +1,12 @@
 import suggestive.bindings as bindings
 from suggestive.util import album_text
+from suggestive.search import LazySearcher
 
 import urwid
+import logging
+
+logger = logging.getLogger('suggestive')
+logger.addHandler(logging.NullHandler())
 
 
 class Prompt(urwid.Edit):
@@ -25,16 +30,52 @@ class Prompt(urwid.Edit):
 
 
 class SuggestiveListBox(urwid.ListBox):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['set_footer']
 
     def __init__(self, *args, **kwArgs):
         super(SuggestiveListBox, self).__init__(*args, **kwArgs)
         self._command_map = bindings.ListCommands
+        self.searcher = None
+
+    def update_footer(self, *args, **kwArgs):
+        urwid.emit_signal(self, 'set_footer', *args, **kwArgs)
+
+    def search(self, pattern, reverse=False):
+        self.searcher = LazySearcher(pattern, reverse)
+        self.next_search_item()
+
+    def get_next_search(self, backward=False):
+        if self.searcher is None:
+            logger.debug('No search found')
+            return
+
+        index = self.searcher.next_item(self.body, self.focus_position,
+                                        backward=backward)
+        logger.debug('INDEX: {}'.format(index))
+        if index is None:
+            raise ValueError('No match found')
+
+        return index
+
+    def next_search_item(self, backward=False):
+        try:
+            next_idx = self.get_next_search(backward)
+            if next_idx is None:
+                return
+
+            self.set_focus(next_idx)
+        except ValueError:
+            self.update_footer('No match found')
 
     def keypress(self, size, key):
         cmd = self._command_map[key]
         if cmd in (bindings.GO_TO_TOP, bindings.GO_TO_BOTTOM):
             n_items = len(self.body)
             self.set_focus(0 if cmd == bindings.GO_TO_TOP else n_items - 1)
+        elif cmd in (bindings.SEARCH_NEXT, bindings.SEARCH_PREV):
+            backward = (cmd == bindings.SEARCH_PREV)
+            self.next_search_item(backward=backward)
         else:
             return super(SuggestiveListBox, self).keypress(size, key)
 
@@ -44,7 +85,13 @@ class SuggestiveListBox(urwid.ListBox):
         return True
 
 
-class SelectableLibraryItem(urwid.WidgetWrap):
+class SearchableItem(object):
+
+    def item_text(self):
+        return self._w.get_text()[0]
+
+
+class SelectableLibraryItem(urwid.WidgetWrap, SearchableItem):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['enqueue', 'play']
 
@@ -58,9 +105,6 @@ class SelectableLibraryItem(urwid.WidgetWrap):
             urwid.emit_signal(self, 'play', self.content)
         else:
             return key
-
-    def item_text(self):
-        return self._w.get_text()[0]
 
 
 class SelectableAlbum(SelectableLibraryItem):
@@ -108,3 +152,10 @@ class SelectableTrack(SelectableLibraryItem):
 
     def tracks(self):
         return [self.track]
+
+
+class PlaylistItem(urwid.WidgetWrap, SearchableItem):
+
+    def __init__(self, *args, **kwArgs):
+        super(PlaylistItem, self).__init__(
+            urwid.SelectableIcon(*args, **kwArgs))

@@ -46,20 +46,7 @@ class Bindings(urwid.CommandMap):
         for key, command in bindings.items():
             self.__setitem__(key, command)
 
-ListCommands = Bindings({
-    UP: ('k', 'up'),
-    DOWN: ('j', 'down'),
-    LEFT: ('h', 'left'),
-    RIGHT: ('l', 'right'),
-    PAGE_UP: ('ctrl b', 'page up'),
-    PAGE_DOWN: ('ctrl f', 'page down'),
-
-    GO_TO_TOP: ('g', 'home'),
-    GO_TO_BOTTOM: ('G', 'end'),
-})
-
-
-AlbumListCommands = Bindings({
+base_commands = {
     UP: ('k', 'up'),
     DOWN: ('j', 'down'),
     LEFT: ('h', 'left'),
@@ -72,8 +59,15 @@ AlbumListCommands = Bindings({
 
     SEARCH_NEXT: ('n',),
     SEARCH_PREV: ('N',),
+}
 
-    ENQUEUE: (' ',),
-    PLAY: ('enter',),
-    EXPAND: ('z',),
-})
+ListCommands = Bindings(base_commands)
+
+AlbumListCommands = Bindings(dict(
+    list(base_commands.items()) +
+    [
+        (ENQUEUE, (' ',)),
+        (PLAY, ('enter',)),
+        (EXPAND, ('z',)),
+    ]
+))
