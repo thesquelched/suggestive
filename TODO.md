@@ -4,7 +4,7 @@ TODO
 Bug fixes
 ---------
 - ESC shouldn't move cursor to the top of the screen
-- Search is not updated for expanded tracks
+- ~~Search is not updated for expanded tracks~~
 - ~~Track ordering is not correct~~
 - ~~Update should remove items that have been delete from the MPD DB~~
 - ~~Loving songs in playlist should cause library redraw if album is expanded~~
@@ -18,6 +18,7 @@ New features
 - Binding to filter on album/artist in playlist
 - Playlist search
 - Command to perform MPD update on selected album
+- ~~Backwards search~~
 - ~~Mark songs loved~~
 - ~~Mark songs loved in playlist~~
 - ~~Sync scrobbles from all time~~

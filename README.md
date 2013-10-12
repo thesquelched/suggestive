@@ -106,6 +106,7 @@ Search
 ------
 
 - `/` - Search forward
+- `?` - Search backward
 - `n` - Next search result
 - `N` - Previous search result
 

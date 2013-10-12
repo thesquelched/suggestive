@@ -6,6 +6,38 @@ logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
 
 
+class LazySearcher(object):
+
+    def __init__(self, pattern, reverse=False):
+        self.pattern = pattern
+        self.reverse = bool(reverse)
+
+    def match(self, item):
+        match = re.search(
+            self.pattern, item.original_widget.item_text(), re.I)
+
+        return match is not None
+
+    def next_item(self, items, position, backward=False):
+        enumerated = list(enumerate(items))
+        if self.reverse:
+            backward = not backward
+
+        if backward:
+            ordered = chain(
+                reversed(enumerated[0:position]),
+                reversed(enumerated[position:]))
+        else:
+            next_pos = position + 1
+
+            ordered = chain(
+                islice(enumerated, next_pos, None, 1),
+                islice(enumerated, 0, next_pos, 1))
+
+        matches = (idx for idx, item in ordered if self.match(item))
+        return next(matches, None)
+
+
 class Searcher(object):
 
     def __init__(self, pattern, items, current):

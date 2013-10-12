@@ -1,15 +1,23 @@
 Development
 ===========
 
-Bug Fixes
----------
-
 Improvements
 ------------
+- Search can now be performed forward or backward
+
+Bug Fixes
+---------
+- Search works properly when library is updated or albums are expanded
 
 
 Version 0.2.1
 =============
+
+Improvements
+------------
+- Playlist displays whether a track is loved or banned
+- Playlist now has go-to-top/bottom bindings (`g` and `G`, respectively)
+- Toggle whether or not to display album order scores in the library
 
 Bug Fixes
 ----------
@@ -23,20 +31,14 @@ Bug Fixes
 - `suggestive` database updates now correctly wait for the MPD database to
   finish updating
 
-Improvements
-------------
-- Playlist displays whether a track is loved or banned
-- Playlist now has go-to-top/bottom bindings (`g` and `G`, respectively)
-- Toggle whether or not to display album order scores in the library
-
 
 Version 0.2.0
 =============
 
-Bug Fixes
-----------
-- Removed some slowness when updating the playlist
-
 Improvements
 -------------
 - Added database migrations to make future releases smoother
+
+Bug Fixes
+----------
+- Removed some slowness when updating the playlist

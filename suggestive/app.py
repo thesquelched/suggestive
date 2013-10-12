@@ -14,7 +14,7 @@ from suggestive.widget import (
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 from suggestive.util import album_text
-from suggestive.search import Searcher
+from suggestive.search import LazySearcher
 import suggestive.migrate as migrate
 
 
@@ -342,6 +342,7 @@ class LibraryBuffer(Buffer):
     def setup_bindings(self):
         keybinds = {
             '/': lambda: self.start_search(),
+            '?': lambda: self.start_search(reverse=True),
         }
 
         if self.conf.esc_resets_orderers():
@@ -365,6 +366,8 @@ class LibraryBuffer(Buffer):
             body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
 
         albumlist = AlbumList(self, urwid.SimpleFocusListWalker(body))
+        urwid.connect_signal(albumlist, 'set_footer', self.update_footer)
+
         return albumlist
 
     def update_suggestions(self, *_args):
@@ -435,15 +438,7 @@ class LibraryBuffer(Buffer):
 
         if pattern:
             logger.info('SEARCH FOR: {}'.format(pattern))
-            n_found = self.list_view.search(pattern)
-
-            if n_found:
-                status = 'Found {} match{}'.format(
-                    n_found, 'es' if n_found > 1 else '')
-            else:
-                status = 'No items matching {}'.format(pattern)
-
-            self.update_status(status)
+            self.list_view.search(pattern, reverse=reverse)
 
     def add_orderer(self, orderer_class, *args, **kwArgs):
         orderer = orderer_class(*args, **kwArgs)
@@ -1033,6 +1028,8 @@ class Application(Commandable):
 
 
 class AlbumList(SuggestiveListBox):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['set_footer']
 
     def __init__(self, app, *args, **kwArgs):
         super(AlbumList, self).__init__(*args, **kwArgs)
@@ -1043,30 +1040,29 @@ class AlbumList(SuggestiveListBox):
         self._command_map = bindings.AlbumListCommands
 
     def search(self, pattern, reverse=False):
-        self.searcher = None
+        self.searcher = LazySearcher(pattern, reverse)
+        self.next_search_item()
 
-        #searcher = ReverseAlbumSearcher if reverse else ForwardAlbumSearcher
-        searcher = Searcher
-
-        try:
-            self.searcher = searcher(
-                pattern, self.body, self.focus_position)
-            self.set_focus(self.searcher.current_match())
-            return len(self.searcher.matches)
-        except ValueError as err:
-            logger.info('No matches found')
-            logger.debug('Exception: {}'.format(err))
-            return 0
-
-    def next_search_item(self, backward=False):
+    def get_next_search(self, backward=False):
         if self.searcher is None:
             logger.debug('No search found')
             return
 
-        index = self.searcher.next_search_item(
-            self.focus_position, backward=backward)
+        index = self.searcher.next_item(self.body, self.focus_position,
+                                        backward=backward)
+        if index is None:
+            raise ValueError('No search found')
 
-        self.set_focus(index)
+        return index
+
+    def next_search_item(self, backward=False):
+        try:
+            self.set_focus(self.get_next_search(backward))
+        except ValueError:
+            self.update_footer('No match found')
+
+    def update_footer(self, *args, **kwArgs):
+        urwid.emit_signal(self, 'set_footer', *args, **kwArgs)
 
     def sort_tracks(self, tracks):
         track_and_num = []
@@ -1084,8 +1080,6 @@ class AlbumList(SuggestiveListBox):
             trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
 
             track_and_num.append((int(trackno), track))
-
-        logger.debug('Track nums: {}'.format([x[0] for x in track_and_num]))
 
         return sorted(track_and_num, key=lambda pair: pair[0])
 
