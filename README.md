@@ -96,12 +96,12 @@ General
 Movement
 --------
 
-- `h`, arrow-left - Left
-- `j`, arrow-down - Down
-- `k`, arrow-up - Up
-- `l`, arrow-right - Right
-- `<C-f>`, page-down - Scroll one page down
-- `<C-b>`, page-up - Scroll one page up
+- `h`, `arrow-left` - Left
+- `j`, `arrow-down` - Down
+- `k`, `arrow-up` - Up
+- `l`, `arrow-right` - Right
+- `<C-f>`, `page-down` - Scroll one page down
+- `<C-b>`, `page-up` - Scroll one page up
 - `g`, `home` - Go to top
 - `G`, `end` - Go to bottom
 
