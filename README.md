@@ -6,7 +6,10 @@ Python MPD client with integrated Last.FM support
 Installation
 ============
 
-`suggestive` required python 3.2 or higher.
+`suggestive` required python 3.2 or higher.  Also, you'll probably want a
+Last.FM scrobbler to make use of the album ordering features.  I personally
+prefer [mpdscribble](http://mpd.wikia.com/wiki/Client:Mpdscribble), but
+whatever floats your boat.
 
 Installation via git
 --------------------
