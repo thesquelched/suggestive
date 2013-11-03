@@ -712,6 +712,38 @@ class PlaylistBuffer(Buffer):
         if value.lower()[0] == 'y':
             urwid.emit_signal(self, 'unlove_track', track)
 
+    def load_playlist(self, name=None):
+        if name is None:
+            raise TypeError('Missing parameter: name')
+
+        mpd = mstat.initialize_mpd(self.conf)
+
+        try:
+            mpd.load(name)
+            self.update_footer('Loaded playlist {}'.format(name))
+            return True
+        except CommandError as ex:
+            logger.error('Unable to load playlist {}'.format(
+                name))
+            logger.debug(ex)
+            return False
+
+    def save_playlist(self, name=None):
+        if name is None:
+            raise TypeError('Missing parameter: name')
+
+        mpd = mstat.initialize_mpd(self.conf)
+
+        try:
+            mpd.save(name)
+            self.update_footer('Saved playlist {}'.format(name))
+            return True
+        except CommandError as ex:
+            logger.error('Unable to save playlist {}'.format(
+                name))
+            logger.debug(ex)
+            return False
+
 
 class MainWindow(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
@@ -740,9 +772,6 @@ class Application(Commandable):
         self.session = session
 
         self.quit_event = threading.Event()
-
-        self.bindings = self.setup_bindings()
-        self.commands = self.setup_commands()
 
         self.anl = Analytics(conf)
 
@@ -779,6 +808,8 @@ class Application(Commandable):
             self.library_buffer.unlove_track)
 
         self.setup_buffers()
+        self.bindings = self.setup_bindings()
+        self.commands = self.setup_commands()
 
         self.update_footer_text('suggestive')
         self.playing_update()
@@ -926,6 +957,8 @@ class Application(Commandable):
             'orientation': self.change_orientation,
             'or': self.change_orientation,
             'score': self.toggle_show_score,
+            'save': self.playlist_buffer.save_playlist,
+            'load': self.playlist_buffer.load_playlist,
         }
 
     def clear_playlist(self):
@@ -997,7 +1030,8 @@ class Application(Commandable):
             success = False
 
             try:
-                success = self.buffers.current_buffer().execute_command(command)
+                current_buf = self.buffers.current_buffer()
+                success = current_buf.execute_command(command)
                 if not success:
                     success = self.execute_command(command)
             except TypeError as err:
