@@ -132,9 +132,9 @@ class ModifiedOrder(OrderDecorator):
         if not track_info:
             return None
 
-        dates = [datetime.strptime(info['last-modified'], cls.FMT)
-                 for info in track_info]
-        return sorted(dates)[0]
+        dates = (datetime.strptime(info['last-modified'], cls.FMT)
+                 for info in track_info)
+        return max(dates)
 
     def order(self, albums, session, mpd):
         sorted_albums = sorted(

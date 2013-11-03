@@ -43,26 +43,20 @@ class BufferList(object):
         return iter(self.buffers)
 
     def next_buffer(self):
-        current_buffer = self.focus
-
         logger.debug('Current buffers: {}'.format(self.buffers))
 
         try:
-            idx = self.buffers.index(current_buffer)
+            idx = self.buffers.index(self.current_buffer())
             next_buffer = self.buffers[idx + 1]
             self.go_to_buffer(next_buffer)
         except (IndexError, ValueError):
             self.focus_position = 0
 
-    def add(self, buf, *options):
-        self.contents.append((buf, self.options(*options)))
-
     def current_buffer(self):
-        return self.focus
+        return self.buffers[self.focus_position]
 
     def buffer_index(self, buf):
-        buffers = [item[0] for item in self.contents]
-        return buffers.index(buf)
+        return self.buffers.index(buf)
 
     def go_to_buffer(self, buf):
         if not buf.will_accept_focus():
@@ -75,23 +69,24 @@ class BufferList(object):
         except ValueError:
             pass
 
+    def new_buffer(self, buf):
+        return urwid.AttrMap(
+            urwid.Filler(buf, valign='top', height=('relative', 100)),
+            'album')
+
+    def add(self, buf, *options):
+        self.buffers.append(buf)
+        self.contents.append((self.new_buffer(buf), self.options(*options)))
+
     def remove(self, buf):
-        if len(self.contents) == 1:
+        if len(self.buffers) == 1:
             return False
 
-        try:
-            idx = self.buffer_index(buf)
-            self.contents.pop(idx)
+        idx = self.buffer_index(buf)
+        self.buffers.remove(buf)
+        self.contents.pop(idx)
 
-            while not isinstance(self.focus, Buffer):
-                self.contents.pop(idx)
-
-            self.buffers.remove(buf)
-
-            return True
-
-        except ValueError:
-            return False
+        return True
 
 
 class HorizontalBufferList(urwid.Pile, BufferList):
@@ -100,31 +95,12 @@ class HorizontalBufferList(urwid.Pile, BufferList):
         BufferList.__init__(self)
         urwid.Pile.__init__(self, [])
 
-    def __iter__(self):
-        return BufferList.__iter__(self)
-
-    def add(self, buf, *options):
-        self.buffers.append(buf)
-
-        super(HorizontalBufferList, self).add(buf, *options)
-
 
 class VerticalBufferList(urwid.Columns, BufferList):
 
     def __init__(self):
         BufferList.__init__(self)
-        urwid.Columns.__init__(self, [])
-
-    def __iter__(self):
-        return BufferList.__iter__(self)
-
-    def add(self, buf):
-        self.buffers.append(buf)
-
-        if len(self.contents) > 0:
-            fill = urwid.AttrMap(urwid.SolidFill(), 'status')
-            super(VerticalBufferList, self).add(fill, 'given')
-        super(VerticalBufferList, self).add(buf)
+        urwid.Columns.__init__(self, [], dividechars=1)
 
 
 class Buffer(urwid.Frame, Commandable):
@@ -782,7 +758,7 @@ class Application(Commandable):
         else:
             self.buffers = HorizontalBufferList()
 
-        self.top = MainWindow(conf, self.buffers)
+        self.top = MainWindow(conf, urwid.AttrMap(self.buffers, 'footer'))
         self.event_loop = self.main_loop()
 
         # Initialize buffers
@@ -835,6 +811,8 @@ class Application(Commandable):
         self.orientation = orientation
         self.buffers = buffers
         self.top.body = self.buffers
+
+        self.top.body = urwid.AttrMap(self.buffers, 'footer')
 
     def update_footer(self, value, error=False):
         if isinstance(value, str):
@@ -1002,7 +980,7 @@ class Application(Commandable):
     def autocomplete(self, partial):
         all_commands = dict(
             list(self.commands.items()) +
-            list(self.buffers.focus.commands.items())
+            list(self.buffers.current_buffer().commands.items())
         )
         matches = [cmd for cmd in all_commands if cmd.startswith(partial)]
         logger.debug('Matching: {}'.format(matches))
@@ -1019,7 +997,7 @@ class Application(Commandable):
             success = False
 
             try:
-                success = self.buffers.focus.execute_command(command)
+                success = self.buffers.current_buffer().execute_command(command)
                 if not success:
                     success = self.execute_command(command)
             except TypeError as err:

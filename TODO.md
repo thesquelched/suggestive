@@ -4,6 +4,7 @@ TODO
 Bug fixes
 ---------
 - ESC shouldn't move cursor to the top of the screen
+- ~~Opening and closing vertical buffers now works correctly~~
 - ~~Search is not updated for expanded tracks~~
 - ~~Track ordering is not correct~~
 - ~~Update should remove items that have been delete from the MPD DB~~
