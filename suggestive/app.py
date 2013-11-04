@@ -37,6 +37,39 @@ logger.addHandler(logging.NullHandler())
 MEGABYTE = 1024 * 1024
 
 
+class PlaylistMovePrompt(Prompt):
+
+    def __init__(self, *args, **kwArgs):
+        super(PlaylistMovePrompt, self).__init__(*args, **kwArgs)
+        self.input_buffer = ''
+
+    def input(self, char):
+        self.input_buffer += char
+        logger.debug('Move index: {}'.format(self.position()))
+
+    def backspace(self):
+        self.input_buffer = self.input_buffer[:-1]
+        logger.debug('Move index: {}'.format(self.position()))
+
+    def position(self):
+        if not self.input_buffer:
+            return 0
+
+        try:
+            return int(self.input_buffer)
+        except (TypeError, ValueError):
+            logger.warn('Bad move index: {}'.format(self.input_buffer))
+            return 0
+
+    def keypress(self, size, key):
+        if len(key) == 1:
+            self.input(key)
+        elif key == 'backspace':
+            self.backspace()
+
+        return super(PlaylistMovePrompt, self).keypress(size, key)
+
+
 class BufferList(object):
     def __init__(self):
         self.buffers = []
@@ -464,6 +497,7 @@ class PlaylistBuffer(Buffer):
         self.session = session
         self.status_format = conf.playlist_status_format()
         self.searcher = None
+        self.show_numbers = False
 
         self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
         walker = urwid.SimpleFocusListWalker(self.playlist_items())
@@ -489,6 +523,7 @@ class PlaylistBuffer(Buffer):
             #'c': self.clear_mpd_playlist,
             'd': self.delete_track,
             'enter': self.play_track,
+            'm': self.move_track,
         })
 
         return keybinds
@@ -498,6 +533,15 @@ class PlaylistBuffer(Buffer):
             'love': self.love_track,
             'unlove': self.unlove_track,
         }
+
+    def move_track(self):
+        self.show_numbers = True
+        self.update()
+        logger.debug('Start playlist move')
+
+        prompt = PlaylistMovePrompt('move ')
+        self.update_footer(urwid.AttrMap(prompt, 'footer'))
+        self.update_focus('footer')
 
     def delete_track(self):
         current_position = self.playlist.focus_position
@@ -531,7 +575,7 @@ class PlaylistBuffer(Buffer):
 
         return self.ITEM_FORMAT.format(**replace)
 
-    def playlist_items(self, numbers=False):
+    def playlist_items(self):
         mpd = mstat.initialize_mpd(self.conf)
 
         playlist = mpd.playlistinfo()
@@ -547,7 +591,7 @@ class PlaylistBuffer(Buffer):
 
         for position, track in enumerate(playlist):
             pieces = [self.format_track(track)]
-            if numbers:
+            if self.show_numbers:
                 number = str(position + 1).ljust(digits + 1, ' ')
                 pieces.insert(0, ('bumper', number))
 
