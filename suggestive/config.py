@@ -52,8 +52,8 @@ class Config(object):
             playlist_focus_fg='#000',
             playlist_focus_bg='#0ff',
 
-            bumper_fg='#ddd',
-            bumper_bg='#22f',
+            bumper_fg='#ded',
+            bumper_bg='#777',
 
             track_fg='#000',
             track_bg='#ccc',
