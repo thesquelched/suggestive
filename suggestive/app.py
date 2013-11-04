@@ -38,28 +38,42 @@ MEGABYTE = 1024 * 1024
 
 
 class PlaylistMovePrompt(Prompt):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['update_index']
 
-    def __init__(self, *args, **kwArgs):
+    def __init__(self, original_position, *args, **kwArgs):
         super(PlaylistMovePrompt, self).__init__(*args, **kwArgs)
         self.input_buffer = ''
+        self.original_position = original_position
+        self.current_position = original_position
+
+    def update_index(self, index=None):
+        try:
+            index = self.position() if index is None else index
+            urwid.emit_signal(self, 'update_index', self.current_position,
+                              index)
+            self.current_position = index
+        except IndexError:
+            pass
 
     def input(self, char):
         self.input_buffer += char
-        logger.debug('Move index: {}'.format(self.position()))
+        self.update_index()
 
     def backspace(self):
         self.input_buffer = self.input_buffer[:-1]
-        logger.debug('Move index: {}'.format(self.position()))
+        self.update_index()
 
     def position(self):
         if not self.input_buffer:
-            return 0
+            return self.original_position
 
         try:
             return int(self.input_buffer)
         except (TypeError, ValueError):
             logger.warn('Bad move index: {}'.format(self.input_buffer))
-            return 0
+            raise IndexError('Invalid move index: {}'.format(
+                self.input_buffer))
 
     def keypress(self, size, key):
         if len(key) == 1:
@@ -130,12 +144,18 @@ class HorizontalBufferList(urwid.Pile, BufferList):
         BufferList.__init__(self)
         urwid.Pile.__init__(self, [])
 
+    def __iter__(self):
+        return BufferList.__iter__(self)
+
 
 class VerticalBufferList(urwid.Columns, BufferList):
 
     def __init__(self):
         BufferList.__init__(self)
         urwid.Columns.__init__(self, [], dividechars=1)
+
+    def __iter__(self):
+        return BufferList.__iter__(self)
 
 
 class Buffer(urwid.Frame, Commandable):
@@ -498,6 +518,7 @@ class PlaylistBuffer(Buffer):
         self.status_format = conf.playlist_status_format()
         self.searcher = None
         self.show_numbers = False
+        self.move_prompt = None
 
         self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
         walker = urwid.SimpleFocusListWalker(self.playlist_items())
@@ -539,9 +560,59 @@ class PlaylistBuffer(Buffer):
         self.update()
         logger.debug('Start playlist move')
 
-        prompt = PlaylistMovePrompt('move ')
-        self.update_footer(urwid.AttrMap(prompt, 'footer'))
+        self.move_prompt = PlaylistMovePrompt(
+            self.playlist.focus_position, '')
+        urwid.connect_signal(self.move_prompt, 'prompt_done',
+                             self.complete_move)
+        urwid.connect_signal(self.move_prompt, 'update_index',
+                             self.update_index)
+
+        self.update_footer(urwid.AttrMap(self.move_prompt, 'footer'))
         self.update_focus('footer')
+
+    def complete_move(self, value):
+        urwid.disconnect_signal(self, self.move_prompt, 'prompt_done',
+                                self.complete_move)
+        self.update_focus('body')
+        self.show_numbers = False
+
+        try:
+            new_index = int(value)
+            logger.debug('Moving playlist track from {} to {}'.format(
+                self.playlist.focus_position, new_index))
+
+            mpd = mstat.initialize_mpd(self.conf)
+            mpd.move(self.playlist.focus_position, new_index)
+        except (TypeError, ValueError):
+            logger.error('Invalid move index: {}'.format(value))
+
+        self.update()
+
+    def update_index(self, current, index):
+        try:
+            items = self.playlist.body
+            n_items = len(items)
+
+            if index >= n_items:
+                raise IndexError
+
+            logger.debug('Temporary move from {} to {}'.format(
+                current, index))
+
+            if index > current:
+                focus = items[current]
+                logger.debug('Current focus: {}'.format(
+                    focus.original_widget._w.get_text()))
+                items.insert(index + 1, focus)
+                items.pop(current)
+            elif index < current:
+                focus = items.pop(current)
+                items.insert(index, focus)
+
+            #self.playlist.body.insert(index, self.playlist.focus)
+            #self.playlist.body.pop(current)
+        except IndexError:
+            logger.error('Index out of range')
 
     def delete_track(self):
         current_position = self.playlist.focus_position
@@ -587,12 +658,12 @@ class PlaylistBuffer(Buffer):
 
         body = []
         n_items = len(playlist)
-        digits = floor(log10(n_items)) + 1
+        digits = (floor(log10(n_items)) + 1) if n_items else 0
 
         for position, track in enumerate(playlist):
             pieces = [self.format_track(track)]
-            if self.show_numbers:
-                number = str(position + 1).ljust(digits + 1, ' ')
+            if self.show_numbers and digits:
+                number = str(position).ljust(digits + 1, ' ')
                 pieces.insert(0, ('bumper', number))
 
             text = PlaylistItem(pieces)
