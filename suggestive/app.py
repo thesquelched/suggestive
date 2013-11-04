@@ -41,8 +41,8 @@ class PlaylistMovePrompt(Prompt):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['update_index']
 
-    def __init__(self, original_position, *args, **kwArgs):
-        super(PlaylistMovePrompt, self).__init__(*args, **kwArgs)
+    def __init__(self, original_position):
+        super(PlaylistMovePrompt, self).__init__('Move item to: ')
         self.input_buffer = ''
         self.original_position = original_position
         self.current_position = original_position
@@ -560,8 +560,7 @@ class PlaylistBuffer(Buffer):
         self.update()
         logger.debug('Start playlist move')
 
-        self.move_prompt = PlaylistMovePrompt(
-            self.playlist.focus_position, '')
+        self.move_prompt = PlaylistMovePrompt(self.playlist.focus_position)
         urwid.connect_signal(self.move_prompt, 'prompt_done',
                              self.complete_move)
         urwid.connect_signal(self.move_prompt, 'update_index',
