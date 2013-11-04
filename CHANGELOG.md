@@ -5,10 +5,12 @@ Improvements
 ------------
 - Search can now be performed forward or backward
 - Playlist now supports search and shares the same pattern with the library
+- Save/load playlists
 
 Bug Fixes
 ---------
 - Search works properly when library is updated or albums are expanded
+- Fixed adding/removing buffers in vertical orientation
 
 
 Version 0.2.1

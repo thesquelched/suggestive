@@ -13,12 +13,14 @@ Bug fixes
 New features
 ------------
 - Less crappy command completion
+- Complete command arguments
+- Multi-key commands
 - Color code part of track title (like blue album, red artist, yellow song)
 - Custom orderer combinations in config file
 - Link albums so that they are always displayed as one
 - Binding to filter on album/artist in playlist
 - Command to perform MPD update on selected album
-- Multi-key commands
+- ~~Save/load playlist~~
 - ~~Playlist search~~
 - ~~Backwards search~~
 - ~~Mark songs loved~~
