@@ -12,6 +12,7 @@ Bug fixes
 
 New features
 ------------
+- Rearrange songs in playlist
 - Less crappy command completion
 - Complete command arguments
 - Multi-key commands
