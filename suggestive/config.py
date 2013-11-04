@@ -71,6 +71,8 @@ class Config(object):
         playlist=dict(
             status_format='{status}: {artist} - {title} '
                           '[{time_elapsed}/{time_total}]',
+            save_playlist_on_close=False,
+            playlist_save_name='suggestive.state',
         ),
         library=dict(
             ignore_artist_the=True,
@@ -219,6 +221,14 @@ class Config(object):
     def playlist_status_format(self):
         """Return the format for the playlist status bar"""
         return self.parser['playlist']['status_format']
+
+    def save_playlist_on_close(self):
+        """Return true if the playlist should be saved on close"""
+        return self.parser.getboolean('playlist', 'save_playlist_on_close')
+
+    def playlist_save_name(self):
+        """Return the name of the state save playlist"""
+        return self.parser['playlist']['playlist_save_name']
 
     def ignore_artist_the(self):
         """Return True if sorting albums should ignore the word 'The' in the

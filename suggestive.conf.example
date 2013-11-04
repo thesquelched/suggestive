@@ -50,6 +50,10 @@
 #   filename, track, date
 #status_format = {status}: {artist} - {title} [{time_elapsed}/{time_total}]
 
+# Save the current playlist on exit
+#save_playlist_on_close = false
+#playlist_save_name = 'suggestive.state'
+
 [library]
 # Customize library buffer
 

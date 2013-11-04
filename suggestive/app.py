@@ -871,6 +871,7 @@ class PlaylistBuffer(Buffer):
         mpd = mstat.initialize_mpd(self.conf)
 
         try:
+            mpd.rm(name)
             mpd.save(name)
             self.update_footer('Saved playlist {}'.format(name))
             return True
@@ -1068,6 +1069,10 @@ class Application(Commandable):
             return False
 
     def exit(self):
+        if self.conf.save_playlist_on_close():
+            playlist = self.conf.playlist_save_name()
+            self.playlist_buffer.save_playlist(playlist)
+
         self.quit_event.set()
         raise urwid.ExitMainLoop()
 
