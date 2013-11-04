@@ -6,6 +6,7 @@ Improvements
 - Search can now be performed forward or backward
 - Playlist now supports search and shares the same pattern with the library
 - Save/load playlists
+- You may now rearrange items in the playlist
 
 Bug Fixes
 ---------

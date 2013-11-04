@@ -126,6 +126,7 @@ Playlist
 - `c` - Clear playlist
 - `d` - Remove track
 - `enter` - Play track
+- `m` - Enter move mode
 
 
 Command mode

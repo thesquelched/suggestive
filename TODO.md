@@ -12,7 +12,6 @@ Bug fixes
 
 New features
 ------------
-- Rearrange songs in playlist
 - Less crappy command completion
 - Complete command arguments
 - Multi-key commands
@@ -21,6 +20,7 @@ New features
 - Link albums so that they are always displayed as one
 - Binding to filter on album/artist in playlist
 - Command to perform MPD update on selected album
+- ~~Rearrange songs in playlist~~
 - ~~Save/load playlist~~
 - ~~Playlist search~~
 - ~~Backwards search~~
