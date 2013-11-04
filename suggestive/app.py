@@ -646,34 +646,46 @@ class PlaylistBuffer(Buffer):
 
         return self.ITEM_FORMAT.format(**replace)
 
-    def playlist_items(self):
-        mpd = mstat.initialize_mpd(self.conf)
-
-        playlist = mpd.playlistinfo()
+    def now_playing_index(self, mpd):
         current = mpd.currentsong()
         if current and 'pos' in current:
-            current_position = int(current['pos'])
+            return int(current['pos'])
         else:
-            current_position = None
+            return None
 
-        body = []
-        n_items = len(playlist)
-        digits = (floor(log10(n_items)) + 1) if n_items else 0
+    def decorated_playlist_items(self, playlist, now_playing, digits):
+        items = []
 
         for position, track in enumerate(playlist):
             pieces = [self.format_track(track)]
             if self.show_numbers and digits:
+                # Mark current position as 'C'
+                if position == self.playlist.focus_position:
+                    position = 'C'
+
                 number = str(position).ljust(digits + 1, ' ')
                 pieces.insert(0, ('bumper', number))
 
             text = PlaylistItem(pieces)
-            if position == current_position:
+            if position == now_playing:
                 styles = ('playing', 'playing focus')
             else:
                 styles = ('playlist', 'focus playlist')
 
-            with_attr = urwid.AttrMap(text, *styles)
-            body.append(with_attr)
+            items.append(urwid.AttrMap(text, *styles))
+
+        return items
+
+    def playlist_items(self):
+        mpd = mstat.initialize_mpd(self.conf)
+
+        playlist = mpd.playlistinfo()
+        now_playing = self.now_playing_index(mpd)
+
+        n_items = len(playlist)
+        digits = (floor(log10(n_items)) + 1) if n_items else 0
+
+        body = self.decorated_playlist_items(playlist, now_playing, digits)
 
         if not body:
             text = urwid.Text('Playlist is empty')
