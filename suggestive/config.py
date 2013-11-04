@@ -52,6 +52,9 @@ class Config(object):
             playlist_focus_fg='#000',
             playlist_focus_bg='#0ff',
 
+            bumper_fg='#ddd',
+            bumper_bg='#22f',
+
             track_fg='#000',
             track_bg='#ccc',
             track_focus_fg='#000',
@@ -184,6 +187,8 @@ class Config(object):
         footer = (colors['footer_fg'], colors['footer_bg'])
         error = (colors['footer_error_fg'], colors['footer_error_bg'])
 
+        bumper = (colors['bumper_fg'], colors['bumper_bg'])
+
         return [
             self._palette(None, ('white', 'white')),
 
@@ -203,6 +208,8 @@ class Config(object):
 
             self._palette('footer', footer, bold=True),
             self._palette('footer error', error, bold=True),
+
+            self._palette('bumper', bumper)
         ]
 
     def orientation(self):

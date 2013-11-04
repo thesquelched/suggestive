@@ -19,6 +19,7 @@ from suggestive.search import LazySearcher
 from suggestive.error import CommandError
 
 
+from math import floor, log10
 import argparse
 import urwid
 import logging
@@ -530,7 +531,7 @@ class PlaylistBuffer(Buffer):
 
         return self.ITEM_FORMAT.format(**replace)
 
-    def playlist_items(self):
+    def playlist_items(self, numbers=False):
         mpd = mstat.initialize_mpd(self.conf)
 
         playlist = mpd.playlistinfo()
@@ -541,8 +542,16 @@ class PlaylistBuffer(Buffer):
             current_position = None
 
         body = []
+        n_items = len(playlist)
+        digits = floor(log10(n_items)) + 1
+
         for position, track in enumerate(playlist):
-            text = PlaylistItem(self.format_track(track))
+            pieces = [self.format_track(track)]
+            if numbers:
+                number = str(position + 1).ljust(digits + 1, ' ')
+                pieces.insert(0, ('bumper', number))
+
+            text = PlaylistItem(pieces)
             if position == current_position:
                 styles = ('playing', 'playing focus')
             else:
