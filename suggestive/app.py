@@ -16,6 +16,7 @@ import suggestive.mstat as mstat
 from suggestive.util import album_text
 import suggestive.migrate as migrate
 from suggestive.search import LazySearcher
+from suggestive.error import CommandError
 
 
 import argparse
@@ -27,7 +28,7 @@ import re
 import os.path
 import sys
 from itertools import chain
-from mpd import CommandError
+from mpd import CommandError as MpdCommandError
 
 logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
@@ -714,23 +715,23 @@ class PlaylistBuffer(Buffer):
 
     def load_playlist(self, name=None):
         if name is None:
-            raise TypeError('Missing parameter: name')
+            raise CommandError('Missing parameter: name')
 
         mpd = mstat.initialize_mpd(self.conf)
+        self.clear_mpd_playlist()
 
         try:
             mpd.load(name)
             self.update_footer('Loaded playlist {}'.format(name))
             return True
-        except CommandError as ex:
-            logger.error('Unable to load playlist {}'.format(
-                name))
+        except MpdCommandError as ex:
             logger.debug(ex)
-            return False
+            raise CommandError("Unable to load playlist '{}'".format(
+                name))
 
     def save_playlist(self, name=None):
         if name is None:
-            raise TypeError('Missing parameter: name')
+            raise CommandError('Missing parameter: name')
 
         mpd = mstat.initialize_mpd(self.conf)
 
@@ -738,11 +739,10 @@ class PlaylistBuffer(Buffer):
             mpd.save(name)
             self.update_footer('Saved playlist {}'.format(name))
             return True
-        except CommandError as ex:
-            logger.error('Unable to save playlist {}'.format(
-                name))
+        except MpdCommandError as ex:
             logger.debug(ex)
-            return False
+            raise CommandError("Unable to save playlist '{}'".format(
+                name))
 
 
 class MainWindow(urwid.Frame):
@@ -1027,23 +1027,24 @@ class Application(Commandable):
                                 self.command_done)
 
         if command:
-            success = False
-
             try:
                 current_buf = self.buffers.current_buffer()
                 success = current_buf.execute_command(command)
                 if not success:
                     success = self.execute_command(command)
+
+                if not success:
+                    self.update_footer_text(
+                        "Unable to execute command '{}'".format(command),
+                        error=True)
             except TypeError as err:
                 logger.debug('TypeError: {}'.format(err))
                 self.update_footer_text(
                     "Invalid arguments for command '{}'".format(command),
                     error=True)
-
-            if not success:
-                self.update_footer_text(
-                    "Unknown command: '{}'".format(command),
-                    error=True)
+            except CommandError as ex:
+                logger.debug(ex)
+                self.update_footer_text(ex.message, error=True)
 
     def setup_palette(self):
         return self.conf.palette()
@@ -1090,7 +1091,7 @@ class AlbumList(SuggestiveListBox):
         for i, track in enumerate(tracks):
             try:
                 mpd_track = mpd.listallinfo(track.filename)
-            except CommandError:
+            except MpdCommandError:
                 continue
 
             if not mpd_track:
