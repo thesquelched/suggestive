@@ -7,6 +7,7 @@ Improvements
 - Playlist now supports search and shares the same pattern with the library
 - Save/load playlists
 - You may now rearrange items in the playlist
+- Added custom orderer commands, similar to the 'default_orderer' option
 
 Bug Fixes
 ---------

@@ -267,6 +267,17 @@ class LibraryBuffer(Buffer):
 
         return self.orderers
 
+    def init_custom_orderers(self, conf):
+        orderers = {}
+        for name, cmds in conf.custom_orderers().items():
+            def orderer_cmd(cmds=cmds):
+                for cmd in cmds:
+                    logger.debug('order: {}'.format(cmd))
+                    self.execute_command(cmd)
+            orderers[name] = orderer_cmd
+
+        return orderers
+
     def setup_orderers(self):
         return {
             ('artist', 'ar'): (ArtistFilter, None),
@@ -290,13 +301,14 @@ class LibraryBuffer(Buffer):
             )
         )
 
-        commands = {
+        commands = self.init_custom_orderers(self.conf)
+        commands.update({
             'reset': self.reset_orderers,
             'unorder': self.clear_orderers,
             'unordered': self.clear_orderers,
             'love': self.love_selection,
             'unlove': self.unlove_selection,
-        }
+        })
 
         commands.update({
             name: self.orderer_func(orderer)

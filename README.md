@@ -168,6 +168,23 @@ Library
 - `:love` - Mark the selected album/track loved in LastFM
 - `:unlove` - Mark the selected album/track unloved in LastFM
 
+### Custom order commands
+
+You can combine one or more order commands to create your own custom orderer
+commands.  This can be done in your config file, similarly to setting a default
+orderer; see the example config file for more information.
+
+Here's an example that creates a command `mycommand` that uses the `loved` and
+`playcount` orderers:
+
+```
+[custom_orderers]
+mycommand = unorder; loved max=0; playcount
+```
+
+`mycommand` will then be accessible from command mode in the library buffer,
+just like any other orderer.
+
 
 Development
 ===========

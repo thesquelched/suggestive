@@ -16,10 +16,10 @@ New features
 - Complete command arguments
 - Multi-key commands
 - Color code part of track title (like blue album, red artist, yellow song)
-- Custom orderer combinations in config file
 - Link albums so that they are always displayed as one
 - Binding to filter on album/artist in playlist
 - Command to perform MPD update on selected album
+- ~~Custom orderer combinations in config file~~
 - ~~Rearrange songs in playlist~~
 - ~~Save/load playlist~~
 - ~~Playlist search~~

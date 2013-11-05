@@ -81,6 +81,8 @@ class Config(object):
             show_score=False,
             esc_resets_orderers=True,
         ),
+        custom_orderers=dict(
+        ),
     )
 
     def __init__(self, args=None):
@@ -258,3 +260,12 @@ class Config(object):
     def esc_resets_orderers(self):
         """Return True if the escape key should clear library orderers"""
         return self.parser.getboolean('library', 'esc_resets_orderers')
+
+    def custom_orderers(self):
+        """Return a dict of custom orderer combinations"""
+        orderers = {}
+        for name, raw in self.parser['custom_orderers'].items():
+            orderer = [cmd.strip() for cmd in re.split(r'\s*;\s*', raw)]
+            orderers[name] = orderer
+
+        return orderers
