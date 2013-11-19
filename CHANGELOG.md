@@ -13,6 +13,7 @@ Bug Fixes
 ---------
 - Search works properly when library is updated or albums are expanded
 - Fixed adding/removing buffers in vertical orientation
+- Loved ordering no longer reintroduces filtered-out albums
 
 
 Version 0.2.1
