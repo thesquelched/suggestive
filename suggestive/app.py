@@ -631,6 +631,7 @@ class PlaylistBuffer(Buffer):
         if current_position is not None:
             mpd = mstat.initialize_mpd(self.conf)
             mpd.delete(current_position)
+            self.update()
 
     def play_track(self):
         current_position = self.playlist.focus_position
