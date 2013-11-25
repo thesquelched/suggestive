@@ -4,7 +4,7 @@ TODO
 Bug fixes
 ---------
 - ESC shouldn't move cursor to the top of the screen
-- Cycling through buffers doesn't work when next buffer doesn't accept focus
+- ~~Cycling through buffers doesn't work when next buffer doesn't accept focus~~
 - ~~Opening and closing vertical buffers now works correctly~~
 - ~~Search is not updated for expanded tracks~~
 - ~~Track ordering is not correct~~
@@ -13,6 +13,7 @@ Bug fixes
 
 New features
 ------------
+- Load variable number of scrobbles
 - Less crappy command completion
 - Complete command arguments
 - Multi-key commands

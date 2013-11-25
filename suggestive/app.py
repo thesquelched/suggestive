@@ -94,12 +94,16 @@ class BufferList(object):
     def next_buffer(self):
         logger.debug('Current buffers: {}'.format(self.buffers))
 
-        try:
-            idx = self.buffers.index(self.current_buffer())
-            next_buffer = self.buffers[idx + 1]
-            self.go_to_buffer(next_buffer)
-        except (IndexError, ValueError):
-            self.focus_position = 0
+        current = self.focus_position
+        indices = chain(
+            range(current + 1, len(self.buffers)),
+            range(current))
+
+        for idx in indices:
+            if self.go_to_buffer_index(idx):
+                return
+
+        logger.warn('Could not switch buffers')
 
     def current_buffer(self):
         return self.buffers[self.focus_position]
@@ -107,16 +111,28 @@ class BufferList(object):
     def buffer_index(self, buf):
         return self.buffers.index(buf)
 
+    def go_to_buffer_index(self, idx):
+        try:
+            buf = self.buffers[idx]
+            if buf.will_accept_focus():
+                self.focus_position = idx
+                return True
+        except IndexError:
+            pass
+
+        return False
+
     def go_to_buffer(self, buf):
         if not buf.will_accept_focus():
-            return
+            return None
 
         try:
             idx = self.buffer_index(buf)
 
             self.focus_position = idx
+            return self.focus_position
         except ValueError:
-            pass
+            return None
 
     def new_buffer(self, buf):
         return urwid.AttrMap(
@@ -236,9 +252,6 @@ class ScrobbleBuffer(Buffer):
         return [urwid.SelectableIcon(
             '{}. {} - {}'.format(i, info.artist, info.title))
             for i, info in enumerate(infos, 1)]
-        #return [
-        #    urwid.SelectableIcon('blah')
-        #]
 
 
 class LibraryBuffer(Buffer):
