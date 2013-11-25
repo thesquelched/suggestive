@@ -218,6 +218,29 @@ class Buffer(urwid.Frame, Commandable):
         raise NotImplementedError
 
 
+class ScrobbleBuffer(Buffer):
+
+    def __init__(self, conf, session):
+        self.conf = conf
+        self.session = session
+
+        self.scrobbles = SuggestiveListBox(
+            urwid.SimpleFocusListWalker(self.scrobble_items()))
+        super(ScrobbleBuffer, self).__init__(self.scrobbles)
+
+        self.update_status('Scrobbles')
+
+    def scrobble_items(self):
+        db_scrobbles = mstat.get_scrobbles(self.session)
+        infos = (scrobble.scrobble_info for scrobble in db_scrobbles)
+        return [urwid.SelectableIcon(
+            '{}. {} - {}'.format(i, info.artist, info.title))
+            for i, info in enumerate(infos, 1)]
+        #return [
+        #    urwid.SelectableIcon('blah')
+        #]
+
+
 class LibraryBuffer(Buffer):
     signals = Buffer.signals + ['update_playlist']
 
@@ -942,6 +965,7 @@ class Application(Commandable):
         # Initialize buffers
         self.library_buffer = self.create_library_buffer()
         self.playlist_buffer = self.create_playlist_buffer()
+        self.scrobble_buffer = self.create_scrobble_buffer()
 
         urwid.connect_signal(
             self.library_buffer,
@@ -972,6 +996,9 @@ class Application(Commandable):
         if 'playlist' in default_buffers:
             self.buffers.add(self.playlist_buffer)
             self.playlist_buffer.active = True
+        if 'scrobbles' in default_buffers:
+            self.buffers.add(self.scrobble_buffer)
+            self.scrobble_buffer.active = True
 
     def change_orientation(self, orientation=None):
         if orientation is None:
@@ -987,6 +1014,8 @@ class Application(Commandable):
             buffers.add(self.library_buffer)
         if self.playlist_buffer.active:
             buffers.add(self.playlist_buffer)
+        if self.scrobble_buffer.active:
+            buffers.add(self.scrobble_buffer)
 
         self.orientation = orientation
         self.buffers = buffers
@@ -1025,6 +1054,14 @@ class Application(Commandable):
 
         return buf
 
+    def create_scrobble_buffer(self):
+        buf = ScrobbleBuffer(self.conf, self.session)
+        urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
+        urwid.connect_signal(buf, 'set_footer', self.update_footer)
+        urwid.connect_signal(buf, 'redraw', self.event_loop.draw_screen)
+
+        return buf
+
     def open_playlist(self):
         if self.playlist_buffer.active:
             logger.debug('Close playlist')
@@ -1044,6 +1081,16 @@ class Application(Commandable):
             logger.debug('Open playlist')
             self.buffers.add(self.library_buffer)
             self.library_buffer.active = True
+
+    def open_scrobbles(self):
+        if self.scrobble_buffer.active:
+            logger.debug('Close scrobbles')
+            if self.buffers.remove(self.scrobble_buffer):
+                self.scrobble_buffer.active = False
+        else:
+            logger.debug('Open scrobbles')
+            self.buffers.add(self.scrobble_buffer)
+            self.scrobble_buffer.active = True
 
     def start_db_update(self):
         self.library_buffer.update_status('Library (updating...)')
@@ -1106,6 +1153,7 @@ class Application(Commandable):
         return {
             'playlist': self.open_playlist,
             'library': self.open_library,
+            'scrobbles': self.open_scrobbles,
             'q': self.exit,
             'orientation': self.change_orientation,
             'or': self.change_orientation,
