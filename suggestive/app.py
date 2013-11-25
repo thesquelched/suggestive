@@ -1178,7 +1178,7 @@ class Application(Commandable):
     def clear_playlist(self):
         self.playlist_buffer.clear_mpd_playlist()
         if self.buffers.current_buffer() is self.playlist_buffer:
-            self.buffers.go_to_buffer(self.library_buffer)
+            self.buffers.next_buffer()
 
     @typed(show=bool)
     def toggle_show_score(self, show=None):
