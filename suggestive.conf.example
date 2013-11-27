@@ -24,6 +24,13 @@
 #album_focus_fg = #000
 #album_focus_bg = #0ff
 
+#scrobble_fg = #000
+#scrobble_bg = #fff
+#scrobble_focus_fg = #000
+#scrobble_focus_bg = #0ff
+#scrobble_date_fg = #222
+#scrobble_date_bg = #ff0
+
 #track_fg = #000
 #track_bg = #ccc
 #track_focus_fg = #000
@@ -68,6 +75,12 @@
 
 # Reset library order with the 'escape' key
 # esc_resets_orderers = false
+
+[scrobbles]
+# Customize scrobbles buffer
+
+# Inital number of scrobbles to load
+#initial_load = 50
 
 [custom_orderers]
 # Custom orderer combinations

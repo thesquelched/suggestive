@@ -52,6 +52,13 @@ class Config(object):
             playlist_focus_fg='#000',
             playlist_focus_bg='#0ff',
 
+            scrobble_fg='#000',
+            scrobble_bg='#fff',
+            scrobble_focus_fg='#000',
+            scrobble_focus_bg='#0ff',
+            scrobble_date_fg='#222',
+            scrobble_date_bg='#ff0',
+
             bumper_fg='#ded',
             bumper_bg='#777',
 
@@ -80,6 +87,9 @@ class Config(object):
                           'banned remove_banned=true',
             show_score=False,
             esc_resets_orderers=True,
+        ),
+        scrobbles=dict(
+            initial_load=50,
         ),
         custom_orderers=dict(
         ),
@@ -181,9 +191,15 @@ class Config(object):
 
         album = (colors['album_fg'], colors['album_bg'])
         album_focus = (colors['album_focus_fg'], colors['album_focus_bg'])
+
         playlist = (colors['playlist_fg'], colors['playlist_bg'])
         playlist_focus = (colors['playlist_focus_fg'],
                           colors['playlist_focus_bg'])
+
+        scrobble = (colors['scrobble_fg'], colors['scrobble_bg'])
+        scrobble_focus = (colors['scrobble_focus_fg'], colors['scrobble_focus_bg'])
+        scrobble_date = (colors['scrobble_date_fg'], colors['scrobble_date_bg'])
+
         track = (colors['track_fg'], colors['track_bg'])
         track_focus = (colors['track_focus_fg'], colors['track_focus_bg'])
         status = (colors['status_fg'], colors['status_bg'])
@@ -198,6 +214,10 @@ class Config(object):
 
             self._palette('album', album),
             self._palette('focus album', album_focus),
+
+            self._palette('scrobble', scrobble),
+            self._palette('focus scrobble', scrobble_focus),
+            self._palette('scrobble date', scrobble_date),
 
             self._palette('playlist', playlist),
             self._palette('focus playlist', playlist_focus),
@@ -269,3 +289,7 @@ class Config(object):
             orderers[name] = orderer
 
         return orderers
+
+    def initial_scrobbles(self):
+        """Return the initial number of scrobbles to load"""
+        return self.parser.getint('scrobbles', 'initial_load')

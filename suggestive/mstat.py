@@ -584,8 +584,15 @@ def database_track_from_mpd(session, track_info):
     return session.query(Track).filter_by(filename=track_info['file']).first()
 
 
-def get_scrobbles(session):
-    return session.query(Scrobble).\
+def get_scrobbles(session, limit, offset=None):
+    if not limit:
+        return []
+
+    query = session.query(Scrobble).\
         order_by(Scrobble.time.desc()).\
-        limit(10).\
-        all()
+        limit(limit)
+
+    if offset is not None:
+        query = query.offset(offset)
+
+    return query.all()

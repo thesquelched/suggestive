@@ -28,7 +28,7 @@ import threading
 import re
 import os.path
 import sys
-from itertools import chain
+from itertools import chain, groupby
 from mpd import CommandError as MpdCommandError
 
 logger = logging.getLogger('suggestive')
@@ -234,20 +234,101 @@ class Buffer(urwid.Frame, Commandable):
         raise NotImplementedError
 
 
+class ScrobbleListWalker(urwid.ListWalker):
+
+    def __init__(self, conf, session):
+        self.focus = 0
+        self.items = []
+        self.session = session
+
+        self._load_more(conf.initial_scrobbles())
+
+    @classmethod
+    def _icon(cls, scrobble):
+        info = scrobble.scrobble_info
+        text = '{} - {}'.format(info.artist, info.title)
+
+        icon = urwid.SelectableIcon(text)
+        return urwid.AttrMap(icon, 'scrobble', 'focus scrobble')
+
+    @classmethod
+    def _day(cls, scrobble):
+        return scrobble.time.strftime('%Y-%m-%d')
+
+    def __len__(self):
+        return len(self.items)
+
+    def _generate_icons(self, scrobbles):
+        widgets = (i.original_widget for i in reversed(self.items))
+        last_day = next(
+            (w.get_text()[0] for w in widgets
+             if not isinstance(w, urwid.SelectableIcon)),
+            None)
+
+        for day, group in groupby(scrobbles, self._day):
+            group = list(group)
+            if day != last_day:
+                last_day = day
+                yield urwid.AttrMap(urwid.Text(day), 'scrobble date')
+
+            for scrobble in group:
+                yield self._icon(scrobble)
+
+    def _load_more(self, position):
+        n_items = len(self.items)
+        n_load = 1 + position - n_items
+        scrobbles = mstat.get_scrobbles(self.session, n_load, n_items)
+
+        #self.items.extend([self._icon(scrobble) for scrobble in items])
+        self.items.extend(list(self._generate_icons(scrobbles)))
+
+    def __getitem__(self, idx):
+        return urwid.SelectableIcon(str(idx))
+
+    def get_focus(self):
+        return self._get(self.focus)
+
+    def set_focus(self, focus):
+        self.focus = focus
+        self._modified()
+
+    def get_next(self, current):
+        return self._get(current + 1)
+
+    def get_prev(self, current):
+        return self._get(current - 1)
+
+    def _get(self, pos):
+        if pos < 0:
+            return None, None
+
+        if pos >= len(self.items):
+            self._load_more(pos)
+
+        return self.items[pos], pos
+
+
 class ScrobbleBuffer(Buffer):
 
     def __init__(self, conf, session):
         self.conf = conf
         self.session = session
+        self.initial_scrobbles = 0
 
-        self.scrobbles = SuggestiveListBox(
-            urwid.SimpleFocusListWalker(self.scrobble_items()))
-        super(ScrobbleBuffer, self).__init__(self.scrobbles)
+        self.scrobbles = []
+
+        #self.scrobble_list = SuggestiveListBox(
+        #    urwid.SimpleFocusListWalker(self.scrobble_items()))
+        self.scrobble_list = SuggestiveListBox(
+            ScrobbleListWalker(conf, session))
+
+        super(ScrobbleBuffer, self).__init__(self.scrobble_list)
 
         self.update_status('Scrobbles')
 
     def scrobble_items(self):
-        db_scrobbles = mstat.get_scrobbles(self.session)
+        db_scrobbles = mstat.get_scrobbles(self.session,
+                                           self.initial_scrobbles)
         infos = (scrobble.scrobble_info for scrobble in db_scrobbles)
         return [urwid.SelectableIcon(
             '{}. {} - {}'.format(i, info.artist, info.title))
