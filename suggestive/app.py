@@ -317,22 +317,19 @@ class ScrobbleBuffer(Buffer):
 
         self.scrobbles = []
 
-        #self.scrobble_list = SuggestiveListBox(
-        #    urwid.SimpleFocusListWalker(self.scrobble_items()))
-        self.scrobble_list = SuggestiveListBox(
-            ScrobbleListWalker(conf, session))
+        self.scrobble_list = self.create_scrobble_list()
 
         super(ScrobbleBuffer, self).__init__(self.scrobble_list)
 
         self.update_status('Scrobbles')
 
-    def scrobble_items(self):
-        db_scrobbles = mstat.get_scrobbles(self.session,
-                                           self.initial_scrobbles)
-        infos = (scrobble.scrobble_info for scrobble in db_scrobbles)
-        return [urwid.SelectableIcon(
-            '{}. {} - {}'.format(i, info.artist, info.title))
-            for i, info in enumerate(infos, 1)]
+    def create_scrobble_list(self):
+        return SuggestiveListBox(
+            ScrobbleListWalker(self.conf, self.session))
+
+    def update(self):
+        self.scrobble_list = self.create_scrobble_list()
+        self.set_body(self.scrobble_list)
 
 
 class LibraryBuffer(Buffer):
