@@ -13,7 +13,6 @@ Bug fixes
 
 New features
 ------------
-- Load variable number of scrobbles
 - Less crappy command completion
 - Complete command arguments
 - Multi-key commands
@@ -21,6 +20,9 @@ New features
 - Link albums so that they are always displayed as one
 - Binding to filter on album/artist in playlist
 - Command to perform MPD update on selected album
+- Tiling buffer manager?
+- Shuffle buffer order
+- ~~Load variable number of scrobbles~~
 - ~~Custom orderer combinations in config file~~
 - ~~Rearrange songs in playlist~~
 - ~~Save/load playlist~~
