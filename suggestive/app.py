@@ -236,12 +236,26 @@ class Buffer(urwid.Frame, Commandable):
 
 class ScrobbleListWalker(urwid.ListWalker):
 
-    def __init__(self, conf, session):
+    def __init__(self, conf, session, previous=None, plays=None):
+        if plays is None:
+            plays = []
+
         self.focus = 0
         self.items = []
         self.session = session
 
-        self._load_more(conf.initial_scrobbles())
+        self.items.extend(self._generate_plays(plays))
+
+        if isinstance(previous, ScrobbleListWalker):
+            self._load_more(previous.size())
+        else:
+            self._load_more(conf.initial_scrobbles())
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def size(self):
+        return len(self.items)
 
     @classmethod
     def _icon(cls, scrobble):
@@ -257,6 +271,21 @@ class ScrobbleListWalker(urwid.ListWalker):
 
     def __len__(self):
         return len(self.items)
+
+    def _play(self, track):
+        text = '{} - {}'.format(track.artist.name, track.name)
+
+        icon = urwid.SelectableIcon(text)
+        return urwid.AttrMap(icon, 'scrobble', 'focus scrobble')
+
+    def _generate_plays(self, tracks):
+        if not tracks:
+            return []
+
+        plays = [self._play(track) for track in tracks]
+        header = urwid.AttrMap(urwid.Text('Plays'), 'scrobble date')
+
+        return [header] + plays
 
     def _generate_icons(self, scrobbles):
         widgets = (i.original_widget for i in reversed(self.items))
@@ -313,22 +342,37 @@ class ScrobbleBuffer(Buffer):
     def __init__(self, conf, session):
         self.conf = conf
         self.session = session
-        self.initial_scrobbles = 0
-
-        self.scrobbles = []
 
         self.scrobble_list = self.create_scrobble_list()
+        self.current_song_id = None
+        self.plays = []
 
         super(ScrobbleBuffer, self).__init__(self.scrobble_list)
 
         self.update_status('Scrobbles')
 
-    def create_scrobble_list(self):
+    def create_scrobble_list(self, previous=None, plays=None):
         return SuggestiveListBox(
-            ScrobbleListWalker(self.conf, self.session))
+            ScrobbleListWalker(self.conf, self.session, previous, plays))
 
-    def update(self):
-        self.scrobble_list = self.create_scrobble_list()
+    def update(self, *args):
+        mpd = mstat.initialize_mpd(self.conf)
+        status = mpd.status()
+
+        songid = status.get('songid')
+        if songid != self.current_song_id:
+            try:
+                info = mpd.playlistid(songid)[0]
+                db_track = mstat.database_track_from_mpd(self.session, info)
+                self.plays.insert(0, db_track)
+                logger.debug('Plays: {}'.format(self.plays))
+            except (MpdCommandError, IndexError):
+                pass
+
+        self.current_song_id = songid
+
+        self.scrobble_list = self.create_scrobble_list(
+            self.scrobble_list, self.plays)
         self.set_body(self.scrobble_list)
 
 
@@ -1206,10 +1250,12 @@ class Application(Commandable):
     def update_library_event(self):
         self.session.expire_all()
         self.event_loop.set_alarm_in(0, self.library_buffer.update_suggestions)
+        self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
         self.library_buffer.update_status('Library')
 
     def update_playlist_event(self):
         self.event_loop.set_alarm_in(0, self.playlist_buffer.update)
+        self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
 
     def dispatch(self, key):
         if key in self.bindings:

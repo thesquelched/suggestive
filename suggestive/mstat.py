@@ -583,7 +583,6 @@ def get_playlist_track(session, config, index):
 def database_track_from_mpd(session, track_info):
     return session.query(Track).filter_by(filename=track_info['file']).first()
 
-
 def get_scrobbles(session, limit, offset=None):
     if not limit:
         return []
