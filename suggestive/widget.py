@@ -65,11 +65,19 @@ class SuggestiveListBox(urwid.ListBox):
         except ValueError:
             self.update_footer('No match found')
 
+    def first_selectable(self):
+        return next(
+            (i for i, item in enumerate(self.body) if item.selectable()),
+            0
+        )
+
     def keypress(self, size, key):
         cmd = self._command_map[key]
         if cmd in (bindings.GO_TO_TOP, bindings.GO_TO_BOTTOM):
             n_items = len(self.body)
-            self.set_focus(0 if cmd == bindings.GO_TO_TOP else n_items - 1)
+            self.set_focus(
+                self.first_selectable() if cmd == bindings.GO_TO_TOP
+                else n_items - 1)
         elif cmd in (bindings.SEARCH_NEXT, bindings.SEARCH_PREV):
             backward = (cmd == bindings.SEARCH_PREV)
             self.next_search_item(backward=backward)
