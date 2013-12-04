@@ -3,7 +3,7 @@ TODO
 
 Bug fixes
 ---------
-- ESC shouldn't move cursor to the top of the screen
+- ~~ESC shouldn't move cursor to the top of the screen~~
 - ~~Cycling through buffers doesn't work when next buffer doesn't accept focus~~
 - ~~Opening and closing vertical buffers now works correctly~~
 - ~~Search is not updated for expanded tracks~~

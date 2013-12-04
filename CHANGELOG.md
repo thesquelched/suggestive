@@ -8,9 +8,13 @@ Improvements
 - Save/load playlists
 - You may now rearrange items in the playlist
 - Added custom orderer commands, similar to the 'default_orderer' option
+- Added a 'recent scrobbles' buffer that also lists tracks played in the
+  current session
 
 Bug Fixes
 ---------
+- The library attempts to remember the last selected album when the album list
+  is updated
 - Search works properly when library is updated or albums are expanded
 - Fixed adding/removing buffers in vertical orientation
 - Loved ordering no longer reintroduces filtered-out albums

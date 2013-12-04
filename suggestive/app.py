@@ -381,6 +381,7 @@ class LibraryBuffer(Buffer):
 
     def __init__(self, conf, session):
         self.conf = conf
+        self.list_view = None
 
         self.show_score = conf.show_score()
 
@@ -593,10 +594,41 @@ class LibraryBuffer(Buffer):
     def update_suggestions(self, *_args):
         logger.info('Update suggestions display')
 
+        last_album = self.last_selected_album()
+
+        logger.debug('Last album before update: {}'.format(last_album))
+
         self.suggestions = self.get_suggestions()
 
         self.list_view = self.suggestion_list()
+        self.remember_focus(last_album)
         self.set_body(self.list_view)
+
+    def last_selected_album(self):
+        if self.list_view is not None:
+            try:
+                idx = self.list_view.focus_position
+                return self.suggestions[idx].album
+            except IndexError:
+                return None
+        else:
+            return None
+
+    def remember_focus(self, last_album):
+        if last_album is None:
+            return
+
+        try:
+            albums = (s.album for s in self.suggestions)
+            album_idx = next(
+                (i for i, album in enumerate(albums)
+                 if last_album.id == album.id),
+                None
+            )
+            if album_idx is not None:
+                self.list_view.focus_position = album_idx
+        except IndexError:
+            return
 
     def get_suggestions(self):
         return self.anl.order_albums(self.session, self.orderers)
