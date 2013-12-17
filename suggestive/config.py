@@ -30,6 +30,7 @@ class Config(object):
             log='%(conf_dir)s/log.txt',
             verbose=False,
             session_file='%(conf_dir)s/session',
+            update_on_startup=False,
         ),
         mpd=dict(
             host='localhost',
@@ -293,3 +294,7 @@ class Config(object):
     def initial_scrobbles(self):
         """Return the initial number of scrobbles to load"""
         return self.parser.getint('scrobbles', 'initial_load')
+
+    def update_on_startup(self):
+        """Return True if we should do a DB update on startup"""
+        return self.parser.getboolean('general', 'update_on_startup')

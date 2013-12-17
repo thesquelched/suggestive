@@ -1154,6 +1154,9 @@ class Application(Commandable):
         self.update_footer_text('suggestive')
         self.playing_update()
 
+        if conf.update_on_startup():
+            self.start_db_update()
+
     def setup_buffers(self):
         default_buffers = self.conf.default_buffers()
 
@@ -1424,6 +1427,7 @@ class Application(Commandable):
         screen.set_terminal_properties(colors=colormode)
 
     def playing_update(self, *args):
+        # TODO: Only do this on mpd change
         text = self.playlist_buffer.status_text()
         self.playlist_buffer.update_status(text)
         self.event_loop.set_alarm_in(1, self.playing_update)

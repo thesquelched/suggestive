@@ -1,20 +1,47 @@
 [general]
+# General options
+#
 #conf_dir = $HOME/.suggestive
 #database = %(conf_dir)s/music.db
 #log = %(conf_dir)s/log.txt
 #verbose = false
 #highcolor = true
-#default_buffers = library,playlist
+#
+# Default buffer orientation
+# Values:
+#   horizontal
+#   vertical
+#
 #orientation = horizontal
+#
+# Comma-separated list of buffers to show by default
+# Values:
+#   library
+#   playlist
+#   scrobbles
+#
+#default_buffers = library,playlist
+
+# If true, do a database update on every startup
+#
+#update_on_startup = false
+
 
 [mpd]
+# MPD configuration; should match what's in your .mpdconf file
+#
 #host = localhost
 #port = 6600
 
+
 [lastfm]
+# Last.fm configuration; see http://www.last.fm/api/accounts.  Note that the
+# values shown here are examples and will not actually work
+#
 #user = my_lastfm_user
 #api_key = 0123456789abcdefghijklmnopqrstuv
 #api_secret = 345678iugcfdr6789iojhg78uiujhg
+
 
 [appearance]
 # Customize color scheme. You may specify any valid urwid color
@@ -49,42 +76,55 @@
 #status_fg = #000
 #status_bg = #08f
 
+
 [playlist]
 # Customize playlist buffer
 
 # Format for the status bar. Possible variables:
 #   status, time_elapsed, time_total, title, artist, album_artist, album,
 #   filename, track, date
+#
 #status_format = {status}: {artist} - {title} [{time_elapsed}/{time_total}]
 
 # Save the current playlist on exit
+#
 #save_playlist_on_close = false
+#
 #playlist_save_name = 'suggestive.state'
+
 
 [library]
 # Customize library buffer
 
 # Ignore any leading 'The' in an artist's name for sorting purposes
+#
 #ignore_artist_the = true
 
 # Default commands for library ordering, separated by a semicolon
+#
 #default_order = loved min=0 max=1; banned remove_banned=true
 
 # Show the ordering score for albums
+#
 # show_score = false
 
 # Reset library order with the 'escape' key
+#
 # esc_resets_orderers = false
+
 
 [scrobbles]
 # Customize scrobbles buffer
 
 # Inital number of scrobbles to load
+#
 #initial_load = 50
+
 
 [custom_orderers]
 # Custom orderer combinations
 #
 # This will make the command 'mycommand' available in command mode in the
 # library buffer
+#
 #mycommand = unorder; loved max=0; playcount
