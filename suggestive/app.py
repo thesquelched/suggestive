@@ -10,7 +10,8 @@ from suggestive.analytics import (
 from suggestive.config import Config
 from suggestive.command import CommanderEdit, Commandable, typed
 from suggestive.widget import (
-    Prompt, SuggestiveListBox, SelectableAlbum, SelectableTrack, PlaylistItem)
+    Prompt, SuggestiveListBox, SelectableAlbum, SelectableTrack, PlaylistItem,
+    SelectableScrobble)
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 from suggestive.util import album_text
@@ -259,10 +260,11 @@ class ScrobbleListWalker(urwid.ListWalker):
 
     @classmethod
     def _icon(cls, scrobble):
-        info = scrobble.scrobble_info
-        text = '{} - {}'.format(info.artist, info.title)
+        #info = scrobble.scrobble_info
+        #text = '{} - {}'.format(info.artist, info.title)
 
-        icon = urwid.SelectableIcon(text)
+        #icon = urwid.SelectableIcon(text)
+        icon = SelectableScrobble(scrobble)
         return urwid.AttrMap(icon, 'scrobble', 'focus scrobble')
 
     @classmethod
@@ -291,8 +293,12 @@ class ScrobbleListWalker(urwid.ListWalker):
         widgets = (i.original_widget for i in reversed(self.items))
         last_day = next(
             (w.get_text()[0] for w in widgets
-             if not isinstance(w, urwid.SelectableIcon)),
+             if not isinstance(w, SelectableScrobble)),
             None)
+        #last_day = next(
+        #    (w.get_text()[0] for w in widgets
+        #     if not isinstance(w, urwid.SelectableIcon)),
+        #    None)
 
         for day, group in groupby(scrobbles, self._day):
             group = list(group)
@@ -374,6 +380,12 @@ class ScrobbleBuffer(Buffer):
         self.scrobble_list = self.create_scrobble_list(
             self.scrobble_list, self.plays)
         self.set_body(self.scrobble_list)
+
+    def search(self, searcher):
+        self.scrobble_list.search(searcher)
+
+    def next_search(self):
+        self.scrobble_list.next_search_item()
 
 
 class LibraryBuffer(Buffer):

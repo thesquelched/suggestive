@@ -112,6 +112,17 @@ class SelectableLibraryItem(urwid.WidgetWrap, SearchableItem):
             return key
 
 
+class SelectableScrobble(SelectableLibraryItem):
+
+    def __init__(self, scrobble):
+        self.content = self.scrobble = scrobble
+
+        info = scrobble.scrobble_info
+        text = '{} - {}'.format(info.artist, info.title)
+
+        super(SelectableScrobble, self).__init__(urwid.SelectableIcon(text))
+
+
 class SelectableAlbum(SelectableLibraryItem):
 
     def __init__(self, suggestion, show_score=False):

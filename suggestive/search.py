@@ -1,3 +1,6 @@
+import urwid
+from suggestive.widget import SearchableItem
+
 import logging
 import re
 from itertools import chain, islice
@@ -13,8 +16,14 @@ class LazySearcher(object):
         self.reverse = bool(reverse)
 
     def match(self, item):
+        if isinstance(item, urwid.AttrMap):
+            item = item.original_widget
+
+        if not isinstance(item, SearchableItem):
+            return False
+
         match = re.search(
-            self.pattern, item.original_widget.item_text(), re.I)
+            self.pattern, item.item_text(), re.I)
 
         return match is not None
 
