@@ -20,26 +20,6 @@ class Suggestion(object):
     def __init__(self, album, order=None):
         self.album = album
         self.order = order
-        #self.loved = [
-        #    track for track in album.tracks
-        #    if track.lastfm_info and track.lastfm_info.loved
-        #]
-
-
-def choose(N, k):
-    if (k > N) or (N < 0) or (k < 0):
-        return 0
-    N, k = (int(N), int(k))
-    top = N
-    val = 1
-    while (top > (N - k)):
-        val *= top
-        top -= 1
-    n = 1
-    while (n < k + 1):
-        val /= n
-        n += 1
-    return val
 
 
 class OrderDecorator(object):
@@ -55,7 +35,6 @@ class OrderDecorator(object):
 
 
 class BaseOrder(OrderDecorator):
-
     """Initialize all albums with unity order"""
 
     def order(self, albums, session, mpd):
@@ -66,6 +45,8 @@ class BaseOrder(OrderDecorator):
 
 
 class AlbumFilter(OrderDecorator):
+    """Show albums whose name contains a string"""
+
     def __init__(self, *name_pieces):
         name = ' '.join(name_pieces)
         self.name = name
@@ -82,6 +63,8 @@ class AlbumFilter(OrderDecorator):
 
 
 class ArtistFilter(OrderDecorator):
+    """Show albums for which the artist name contains a string"""
+
     def __init__(self, *name_pieces):
         name = ' '.join(name_pieces)
         self.name = name
@@ -98,7 +81,6 @@ class ArtistFilter(OrderDecorator):
 
 
 class SortOrder(OrderDecorator):
-
     """Sort by 'Artist - Album'"""
 
     def __init__(self, ignore_artist_the=True, reverse=False):
@@ -145,7 +127,6 @@ class ModifiedOrder(OrderDecorator):
 
 
 class BannedOrder(OrderDecorator):
-
     """Remove or demote albums with banned tracks"""
 
     def __init__(self, remove_banned=True):
@@ -154,8 +135,8 @@ class BannedOrder(OrderDecorator):
     def __repr__(self):
         return '<BannedOrder({})>'.format(self.remove)
 
-    def order(self, albums, session, mpd):
-        results = session.query(Album).\
+    def _query_albums(self, session):
+        return session.query(Album).\
             join(Track).\
             outerjoin(LastfmTrackInfo).\
             add_columns(func.count(Track.id),
@@ -163,6 +144,8 @@ class BannedOrder(OrderDecorator):
             group_by(Album.id).\
             all()
 
+    def order(self, albums, session, mpd):
+        results = self._query_albums(session)
         neworder = defaultdict(lambda: 1.0, albums.items())
 
         for album, n_tracks, n_banned in results:
@@ -179,7 +162,6 @@ class BannedOrder(OrderDecorator):
 
 
 class FractionLovedOrder(OrderDecorator):
-
     """Order by fraction of tracks loved"""
 
     def __init__(self, reverse=False, penalize_unloved=False, **kwArgs):
