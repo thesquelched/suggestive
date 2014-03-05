@@ -1,3 +1,5 @@
+from suggestive.util import retry
+
 import requests
 import json
 import logging
@@ -33,19 +35,13 @@ def get(data, keys, default=None):
     return get(data[key], rest, default=default)
 
 
-def retry(attempts=2):
-    def retry_dec(func):
-        def wrapper(self, *args, **kwArgs):
-            last_error = ValueError('No attempts made')
-            for attempt in range(attempts):
-                try:
-                    return func(self, *args, **kwArgs)
-                except LastfmError as error:
-                    last_error = error
-
-            raise last_error
-        return wrapper
-    return retry_dec
+def log_response(func):
+    def wrapper(self, method, *args, **kwArgs):
+        resp = func(self, method, *args, **kwArgs)
+        if self.log_responses:
+            logger.debug('POST {}: {}'.format(method, resp))
+        return resp
+    return wrapper
 
 
 class LastFM(object):
@@ -57,7 +53,9 @@ class LastFM(object):
     URL = 'http://ws.audioscrobbler.com/2.0/'
     _NO_SIGN = set(['format', 'api_sig'])
 
-    def __init__(self, api_key, session_file, api_secret=None):
+    def __init__(self, api_key, session_file, api_secret=None,
+                 log_responses=False):
+        self.log_responses = bool(log_responses)
         self.key = api_key
         self.secret = api_secret
         self.session_file = session_file
@@ -65,14 +63,14 @@ class LastFM(object):
         self.token = None
 
         if api_secret is not None:
-            self.session_key = self.load_session()
+            self.session_key = self._load_session()
             if self.session_key is None:
-                self.token = self.get_token()
-                self.get_user_permission()
-                self.session_key = self.get_session_key()
-                self.save_session()
+                self.token = self._get_token()
+                self._get_user_permission()
+                self.session_key = self._get_session_key()
+                self._save_session()
 
-    def get_user_permission(self):
+    def _get_user_permission(self):
         message = """\
 No LastFM session found; to authorize suggestive, visit this URL and click
 'Yes, allow access', then return to this window:
@@ -82,22 +80,22 @@ No LastFM session found; to authorize suggestive, visit this URL and click
 Press Enter to continue...""".format(self.key, self.token)
         input(message)
 
-    def load_session(self):
+    def _load_session(self):
         try:
             with open(self.session_file) as handle:
                 return handle.read().strip()
         except IOError:
-            logger.warn('Could not LastFM session key from file')
+            logger.warning('Could not LastFM session key from file')
             return None
 
-    def save_session(self):
+    def _save_session(self):
         logger.info('Saving session key to file')
         if self.session_key is None:
             raise IOError("Can't save session key; no session_key found")
         with open(self.session_file, 'w') as handle:
             handle.write(self.session_key)
 
-    def get_session_key(self):
+    def _get_session_key(self):
         logger.info('Acquiring new LastFM session')
 
         resp = self.query('auth.getSession', token=self.token, sign=True)
@@ -106,12 +104,13 @@ Press Enter to continue...""".format(self.key, self.token)
 
         return resp['session']['key']
 
-    def get_token(self):
+    def _get_token(self):
         logger.info('Acquiring new LastFM API token')
         resp = self.query('auth.getToken', sign=True)
         return resp['token']
 
     def query_all(self, method, *keys, **kwArgs):
+        """Query a paginated method, yielding the data from each page"""
         resp = self.query(method, **kwArgs)
 
         data = resp
@@ -133,7 +132,7 @@ Press Enter to continue...""".format(self.key, self.token)
             kwArgs.update({'page': pageno})
             yield self.query(method, **kwArgs)
 
-    def sign(self, **params):
+    def _sign(self, **params):
         if self.session_key is not None:
             params.update(sk=self.session_key)
 
@@ -143,7 +142,7 @@ Press Enter to continue...""".format(self.key, self.token)
         with_secret = '{}{}'.format(key_str, self.secret)
         return md5(with_secret.encode('UTF-8')).hexdigest()
 
-    def query_params(self, method, sign=False, format='json', **kwArgs):
+    def _query_params(self, method, sign=False, format='json', **kwArgs):
         params = dict(
             method=method,
             api_key=self.key,
@@ -153,20 +152,25 @@ Press Enter to continue...""".format(self.key, self.token)
         params.update(kwArgs)
 
         if sign:
-            params.update(api_sig=self.sign(**params), sk=self.session_key)
+            params.update(api_sig=self._sign(**params), sk=self.session_key)
 
         return params
 
+    def _post(self, *args, **kwArgs):
+        return requests.post(*args, **kwArgs)
+
     @retry()
+    @log_response
     def query(self, method, sign=False, **kwArgs):
         """
         Send a Last.FM query for the given method, returing the parsed JSON
         response
         """
-        params = self.query_params(method, sign=sign, **kwArgs)
+
+        params = self._query_params(method, sign=sign, **kwArgs)
 
         try:
-            resp = requests.post(self.URL, params=params)
+            resp = self._post(self.URL, params=params)
             if not resp.ok:
                 logger.debug(resp.content)
                 raise ValueError('Response was invalid')
@@ -176,6 +180,8 @@ Press Enter to continue...""".format(self.key, self.token)
             raise LastfmError("Query '{}' failed".format(method))
 
     def scrobbles(self, user, start=None, end=None):
+        """Get user scrobbles in the given date range"""
+
         for batch in self.scrobble_batches(user, start=start, end=end):
             for scrobble in batch:
                 yield scrobble
@@ -204,6 +210,8 @@ Press Enter to continue...""".format(self.key, self.token)
             yield recent['track']
 
     def loved_tracks(self, user):
+        """Get all of the user's loved tracks"""
+
         for resp in self.query_all('user.getLovedTracks', 'lovedtracks',
                                    user=user):
             if 'lovedtracks' not in resp:
@@ -217,6 +225,8 @@ Press Enter to continue...""".format(self.key, self.token)
                 yield track
 
     def banned_tracks(self, user):
+        """Get all of the user's banned tracks"""
+
         for resp in self.query_all('user.getBannedTracks', 'bannedtracks',
                                    user=user):
             if 'bannedtracks' not in resp:
@@ -230,6 +240,8 @@ Press Enter to continue...""".format(self.key, self.token)
                 yield track
 
     def artist_correction(self, artist):
+        """Get corrections for the given artist"""
+
         resp = self.query('artist.getCorrection', artist=artist)
 
         if 'error' in resp or 'corrections' not in resp:
@@ -243,6 +255,8 @@ Press Enter to continue...""".format(self.key, self.token)
         return get(corrections, ['correction', 'artist', 'name'])
 
     def album_corrections(self, album, artist):
+        """Get corrections for the given album"""
+
         resp = self.query('album.search', album=album)
 
         try:
@@ -266,6 +280,8 @@ Press Enter to continue...""".format(self.key, self.token)
             return []
 
     def love_track(self, artist, track):
+        """Mark the given track loved"""
+
         resp = self.query('track.love', artist=artist, track=track, sign=True)
         if resp.get('status') == 'ok':
             return True
@@ -275,6 +291,8 @@ Press Enter to continue...""".format(self.key, self.token)
             return False
 
     def unlove_track(self, artist, track):
+        """Set the track as not loved"""
+
         resp = self.query('track.unlove', artist=artist, track=track,
                           sign=True)
         if resp.get('status') == 'ok':

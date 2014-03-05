@@ -234,6 +234,8 @@ class MpdLoader(object):
         by_artist = defaultdict(list)
         for info in missing_info:
             artist = info.get('albumartist', info.get('artist'))
+            if isinstance(artist, (list, tuple)):
+                artist = artist[0]
 
             by_artist[artist].append(info)
 
@@ -443,7 +445,8 @@ def initialize_lastfm(config):
     return LastFM(
         config.lastfm_apikey(),
         config.lastfm_session_file(),
-        api_secret=config.lastfm_secret_key()
+        api_secret=config.lastfm_secret_key(),
+        log_responses=config.lastfm_log_responses(),
     )
 
 

@@ -41,6 +41,7 @@ class Config(object):
             user='',
             api_key='',
             api_secret='',
+            log_responses=False,
         ),
         appearance=dict(
             album_fg='#000',
@@ -148,6 +149,10 @@ class Config(object):
     def lastfm_session_file(self):
         """Return LastFM session file"""
         return expand(self.parser['general']['session_file'])
+
+    def lastfm_log_responses(self):
+        """Return True if responses from LastFM should be logged"""
+        return self.parser['lastfm'].getboolean('log_responses')
 
     def scrobble_retention(self):
         """Return seconds to keep LastFM scrobbles"""

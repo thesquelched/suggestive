@@ -340,6 +340,9 @@ class ScrobbleListWalker(urwid.ListWalker):
         if pos >= len(self.items):
             self._load_more(pos)
 
+        if pos >= len(self.items):
+            return None, None
+
         return self.items[pos], pos
 
 
@@ -1315,7 +1318,11 @@ class Application(Commandable):
     def exit(self):
         if self.conf.save_playlist_on_close():
             playlist = self.conf.playlist_save_name()
-            self.playlist_buffer.save_playlist(playlist)
+            try:
+                self.playlist_buffer.save_playlist(playlist)
+            except Exception as ex:
+                logger.error('Unable to save playlist: {}'.format(ex))
+                pass
 
         self.quit_event.set()
         raise urwid.ExitMainLoop()
