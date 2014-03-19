@@ -1166,6 +1166,9 @@ class Application(Commandable):
         if not args.no_update and (args.update or conf.update_on_startup()):
             self.start_mpd_update()
 
+    def update_library_status(self, *args, **kwArgs):
+        self.library_buffer.update_status(*args, **kwArgs)
+
     def setup_buffers(self):
         default_buffers = self.conf.default_buffers()
 
@@ -1272,9 +1275,9 @@ class Application(Commandable):
             self.scrobble_buffer.active = True
 
     def start_mpd_update(self):
-        self.library_buffer.update_status('Library (updating MPD...)')
+        self.update_library_status('Library (updating MPD...)')
 
-        reset_status = lambda: self.library_buffer.update_status('Suggestive')
+        reset_status = lambda: self.update_library_status('Library')
 
         update_thread = MpdUpdateThread(
             self.conf, reset_status, self.quit_event)
@@ -1294,10 +1297,9 @@ class Application(Commandable):
         thread.start()
 
     def start_db_update_thread(self):
-        updater = lambda status: self.library_buffer.update_status(status)
-
         thread = DatabaseUpdateThread(
-            self.conf, self.update_library_event, updater, self.quit_event)
+            self.conf, self.update_library_event, self.update_library_status,
+            self.quit_event)
         thread.daemon = False
         self.db_update_thread = thread
 
@@ -1307,7 +1309,7 @@ class Application(Commandable):
         self.session.expire_all()
         self.event_loop.set_alarm_in(0, self.library_buffer.update_suggestions)
         self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
-        self.library_buffer.update_status('Library')
+        self.update_library_status('Library')
 
     def update_playlist_event(self):
         self.event_loop.set_alarm_in(0, self.playlist_buffer.update)
