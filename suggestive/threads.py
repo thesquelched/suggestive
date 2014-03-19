@@ -3,6 +3,7 @@ from suggestive.lastfm import LastfmError
 import threading
 import logging
 import traceback
+import socket
 
 
 logger = logging.getLogger(__name__)
@@ -63,10 +64,57 @@ class DatabaseUpdateThread(AppThread):
 
     """Start a database update"""
 
-    def __init__(self, conf, callback, *args, **kwArgs):
+    def __init__(self, conf, callback, status_updater, *args, **kwArgs):
         super(DatabaseUpdateThread, self).__init__(*args, **kwArgs)
         self.callback = callback
         self.conf = conf
+        self.status_updater = status_updater
+        self.mpd = mstat.initialize_mpd(self.conf)
+        self.mpd.idletimeout = 1
+
+    def idle(self):
+        while not self.quit_event.is_set():
+            try:
+                self.mpd.idle('database')
+                return
+            except (socket.timeout, OSError):
+                continue
+
+    def run(self):
+        logger.info('Started database update thread')
+
+        while not self.quit_event.is_set():
+            logger.info('Waiting for MPD database update event')
+
+            self.idle()
+
+            if self.quit_event.is_set():
+                logger.info('Exiting database update thread')
+                return
+
+            (self.status_updater)('Library (updating database...)')
+            logger.info('Started database update')
+
+            logger.debug('Waiting for lock')
+            with db_lock:
+                logger.info('Update internal database')
+                mstat.update_database(self.conf)
+
+                logger.info('Finished update')
+
+            logger.debug('Released lock')
+            (self.callback)()
+
+
+@log_errors
+class MpdUpdateThread(AppThread):
+
+    """Update the MPD database"""
+
+    def __init__(self, conf, callback, *args, **kwArgs):
+        super(MpdUpdateThread, self).__init__(*args, **kwArgs)
+        self.conf = conf
+        self.callback = callback
 
     def run(self):
         logger.info('Start MPD update')
@@ -75,18 +123,6 @@ class DatabaseUpdateThread(AppThread):
         mpd.idle('update')
 
         logger.info('Finished MPD update')
-
-        if self.quit_event.is_set():
-            return
-
-        logger.debug('Waiting for lock')
-        with db_lock:
-            logger.info('Update internal database')
-            mstat.update_database(self.conf)
-
-            logger.info('Finished update')
-
-        logger.debug('Released lock')
         (self.callback)()
 
 

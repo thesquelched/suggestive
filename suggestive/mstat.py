@@ -473,10 +473,6 @@ def correct_artist(name, lastfm):
 
 def last_updated(session):
     return session.query(func.max(Scrobble.time)).scalar()
-    #if last_date:
-    #    return int(mktime(last_date.timetuple()))
-    #else:
-    #    return None
 
 
 def update_mpd(config):

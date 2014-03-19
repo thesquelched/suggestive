@@ -3,7 +3,8 @@ Main application/UI
 """
 
 from suggestive.threads import (
-    MpdWatchThread, DatabaseUpdateThread, ScrobbleInitializeThread)
+    MpdWatchThread, DatabaseUpdateThread, ScrobbleInitializeThread,
+    MpdUpdateThread)
 from suggestive.analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
     SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)
@@ -260,10 +261,6 @@ class ScrobbleListWalker(urwid.ListWalker):
 
     @classmethod
     def _icon(cls, scrobble):
-        #info = scrobble.scrobble_info
-        #text = '{} - {}'.format(info.artist, info.title)
-
-        #icon = urwid.SelectableIcon(text)
         icon = SelectableScrobble(scrobble)
         return urwid.AttrMap(icon, 'scrobble', 'focus scrobble')
 
@@ -295,10 +292,6 @@ class ScrobbleListWalker(urwid.ListWalker):
             (w.get_text()[0] for w in widgets
              if not isinstance(w, SelectableScrobble)),
             None)
-        #last_day = next(
-        #    (w.get_text()[0] for w in widgets
-        #     if not isinstance(w, urwid.SelectableIcon)),
-        #    None)
 
         for day, group in groupby(scrobbles, self._day):
             group = list(group)
@@ -314,7 +307,6 @@ class ScrobbleListWalker(urwid.ListWalker):
         n_load = 1 + position - n_items
         scrobbles = mstat.get_scrobbles(self.session, n_load, n_items)
 
-        #self.items.extend([self._icon(scrobble) for scrobble in items])
         self.items.extend(list(self._generate_icons(scrobbles)))
 
     def __getitem__(self, idx):
@@ -1121,9 +1113,11 @@ class MainWindow(urwid.Frame):
 
 
 class Application(Commandable):
-    def __init__(self, conf, session):
+    def __init__(self, args, conf, session):
         self.conf = conf
         self.session = session
+
+        self.db_update_thread = None
 
         self.quit_event = threading.Event()
 
@@ -1169,8 +1163,8 @@ class Application(Commandable):
         self.update_footer_text('suggestive')
         self.playing_update()
 
-        if conf.update_on_startup():
-            self.start_db_update()
+        if not args.no_update and (args.update or conf.update_on_startup()):
+            self.start_mpd_update()
 
     def setup_buffers(self):
         default_buffers = self.conf.default_buffers()
@@ -1277,11 +1271,13 @@ class Application(Commandable):
             self.buffers.add(self.scrobble_buffer)
             self.scrobble_buffer.active = True
 
-    def start_db_update(self):
-        self.library_buffer.update_status('Library (updating...)')
+    def start_mpd_update(self):
+        self.library_buffer.update_status('Library (updating MPD...)')
 
-        update_thread = DatabaseUpdateThread(
-            self.conf, self.update_library_event, self.quit_event)
+        reset_status = lambda: self.library_buffer.update_status('Suggestive')
+
+        update_thread = MpdUpdateThread(
+            self.conf, reset_status, self.quit_event)
         update_thread.daemon = False
         update_thread.start()
 
@@ -1295,6 +1291,16 @@ class Application(Commandable):
         thread = MpdWatchThread(
             self.conf, self.update_playlist_event, self.quit_event)
         thread.daemon = True
+        thread.start()
+
+    def start_db_update_thread(self):
+        updater = lambda status: self.library_buffer.update_status(status)
+
+        thread = DatabaseUpdateThread(
+            self.conf, self.update_library_event, updater, self.quit_event)
+        thread.daemon = False
+        self.db_update_thread = thread
+
         thread.start()
 
     def update_library_event(self):
@@ -1330,7 +1336,7 @@ class Application(Commandable):
     def setup_bindings(self):
         return {
             'q': lambda: self.exit(),
-            'u': lambda: self.start_db_update(),
+            'u': lambda: self.start_mpd_update(),
             ':': lambda: self.start_command(),
             'p': lambda: self.pause(),
             'ctrl w': lambda: self.buffers.next_buffer(),
@@ -1464,6 +1470,7 @@ class Application(Commandable):
         # Start threads
         self.start_mpd_watch_thread()
         self.start_scrobble_initialize()
+        self.start_db_update_thread()
 
         return mainloop
 
@@ -1610,7 +1617,7 @@ def run(args):
     with mstat.session_scope(conf, commit=False) as main_session:
         try:
             logger.info('Starting event loop')
-            app = Application(conf, main_session)
+            app = Application(args, conf, main_session)
             app.event_loop.run()
         except KeyboardInterrupt:
             logger.error("Exited via keyboard interrupt; next time, use 'q'")
@@ -1625,5 +1632,9 @@ def main():
     parser = argparse.ArgumentParser(description='Suggestive')
     parser.add_argument('--log', '-l', help='Log file path')
     parser.add_argument('--config', '-c', help='Config file path')
+    parser.add_argument('--update', '-u', help='Update database',
+                        action='store_true')
+    parser.add_argument('--no_update', '-U', help='Do not update database',
+                        action='store_true')
 
     run(parser.parse_args())
