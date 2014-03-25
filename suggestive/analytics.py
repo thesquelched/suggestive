@@ -290,10 +290,11 @@ class PlaycountOrder(OrderDecorator):
 
             plays = n_scrobbles / n_tracks
             if self.plays_min <= plays <= self.plays_max:
+                factor = 1.0 + plays
                 if self.reverse:
-                    neworder[album] *= 1 / plays if plays > 0 else 1
+                    neworder[album] /= factor
                 else:
-                    neworder[album] *= plays
+                    neworder[album] *= factor
             else:
                 if album in neworder:
                     del neworder[album]

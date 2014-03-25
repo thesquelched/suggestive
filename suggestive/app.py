@@ -1173,6 +1173,9 @@ class Application(Commandable):
         if not args.no_update and (args.update or conf.update_on_startup()):
             self.start_mpd_update()
 
+    def update_library_status(self, *args, **kwArgs):
+        self.library_buffer.update_status(*args, **kwArgs)
+
     def setup_buffers(self):
         default_buffers = self.conf.default_buffers()
 
@@ -1292,7 +1295,7 @@ class Application(Commandable):
         self.observer.start()
 
     def update_database_event(self):
-        self.library_buffer.update_status('Library (updating database...)')
+        self.update_library_status('Library (updating database...)')
         updater = DatabaseUpdater(
             self.conf,
             self.quit_event,
@@ -1301,9 +1304,9 @@ class Application(Commandable):
 
     def check_update_event(self):
         if 'updating_db' in self.mpd.status():
-            self.library_buffer.update_status('Library (updating MPD...)')
+            self.update_library_status('Library (updating MPD...)')
         else:
-            self.library_buffer.update_status('Library')
+            self.update_library_status('Library')
 
     def start_mpd_update(self):
         self.mpd.update()
@@ -1319,7 +1322,7 @@ class Application(Commandable):
         self.session.expire_all()
         self.event_loop.set_alarm_in(0, self.library_buffer.update_suggestions)
         self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
-        self.library_buffer.update_status('Library')
+        self.update_library_status('Library')
 
     def update_playlist_event(self):
         logger.info('Updating playlist')
