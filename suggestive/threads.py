@@ -31,39 +31,40 @@ def log_errors(cls):
     return cls
 
 
-class PrioritySetQueue(PriorityQueue):
+class PriorityEventQueue(PriorityQueue):
 
     unique = {'player', 'playlist', 'database'}
 
     def __init__(self):
-        self.items = set()
+        self.events = set()
         self.set_lock = threading.Lock()
-        super(PrioritySetQueue, self).__init__()
+        super(PriorityEventQueue, self).__init__()
 
-    def in_queue(self, item):
+    def in_queue(self, event):
         return (
-            item in self.items and
-            isinstance(item, tuple) and
-            item[-1] in self.unique
+            event in self.events and
+            event in self.unique
         )
 
     def put(self, item, *args, **kwArgs):
         with self.set_lock:
-            if self.in_queue(item):
+            event = item[-1]
+            if self.in_queue(event):
                 logger.debug('{} already in queue'.format(item))
                 return
 
-            self.items.add(item)
-            super(PrioritySetQueue, self).put(item, *args, **kwArgs)
+            self.events.add(event)
+            super(PriorityEventQueue, self).put(item, *args, **kwArgs)
 
     def get(self, *args, **kwArgs):
-        item = super(PrioritySetQueue, self).get(*args, **kwArgs)
+        item = super(PriorityEventQueue, self).get(*args, **kwArgs)
         with self.set_lock:
-            self.items.discard(item)
+            event = item[-1]
+            self.events.discard(event)
             return item
 
 
-event_queue = PrioritySetQueue()
+event_queue = PriorityEventQueue()
 
 
 class AppThread(threading.Thread):
