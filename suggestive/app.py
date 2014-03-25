@@ -4,9 +4,6 @@ Main application/UI
 
 from suggestive.threads import (
     MpdObserver, EventDispatcher, DatabaseUpdater, ScrobbleInitializeThread)
-#from suggestive.threads import (
-#    MpdWatchThread, DatabaseUpdateThread, ScrobbleInitializeThread,
-#    MpdUpdateThread)
 from suggestive.analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
     SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)

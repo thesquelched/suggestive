@@ -123,14 +123,10 @@ class MpdObserver(AppThread):
 
     def consume_event(self, event):
         callback = self.events.get(event)
-        logger.debug('Callback: {}'.format(callback))
         if not callable(callback):
             logger.error('Event {} has no associated callback'.format(
                 event))
             return
-
-        #if callback in event_queue and callback in self.unique:
-        #    return
 
         priority = self.priorities.get(event, 0)
         event_queue.put((priority, callback))
@@ -161,7 +157,6 @@ class EventDispatcher(AppThread):
         while not self.quit_event.is_set():
             try:
                 _, callback = event_queue.get(True, self.timeout)
-                logger.debug('EventDispatcher: running callback')
                 callback()
             except Empty:
                 pass
