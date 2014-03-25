@@ -170,7 +170,7 @@ class DatabaseUpdater(AppThread):
         self.update_status = update_status
         self.daemon = False
 
-    def start(self):
+    def run(self):
         if updating_database.is_set():
             logger.debug('Ignoring database update; already running')
             return
@@ -186,7 +186,7 @@ class DatabaseUpdater(AppThread):
             mstat.update_database(self.conf)
 
             logger.debug('Finished database update')
-            updating_database.unset()
+            updating_database.clear()
 
             (self.update_status)()
 
