@@ -3,8 +3,10 @@ Main application/UI
 """
 
 from suggestive.threads import (
-    MpdWatchThread, DatabaseUpdateThread, ScrobbleInitializeThread,
-    MpdUpdateThread)
+    MpdObserver, EventDispatcher, MpdUpdater, ScrobbleInitializeThread)
+#from suggestive.threads import (
+#    MpdWatchThread, DatabaseUpdateThread, ScrobbleInitializeThread,
+#    MpdUpdateThread)
 from suggestive.analytics import (
     Analytics, FractionLovedOrder, BannedOrder, ArtistFilter, AlbumFilter,
     SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)
@@ -652,6 +654,13 @@ class LibraryBuffer(Buffer):
     def play_track(self, track):
         self.play_tracks([track])
 
+    def track_num(self, trackno):
+        if isinstance(trackno, (tuple, list)):
+            trackno = trackno[0]
+
+        simplified = re.sub(r'(\d+)/\d+', r'\1', str(trackno))
+        return int(simplified)
+
     def enqueue_tracks(self, tracks):
         mpd = mstat.initialize_mpd(self.conf)
 
@@ -662,9 +671,9 @@ class LibraryBuffer(Buffer):
             mpd.listallinfo(track.filename) for track in tracks))
 
         for i, track in enumerate(mpd_tracks):
-            trackno = str(track.get('track', i))
-            trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
-            track['track'] = int(trackno)
+            #trackno = str(track.get('track', i))
+            #trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
+            track['track'] = self.track_num(track.get('track', i))
 
         sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
         return [mpd.addid(track['file']) for track in sorted_tracks]
@@ -1117,6 +1126,7 @@ class Application(Commandable):
         self.conf = conf
         self.session = session
 
+        self.mpd = mstat.initialize_mpd(conf)
         self.db_update_thread = None
 
         self.quit_event = threading.Event()
@@ -1271,15 +1281,40 @@ class Application(Commandable):
             self.buffers.add(self.scrobble_buffer)
             self.scrobble_buffer.active = True
 
+    def start_event_system(self):
+        events = {
+            'player': self.update_playlist_event,
+            'playlist': self.update_playlist_event,
+            'database': self.update_database_event,
+            'update': self.check_update_event,
+        }
+        self.observer = MpdObserver(self.conf, events, self.quit_event)
+        self.dispatcher = EventDispatcher(self.quit_event)
+
+        self.dispatcher.start()
+        self.observer.start()
+
+    def update_database_event(self):
+        self.library_buffer.update_status('Library (updating database...)')
+        updater = MpdUpdater(self.conf)
+        updater.start()
+        self.library_buffer.update_status('Library')
+
+    def check_update_event(self):
+        if 'updating_db' in self.mpd.status():
+            self.library_buffer.update_status('Library (updating MPD...)')
+        else:
+            self.library_buffer.update_status('Library')
+
     def start_mpd_update(self):
-        self.library_buffer.update_status('Library (updating MPD...)')
+        self.mpd.update()
+        #self.library_buffer.update_status('Library (updating MPD...)')
+        #reset_status = lambda: self.library_buffer.update_status('Suggestive')
 
-        reset_status = lambda: self.library_buffer.update_status('Suggestive')
-
-        update_thread = MpdUpdateThread(
-            self.conf, reset_status, self.quit_event)
-        update_thread.daemon = False
-        update_thread.start()
+        #update_thread = MpdUpdateThread(
+        #    self.conf, reset_status, self.quit_event)
+        #update_thread.daemon = False
+        #update_thread.start()
 
     def start_scrobble_initialize(self):
         scrobble_thread = ScrobbleInitializeThread(
@@ -1287,29 +1322,31 @@ class Application(Commandable):
         scrobble_thread.daemon = False
         scrobble_thread.start()
 
-    def start_mpd_watch_thread(self):
-        thread = MpdWatchThread(
-            self.conf, self.update_playlist_event, self.quit_event)
-        thread.daemon = True
-        thread.start()
+    #def start_mpd_watch_thread(self):
+    #    thread = MpdWatchThread(
+    #        self.conf, self.update_playlist_event, self.quit_event)
+    #    thread.daemon = True
+    #    thread.start()
 
-    def start_db_update_thread(self):
-        updater = lambda status: self.library_buffer.update_status(status)
+    #def start_db_update_thread(self):
+    #    updater = lambda status: self.library_buffer.update_status(status)
 
-        thread = DatabaseUpdateThread(
-            self.conf, self.update_library_event, updater, self.quit_event)
-        thread.daemon = False
-        self.db_update_thread = thread
+    #    thread = DatabaseUpdateThread(
+    #        self.conf, self.update_library_event, updater, self.quit_event)
+    #    thread.daemon = False
+    #    self.db_update_thread = thread
 
-        thread.start()
+    #    thread.start()
 
     def update_library_event(self):
+        logger.info('Updating library')
         self.session.expire_all()
         self.event_loop.set_alarm_in(0, self.library_buffer.update_suggestions)
         self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
         self.library_buffer.update_status('Library')
 
     def update_playlist_event(self):
+        logger.info('Updating playlist')
         self.event_loop.set_alarm_in(0, self.playlist_buffer.update)
         self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
 
@@ -1468,9 +1505,10 @@ class Application(Commandable):
         self.setup_term(mainloop.screen)
 
         # Start threads
-        self.start_mpd_watch_thread()
+        self.start_event_system()
         self.start_scrobble_initialize()
-        self.start_db_update_thread()
+        #self.start_mpd_watch_thread()
+        #self.start_db_update_thread()
 
         return mainloop
 

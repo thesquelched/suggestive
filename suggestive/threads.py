@@ -4,7 +4,7 @@ import threading
 import logging
 import traceback
 import socket
-from Queue import PriorityQueue, Empty
+from queue import PriorityQueue, Empty
 
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,41 @@ def log_errors(cls):
     cls.run = newrun
 
     return cls
+
+
+class PrioritySetQueue(PriorityQueue):
+
+    unique = {'player', 'playlist', 'database'}
+
+    def __init__(self):
+        self.items = set()
+        self.set_lock = threading.Lock()
+        super(PrioritySetQueue, self).__init__()
+
+    def in_queue(self, item):
+        return (
+            item in self.items and
+            isinstance(item, tuple) and
+            item[-1] in self.unique
+        )
+
+    def put(self, item, *args, **kwArgs):
+        with self.set_lock:
+            if self.in_queue(item):
+                logger.debug('{} already in queue'.format(item))
+                return
+
+            self.items.add(item)
+            super(PrioritySetQueue, self).put(item, *args, **kwArgs)
+
+    def get(self, *args, **kwArgs):
+        item = super(PrioritySetQueue, self).get(*args, **kwArgs)
+        with self.set_lock:
+            self.items.discard(item)
+            return item
+
+
+event_queue = PrioritySetQueue()
 
 
 class AppThread(threading.Thread):
@@ -72,46 +107,40 @@ class MpdObserver(AppThread):
         'message',
     )
 
-    unique = {'player', 'playlist', 'database'}
+    def __init__(self, conf, events, quit_event):
+        super(MpdObserver, self).__init__(quit_event)
 
-    def __init__(self, conf, events, queue):
         self.conf = conf
         self.events = events
-        self.queue = queue
         self.priorities = self.build_priority()
-        #self.events = {
-        #    'database': None,
-        #    'update': None,
-        #    'stored_playlist': None,
-        #    'playlist': None,
-        #    'player': None,
-        #    'mixer': None,
-        #    'output': None,
-        #    'options': None,
-        #    'sticker': None,
-        #    'subscription': None,
-        #    'message': None,
-        #}
+
+        # Thread properties
+        self.daemon = True
 
     def build_priority(self):
         return {event: i for i, event in enumerate(self.order)}
 
     def consume_event(self, event):
         callback = self.events.get(event)
+        logger.debug('Callback: {}'.format(callback))
         if not callable(callback):
+            logger.error('Event {} has no associated callback'.format(
+                event))
             return
 
-        if callback in self.queue and callback in self.unique:
-            return
+        #if callback in event_queue and callback in self.unique:
+        #    return
 
         priority = self.priorities.get(event, 0)
-        self.queue.put((priority, callback))
+        event_queue.put((priority, callback))
 
     def run(self):
         mpd = mstat.initialize_mpd(self.conf)
 
         while not self.quit_event.is_set():
+            logger.debug('MPD: idle')
             changes = mpd.idle()
+            logger.debug('Mpd changes: {}'.format(changes))
             for change in changes:
                 self.consume_event(change)
 
@@ -120,17 +149,18 @@ class EventDispatcher(AppThread):
 
     default_timeout = 1
 
-    def __init__(self, queue, quit_event, timeout=None):
+    def __init__(self, quit_event, timeout=None):
+        super(EventDispatcher, self).__init__(quit_event)
         if timeout is None:
             timeout = self.default_timeout
 
-        self.queue = queue
         self.timeout = float(timeout)
 
     def run(self):
         while not self.quit_event.is_set():
             try:
-                _, callback = self.queue.get(True, self.timeout)
+                _, callback = event_queue.get(True, self.timeout)
+                logger.debug('EventDispatcher: running callback')
                 callback()
             except Empty:
                 pass
@@ -152,6 +182,19 @@ class MpdWatchThread(AppThread):
         while not self.quit_event.is_set():
             mpd.idle('playlist', 'player')
             self.playlist_cb()
+
+
+class MpdUpdater(object):
+
+    def __init__(self, conf):
+        self.conf = conf
+
+    def start(self):
+        logger.debug('Waiting for database lock')
+        with db_lock:
+            logger.info('Starting database update')
+            mstat.update_database(self.conf)
+            logger.debug('Finished database update')
 
 
 @log_errors
