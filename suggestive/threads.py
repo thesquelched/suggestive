@@ -4,6 +4,7 @@ import threading
 import logging
 import traceback
 import socket
+from Queue import PriorityQueue, Empty
 
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,103 @@ class AppThread(threading.Thread):
     def __init__(self, quit_event, *args, **kwArgs):
         super(AppThread, self).__init__(*args, **kwArgs)
         self.quit_event = quit_event
+
+
+class MpdObserver(AppThread):
+
+    """
+    database: the song database has been modified after update.
+    update: a database update has started or finished. If the database was
+        modified during the update, the database event is also emitted.
+    stored_playlist: a stored playlist has been modified, renamed, created or
+        deleted
+    playlist: the current playlist has been modified
+    player: the player has been started, stopped or seeked
+    mixer: the volume has been changed
+    output: an audio output has been enabled or disabled
+    options: options like repeat, random, crossfade, replay gain
+    sticker: the sticker database has been modified.
+    subscription: a client has subscribed or unsubscribed to a channel
+    message: a message was received on a channel this client is subscribed to;
+        this event is only emitted when the queue is empty
+    """
+
+    order = (
+        'player',
+        'playlist',
+        'database',
+        'update',
+        'stored_playlist',
+        'mixer',
+        'output',
+        'options',
+        'sticker',
+        'subscription',
+        'message',
+    )
+
+    unique = {'player', 'playlist', 'database'}
+
+    def __init__(self, conf, events, queue):
+        self.conf = conf
+        self.events = events
+        self.queue = queue
+        self.priorities = self.build_priority()
+        #self.events = {
+        #    'database': None,
+        #    'update': None,
+        #    'stored_playlist': None,
+        #    'playlist': None,
+        #    'player': None,
+        #    'mixer': None,
+        #    'output': None,
+        #    'options': None,
+        #    'sticker': None,
+        #    'subscription': None,
+        #    'message': None,
+        #}
+
+    def build_priority(self):
+        return {event: i for i, event in enumerate(self.order)}
+
+    def consume_event(self, event):
+        callback = self.events.get(event)
+        if not callable(callback):
+            return
+
+        if callback in self.queue and callback in self.unique:
+            return
+
+        priority = self.priorities.get(event, 0)
+        self.queue.put((priority, callback))
+
+    def run(self):
+        mpd = mstat.initialize_mpd(self.conf)
+
+        while not self.quit_event.is_set():
+            changes = mpd.idle()
+            for change in changes:
+                self.consume_event(change)
+
+
+class EventDispatcher(AppThread):
+
+    default_timeout = 1
+
+    def __init__(self, queue, quit_event, timeout=None):
+        if timeout is None:
+            timeout = self.default_timeout
+
+        self.queue = queue
+        self.timeout = float(timeout)
+
+    def run(self):
+        while not self.quit_event.is_set():
+            try:
+                _, callback = self.queue.get(True, self.timeout)
+                callback()
+            except Empty:
+                pass
 
 
 @log_errors
