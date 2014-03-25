@@ -1308,35 +1308,12 @@ class Application(Commandable):
 
     def start_mpd_update(self):
         self.mpd.update()
-        #self.library_buffer.update_status('Library (updating MPD...)')
-        #reset_status = lambda: self.library_buffer.update_status('Suggestive')
-
-        #update_thread = MpdUpdateThread(
-        #    self.conf, reset_status, self.quit_event)
-        #update_thread.daemon = False
-        #update_thread.start()
 
     def start_scrobble_initialize(self):
         scrobble_thread = ScrobbleInitializeThread(
             self.conf, self.quit_event)
         scrobble_thread.daemon = False
         scrobble_thread.start()
-
-    #def start_mpd_watch_thread(self):
-    #    thread = MpdWatchThread(
-    #        self.conf, self.update_playlist_event, self.quit_event)
-    #    thread.daemon = True
-    #    thread.start()
-
-    #def start_db_update_thread(self):
-    #    updater = lambda status: self.library_buffer.update_status(status)
-
-    #    thread = DatabaseUpdateThread(
-    #        self.conf, self.update_library_event, updater, self.quit_event)
-    #    thread.daemon = False
-    #    self.db_update_thread = thread
-
-    #    thread.start()
 
     def update_library_event(self):
         logger.info('Updating library')
@@ -1507,8 +1484,6 @@ class Application(Commandable):
         # Start threads
         self.start_event_system()
         self.start_scrobble_initialize()
-        #self.start_mpd_watch_thread()
-        #self.start_db_update_thread()
 
         return mainloop
 
