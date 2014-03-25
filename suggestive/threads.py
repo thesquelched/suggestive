@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
+# Synchronization primitives
 db_lock = threading.Lock()
+updating_database = threading.Event()
 
 
 def log_errors(cls):
@@ -165,17 +167,33 @@ class EventDispatcher(AppThread):
                 pass
 
 
-class MpdUpdater(object):
+class DatabaseUpdater(AppThread):
 
-    def __init__(self, conf):
+    def __init__(self, conf, quit_event, update_status):
+        super(DatabaseUpdater, self).__init__(quit_event)
         self.conf = conf
+        self.update_status = update_status
+        self.daemon = False
 
     def start(self):
+        if updating_database.is_set():
+            logger.debug('Ignoring database update; already running')
+            return
+
         logger.debug('Waiting for database lock')
         with db_lock:
+            if self.quit_event.is_set():
+                return
+
             logger.info('Starting database update')
+            updating_database.set()
+
             mstat.update_database(self.conf)
+
             logger.debug('Finished database update')
+            updating_database.unset()
+
+            (self.update_status)()
 
 
 @log_errors

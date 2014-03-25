@@ -3,7 +3,7 @@ Main application/UI
 """
 
 from suggestive.threads import (
-    MpdObserver, EventDispatcher, MpdUpdater, ScrobbleInitializeThread)
+    MpdObserver, EventDispatcher, DatabaseUpdater, ScrobbleInitializeThread)
 #from suggestive.threads import (
 #    MpdWatchThread, DatabaseUpdateThread, ScrobbleInitializeThread,
 #    MpdUpdateThread)
@@ -1296,9 +1296,11 @@ class Application(Commandable):
 
     def update_database_event(self):
         self.library_buffer.update_status('Library (updating database...)')
-        updater = MpdUpdater(self.conf)
+        updater = DatabaseUpdater(
+            self.conf,
+            self.quit_event,
+            self.update_library_event)
         updater.start()
-        self.library_buffer.update_status('Library')
 
     def check_update_event(self):
         if 'updating_db' in self.mpd.status():
