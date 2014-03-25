@@ -88,7 +88,8 @@ General
 
 - `q`, `<C-c>` - Quit
 - `:` - Enter command mode
-- `u` - Update database
+- `u` - Update mpd
+- `U` - Force `suggestive` database update
 - `p` - Pause/resume playback
 - `<C-w>` - Switch between open buffers
 - `r` - Reload library (useful to recalculate album order)

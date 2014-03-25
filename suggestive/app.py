@@ -1350,6 +1350,7 @@ class Application(Commandable):
         return {
             'q': lambda: self.exit(),
             'u': lambda: self.start_mpd_update(),
+            'U': lambda: self.update_database_event(),
             ':': lambda: self.start_command(),
             'p': lambda: self.pause(),
             'ctrl w': lambda: self.buffers.next_buffer(),
