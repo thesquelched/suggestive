@@ -3,6 +3,7 @@ TODO
 
 Bug fixes
 ---------
+- Intelligently truncate playlist track display
 - ~~ESC shouldn't move cursor to the top of the screen~~
 - ~~Cycling through buffers doesn't work when next buffer doesn't accept focus~~
 - ~~Opening and closing vertical buffers now works correctly~~
