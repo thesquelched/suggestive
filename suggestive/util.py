@@ -1,4 +1,5 @@
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -23,3 +24,13 @@ def retry(attempts=2):
             raise last_error
         return wrapper
     return retry_dec
+
+
+def track_num(trackno):
+    """Get the correct track number from an mpd item"""
+    if isinstance(trackno, (tuple, list)):
+        trackno = trackno[0]
+
+    simplified = re.sub(r'(\d+)/\d+', r'\1', str(trackno))
+    return int(simplified)
+

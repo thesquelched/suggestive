@@ -14,7 +14,7 @@ from suggestive.widget import (
     SelectableScrobble)
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
-from suggestive.util import album_text
+from suggestive.util import album_text, track_num
 import suggestive.migrate as migrate
 from suggestive.search import LazySearcher
 from suggestive.error import CommandError
@@ -651,12 +651,12 @@ class LibraryBuffer(Buffer):
     def play_track(self, track):
         self.play_tracks([track])
 
-    def track_num(self, trackno):
-        if isinstance(trackno, (tuple, list)):
-            trackno = trackno[0]
+    #def track_num(self, trackno):
+    #    if isinstance(trackno, (tuple, list)):
+    #        trackno = trackno[0]
 
-        simplified = re.sub(r'(\d+)/\d+', r'\1', str(trackno))
-        return int(simplified)
+    #    simplified = re.sub(r'(\d+)/\d+', r'\1', str(trackno))
+    #    return int(simplified)
 
     def enqueue_tracks(self, tracks):
         mpd = mstat.initialize_mpd(self.conf)
@@ -670,7 +670,7 @@ class LibraryBuffer(Buffer):
         for i, track in enumerate(mpd_tracks):
             #trackno = str(track.get('track', i))
             #trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
-            track['track'] = self.track_num(track.get('track', i))
+            track['track'] = track_num(track.get('track', i))
 
         sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
         return [mpd.addid(track['file']) for track in sorted_tracks]
@@ -1509,8 +1509,10 @@ class AlbumList(SuggestiveListBox):
 
             if not mpd_track:
                 continue
-            trackno = str(mpd_track[0].get('track', i))
-            trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
+
+            trackno = track_num(mpd_track[0].get('track', i))
+            #trackno = str(mpd_track[0].get('track', i))
+            #trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
 
             track_and_num.append((int(trackno), track))
 
