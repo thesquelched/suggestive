@@ -52,11 +52,8 @@ class MpdWatchThread(AppThread):
         mpd = mstat.initialize_mpd(self.conf)
 
         while not self.quit_event.is_set():
-            changes = mpd.idle('playlist', 'player')
-            if 'playlist' in changes or 'player' in changes:
-                # update playlist
-                logger.debug('Detected playlist change')
-                self.playlist_cb()
+            mpd.idle('playlist', 'player')
+            self.playlist_cb()
 
 
 @log_errors
