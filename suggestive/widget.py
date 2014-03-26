@@ -1,4 +1,5 @@
 import suggestive.bindings as bindings
+from suggestive.buffer import BufferList
 from suggestive.util import album_text
 
 import urwid
@@ -175,3 +176,27 @@ class PlaylistItem(urwid.WidgetWrap, SearchableItem):
     def __init__(self, *args, **kwArgs):
         super(PlaylistItem, self).__init__(
             urwid.SelectableIcon(*args, **kwArgs))
+
+
+######################################################################
+# Buffer lists
+######################################################################
+
+class HorizontalBufferList(urwid.Pile, BufferList):
+
+    def __init__(self):
+        BufferList.__init__(self)
+        urwid.Pile.__init__(self, [])
+
+    def __iter__(self):
+        return BufferList.__iter__(self)
+
+
+class VerticalBufferList(urwid.Columns, BufferList):
+
+    def __init__(self):
+        BufferList.__init__(self)
+        urwid.Columns.__init__(self, [], dividechars=1)
+
+    def __iter__(self):
+        return BufferList.__iter__(self)
