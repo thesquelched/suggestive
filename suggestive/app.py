@@ -9,15 +9,14 @@ from suggestive.analytics import (
     SortOrder, PlaycountOrder, BaseOrder, ModifiedOrder)
 from suggestive.config import Config
 from suggestive.command import CommanderEdit, Commandable, typed
-from suggestive.widget import (
-    Prompt, SuggestiveListBox, SelectableAlbum, SelectableTrack, PlaylistItem,
-    SelectableScrobble, HorizontalBufferList, VerticalBufferList)
+import suggestive.widget as widget
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 from suggestive.util import album_text, track_num
 import suggestive.migrate as migrate
 from suggestive.search import LazySearcher
 from suggestive.error import CommandError
+from suggestive.buffer import Buffer
 
 
 from math import floor, log10
@@ -29,222 +28,13 @@ import threading
 import re
 import os.path
 import sys
-from itertools import chain, groupby
+from itertools import chain
 from mpd import CommandError as MpdCommandError
 
 logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
 
 MEGABYTE = 1024 * 1024
-
-
-class PlaylistMovePrompt(Prompt):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['update_index']
-
-    def __init__(self, original_position):
-        super(PlaylistMovePrompt, self).__init__('Move item to: ')
-        self.input_buffer = ''
-        self.original_position = original_position
-        self.current_position = original_position
-
-    def update_index(self, index=None):
-        try:
-            index = self.position() if index is None else index
-            urwid.emit_signal(self, 'update_index', self.current_position,
-                              index)
-            self.current_position = index
-        except IndexError:
-            pass
-
-    def input(self, char):
-        self.input_buffer += char
-        self.update_index()
-
-    def backspace(self):
-        self.input_buffer = self.input_buffer[:-1]
-        self.update_index()
-
-    def position(self):
-        if not self.input_buffer:
-            return self.original_position
-
-        try:
-            return int(self.input_buffer)
-        except (TypeError, ValueError):
-            logger.warn('Bad move index: {}'.format(self.input_buffer))
-            raise IndexError('Invalid move index: {}'.format(
-                self.input_buffer))
-
-    def keypress(self, size, key):
-        if len(key) == 1:
-            self.input(key)
-        elif key == 'backspace':
-            self.backspace()
-
-        return super(PlaylistMovePrompt, self).keypress(size, key)
-
-
-class Buffer(urwid.Frame, Commandable):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['set_footer', 'set_focus', 'set_status', 'redraw']
-
-    def __init__(self, *args, **kwArgs):
-        super(Buffer, self).__init__(*args, **kwArgs)
-        self.bindings = self.setup_bindings()
-        self.commands = self.setup_commands()
-        self.active = False
-        urwid.connect_signal(self, 'set_status', self.update_status)
-
-    def update_status(self, value):
-        if isinstance(value, str):
-            status = urwid.Text(value)
-        else:
-            status = value
-
-        footer = urwid.AttrMap(status, 'status')
-        self.set_footer(footer)
-
-    def update_focus(self, to_focus):
-        urwid.emit_signal(self, 'set_focus', to_focus)
-
-    def update_footer(self, footer, focus=False):
-        urwid.emit_signal(self, 'set_footer', footer, focus)
-
-    def redraw(self):
-        urwid.emit_signal(self, 'redraw')
-
-    def setup_bindings(self):
-        return {}
-
-    def setup_commands(self):
-        return {}
-
-    def keypress(self, size, key):
-        if not self.dispatch(key):
-            return super(Buffer, self).keypress(size, key)
-
-        super(Buffer, self).keypress(size, None)
-        return True
-
-    def dispatch(self, key):
-        if key in self.bindings:
-            func = self.bindings[key]
-            func()
-            return True
-        else:
-            return False
-
-    def will_accept_focus(self):
-        return True
-
-    def search(self, searcher):
-        raise NotImplementedError
-
-    def next_search(self):
-        raise NotImplementedError
-
-
-class ScrobbleListWalker(urwid.ListWalker):
-
-    def __init__(self, conf, session, previous=None, plays=None):
-        if plays is None:
-            plays = []
-
-        self.focus = 0
-        self.items = []
-        self.session = session
-
-        self.items.extend(self._generate_plays(plays))
-
-        if isinstance(previous, ScrobbleListWalker):
-            self._load_more(previous.size())
-        else:
-            self._load_more(conf.initial_scrobbles())
-
-    def __iter__(self):
-        return iter(self.items)
-
-    def size(self):
-        return len(self.items)
-
-    @classmethod
-    def _icon(cls, scrobble):
-        icon = SelectableScrobble(scrobble)
-        return urwid.AttrMap(icon, 'scrobble', 'focus scrobble')
-
-    @classmethod
-    def _day(cls, scrobble):
-        return scrobble.time.strftime('%Y-%m-%d')
-
-    def __len__(self):
-        return len(self.items)
-
-    def _play(self, track):
-        text = '{} - {}'.format(track.artist.name, track.name)
-
-        icon = urwid.SelectableIcon(text)
-        return urwid.AttrMap(icon, 'scrobble', 'focus scrobble')
-
-    def _generate_plays(self, tracks):
-        if not tracks:
-            return []
-
-        plays = [self._play(track) for track in tracks]
-        header = urwid.AttrMap(urwid.Text('Plays'), 'scrobble date')
-
-        return [header] + plays
-
-    def _generate_icons(self, scrobbles):
-        widgets = (i.original_widget for i in reversed(self.items))
-        last_day = next(
-            (w.get_text()[0] for w in widgets
-             if not isinstance(w, SelectableScrobble)),
-            None)
-
-        for day, group in groupby(scrobbles, self._day):
-            group = list(group)
-            if day != last_day:
-                last_day = day
-                yield urwid.AttrMap(urwid.Text(day), 'scrobble date')
-
-            for scrobble in group:
-                yield self._icon(scrobble)
-
-    def _load_more(self, position):
-        n_items = len(self.items)
-        n_load = 1 + position - n_items
-        scrobbles = mstat.get_scrobbles(self.session, n_load, n_items)
-
-        self.items.extend(list(self._generate_icons(scrobbles)))
-
-    def __getitem__(self, idx):
-        return urwid.SelectableIcon(str(idx))
-
-    def get_focus(self):
-        return self._get(self.focus)
-
-    def set_focus(self, focus):
-        self.focus = focus
-        self._modified()
-
-    def get_next(self, current):
-        return self._get(current + 1)
-
-    def get_prev(self, current):
-        return self._get(current - 1)
-
-    def _get(self, pos):
-        if pos < 0:
-            return None, None
-
-        if pos >= len(self.items):
-            self._load_more(pos)
-
-        if pos >= len(self.items):
-            return None, None
-
-        return self.items[pos], pos
 
 
 class ScrobbleBuffer(Buffer):
@@ -262,8 +52,12 @@ class ScrobbleBuffer(Buffer):
         self.update_status('Scrobbles')
 
     def create_scrobble_list(self, previous=None, plays=None):
-        return SuggestiveListBox(
-            ScrobbleListWalker(self.conf, self.session, previous, plays))
+        walker = widget.ScrobbleListWalker(
+            self.conf,
+            self.session,
+            previous,
+            plays)
+        return widget.SuggestiveListBox(walker)
 
     def update(self, *args):
         mpd = mstat.initialize_mpd(self.conf)
@@ -395,7 +189,7 @@ class LibraryBuffer(Buffer):
     def find_track_selection(self, track):
         o_widgets = (w.original_widget for w in self.list_view.body)
         match = (w for w in o_widgets
-                 if isinstance(w, SelectableTrack) and w.track == track)
+                 if isinstance(w, widget.SelectableTrack) and w.track == track)
         return next(match, None)
 
     def love_track(self, track, loved=True):
@@ -410,7 +204,7 @@ class LibraryBuffer(Buffer):
         current = self.list_view.focus.original_widget
         tracks = current.tracks()
 
-        self.prompt = Prompt(
+        self.prompt = widget.Prompt(
             'Mark {} tracks loved? [Y/n]: '.format(len(tracks)),
             current,
             tracks)
@@ -448,7 +242,7 @@ class LibraryBuffer(Buffer):
         current = self.list_view.focus.original_widget
         tracks = current.tracks()
 
-        self.prompt = Prompt(
+        self.prompt = widget.Prompt(
             'Mark {} tracks unloved? [Y/n]: '.format(len(tracks)),
             current,
             tracks)
@@ -492,7 +286,7 @@ class LibraryBuffer(Buffer):
     def suggestion_list(self):
         body = []
         for suggestion in self.suggestions:
-            item = SelectableAlbum(suggestion, self.show_score)
+            item = widget.SelectableAlbum(suggestion, self.show_score)
 
             urwid.connect_signal(item, 'enqueue', self.enqueue_album)
             urwid.connect_signal(item, 'play', self.play_album)
@@ -647,7 +441,7 @@ class PlaylistBuffer(Buffer):
 
         self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
         walker = urwid.SimpleFocusListWalker(self.playlist_items())
-        self.playlist = SuggestiveListBox(walker)
+        self.playlist = widget.SuggestiveListBox(walker)
         urwid.connect_signal(self.playlist, 'set_footer', self.update_footer)
         super(PlaylistBuffer, self).__init__(self.playlist)
 
@@ -685,7 +479,8 @@ class PlaylistBuffer(Buffer):
         self.update()
         logger.debug('Start playlist move')
 
-        self.move_prompt = PlaylistMovePrompt(self.playlist.focus_position)
+        self.move_prompt = widget.PlaylistMovePrompt(
+            self.playlist.focus_position)
         urwid.connect_signal(self.move_prompt, 'prompt_done',
                              self.complete_move)
         urwid.connect_signal(self.move_prompt, 'update_index',
@@ -791,7 +586,7 @@ class PlaylistBuffer(Buffer):
                 number = str(position).ljust(digits + 1, ' ')
                 pieces.insert(0, ('bumper', number))
 
-            text = PlaylistItem(pieces)
+            text = widget.PlaylistItem(pieces)
             if position == now_playing:
                 styles = ('playing', 'playing focus')
             else:
@@ -910,7 +705,7 @@ class PlaylistBuffer(Buffer):
             logger.debug('Could not find track to love')
             return
 
-        self.prompt = Prompt(
+        self.prompt = widget.Prompt(
             'Mark track loved? [Y/n]: ',
             self.playlist.focus.original_widget,
             track)
@@ -948,7 +743,7 @@ class PlaylistBuffer(Buffer):
             logger.debug('Could not find track to unlove')
             return
 
-        self.prompt = Prompt(
+        self.prompt = widget.Prompt(
             'Mark track unloved? [Y/n]: ',
             self.playlist.focus.original_widget,
             track)
@@ -1048,9 +843,9 @@ class Application(Commandable):
         self.orientation = self.conf.orientation()
 
         if self.orientation == 'vertical':
-            self.buffers = VerticalBufferList()
+            self.buffers = widget.VerticalBufferList()
         else:
-            self.buffers = HorizontalBufferList()
+            self.buffers = widget.HorizontalBufferList()
 
         self.top = MainWindow(conf, urwid.AttrMap(self.buffers, 'footer'))
         self.event_loop = self.main_loop()
@@ -1105,9 +900,9 @@ class Application(Commandable):
                            else 'horizontal')
 
         if orientation == 'vertical':
-            buffers = VerticalBufferList()
+            buffers = widget.VerticalBufferList()
         else:
-            buffers = HorizontalBufferList()
+            buffers = widget.HorizontalBufferList()
 
         if self.library_buffer.active:
             buffers.add(self.library_buffer)
@@ -1305,7 +1100,7 @@ class Application(Commandable):
         mpd.pause()
 
     def start_search(self, reverse=False):
-        self.edit = Prompt('/')
+        self.edit = widget.Prompt('/')
         urwid.connect_signal(self.edit, 'prompt_done', self.search_done,
                              reverse)
         footer = urwid.AttrMap(self.edit, 'footer')
@@ -1401,7 +1196,7 @@ class Application(Commandable):
         return mainloop
 
 
-class AlbumList(SuggestiveListBox):
+class AlbumList(widget.SuggestiveListBox):
     def __init__(self, app, *args, **kwArgs):
         super(AlbumList, self).__init__(*args, **kwArgs)
 
@@ -1437,7 +1232,8 @@ class AlbumList(SuggestiveListBox):
 
         sorted_tracks = self.sort_tracks(album.tracks)
         for track_no, track in reversed(sorted_tracks):
-            track_widget = SelectableTrack(album_widget, track, track_no)
+            track_widget = widget.SelectableTrack(
+                album_widget, track, track_no)
 
             urwid.connect_signal(track_widget, 'enqueue',
                                  self.app.enqueue_track)
@@ -1458,7 +1254,8 @@ class AlbumList(SuggestiveListBox):
         album = album_widget.original_widget.album
         for i in range(len(album.tracks)):
             track_widget = self.body[album_index + 1]
-            if isinstance(track_widget.original_widget, SelectableTrack):
+            if isinstance(track_widget.original_widget,
+                          widget.SelectableTrack):
                 self.body.pop(album_index + 1)
             else:
                 logger.error('Item #{} is not a track'.format(i))
@@ -1468,7 +1265,7 @@ class AlbumList(SuggestiveListBox):
     def toggle_expand(self):
         widget = self.focus
 
-        if isinstance(widget.original_widget, SelectableTrack):
+        if isinstance(widget.original_widget, widget.SelectableTrack):
             widget = widget.original_widget.parent
 
         if widget.original_widget.expanded:

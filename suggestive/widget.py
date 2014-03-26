@@ -1,13 +1,19 @@
 import suggestive.bindings as bindings
 from suggestive.buffer import BufferList
 from suggestive.util import album_text
+import suggestive.mstat as mstat
 
 import urwid
 import logging
+from itertools import groupby
 
 logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
 
+
+######################################################################
+# Prompts
+######################################################################
 
 class Prompt(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
@@ -28,6 +34,183 @@ class Prompt(urwid.Edit):
 
         return True
 
+
+class PlaylistMovePrompt(Prompt):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['update_index']
+
+    def __init__(self, original_position):
+        super(PlaylistMovePrompt, self).__init__('Move item to: ')
+        self.input_buffer = ''
+        self.original_position = original_position
+        self.current_position = original_position
+
+    def update_index(self, index=None):
+        try:
+            index = self.position() if index is None else index
+            urwid.emit_signal(self, 'update_index', self.current_position,
+                              index)
+            self.current_position = index
+        except IndexError:
+            pass
+
+    def input(self, char):
+        self.input_buffer += char
+        self.update_index()
+
+    def backspace(self):
+        self.input_buffer = self.input_buffer[:-1]
+        self.update_index()
+
+    def position(self):
+        if not self.input_buffer:
+            return self.original_position
+
+        try:
+            return int(self.input_buffer)
+        except (TypeError, ValueError):
+            logger.warn('Bad move index: {}'.format(self.input_buffer))
+            raise IndexError('Invalid move index: {}'.format(
+                self.input_buffer))
+
+    def keypress(self, size, key):
+        if len(key) == 1:
+            self.input(key)
+        elif key == 'backspace':
+            self.backspace()
+
+        return super(PlaylistMovePrompt, self).keypress(size, key)
+
+
+######################################################################
+# Buffer lists
+######################################################################
+
+class HorizontalBufferList(urwid.Pile, BufferList):
+
+    def __init__(self):
+        BufferList.__init__(self)
+        urwid.Pile.__init__(self, [])
+
+    def __iter__(self):
+        return BufferList.__iter__(self)
+
+
+class VerticalBufferList(urwid.Columns, BufferList):
+
+    def __init__(self):
+        BufferList.__init__(self)
+        urwid.Columns.__init__(self, [], dividechars=1)
+
+    def __iter__(self):
+        return BufferList.__iter__(self)
+
+
+class ScrobbleListWalker(urwid.ListWalker):
+
+    def __init__(self, conf, session, previous=None, plays=None):
+        if plays is None:
+            plays = []
+
+        self.focus = 0
+        self.items = []
+        self.session = session
+
+        self.items.extend(self._generate_plays(plays))
+
+        if isinstance(previous, ScrobbleListWalker):
+            self._load_more(previous.size())
+        else:
+            self._load_more(conf.initial_scrobbles())
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def size(self):
+        return len(self.items)
+
+    @classmethod
+    def _icon(cls, scrobble):
+        icon = SelectableScrobble(scrobble)
+        return urwid.AttrMap(icon, 'scrobble', 'focus scrobble')
+
+    @classmethod
+    def _day(cls, scrobble):
+        return scrobble.time.strftime('%Y-%m-%d')
+
+    def __len__(self):
+        return len(self.items)
+
+    def _play(self, track):
+        text = '{} - {}'.format(track.artist.name, track.name)
+
+        icon = urwid.SelectableIcon(text)
+        return urwid.AttrMap(icon, 'scrobble', 'focus scrobble')
+
+    def _generate_plays(self, tracks):
+        if not tracks:
+            return []
+
+        plays = [self._play(track) for track in tracks]
+        header = urwid.AttrMap(urwid.Text('Plays'), 'scrobble date')
+
+        return [header] + plays
+
+    def _generate_icons(self, scrobbles):
+        widgets = (i.original_widget for i in reversed(self.items))
+        last_day = next(
+            (w.get_text()[0] for w in widgets
+             if not isinstance(w, SelectableScrobble)),
+            None)
+
+        for day, group in groupby(scrobbles, self._day):
+            group = list(group)
+            if day != last_day:
+                last_day = day
+                yield urwid.AttrMap(urwid.Text(day), 'scrobble date')
+
+            for scrobble in group:
+                yield self._icon(scrobble)
+
+    def _load_more(self, position):
+        n_items = len(self.items)
+        n_load = 1 + position - n_items
+        scrobbles = mstat.get_scrobbles(self.session, n_load, n_items)
+
+        self.items.extend(list(self._generate_icons(scrobbles)))
+
+    def __getitem__(self, idx):
+        return urwid.SelectableIcon(str(idx))
+
+    def get_focus(self):
+        return self._get(self.focus)
+
+    def set_focus(self, focus):
+        self.focus = focus
+        self._modified()
+
+    def get_next(self, current):
+        return self._get(current + 1)
+
+    def get_prev(self, current):
+        return self._get(current - 1)
+
+    def _get(self, pos):
+        if pos < 0:
+            return None, None
+
+        if pos >= len(self.items):
+            self._load_more(pos)
+
+        if pos >= len(self.items):
+            return None, None
+
+        return self.items[pos], pos
+
+
+######################################################################
+# Misc widgets
+######################################################################
 
 class SuggestiveListBox(urwid.ListBox):
     __metaclass__ = urwid.signals.MetaSignals
@@ -176,27 +359,3 @@ class PlaylistItem(urwid.WidgetWrap, SearchableItem):
     def __init__(self, *args, **kwArgs):
         super(PlaylistItem, self).__init__(
             urwid.SelectableIcon(*args, **kwArgs))
-
-
-######################################################################
-# Buffer lists
-######################################################################
-
-class HorizontalBufferList(urwid.Pile, BufferList):
-
-    def __init__(self):
-        BufferList.__init__(self)
-        urwid.Pile.__init__(self, [])
-
-    def __iter__(self):
-        return BufferList.__iter__(self)
-
-
-class VerticalBufferList(urwid.Columns, BufferList):
-
-    def __init__(self):
-        BufferList.__init__(self)
-        urwid.Columns.__init__(self, [], dividechars=1)
-
-    def __iter__(self):
-        return BufferList.__iter__(self)
