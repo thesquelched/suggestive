@@ -410,7 +410,7 @@ class AlbumList(SuggestiveListBox):
     def toggle_expand(self):
         widget = self.focus
 
-        if isinstance(widget.original_widget, widget.SelectableTrack):
+        if isinstance(widget.original_widget, SelectableTrack):
             widget = widget.original_widget.parent
 
         if widget.original_widget.expanded:
