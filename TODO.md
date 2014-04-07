@@ -3,6 +3,8 @@ TODO
 
 Bug fixes
 ---------
+- Expand/collapse does not always keep cursor on album
+- Loving entire album doesn't refresh tracks display when expanded
 - Intelligently truncate playlist track display
 - ~~ESC shouldn't move cursor to the top of the screen~~
 - ~~Cycling through buffers doesn't work when next buffer doesn't accept focus~~
@@ -14,6 +16,7 @@ Bug fixes
 
 New features
 ------------
+- Tag songs with lastfm metadata
 - Less crappy command completion
 - Complete command arguments
 - Multi-key commands
@@ -23,6 +26,7 @@ New features
 - Command to perform MPD update on selected album
 - Tiling buffer manager?
 - Shuffle buffer order
+- ~~Change library 'play' binding to append, then play first appended track~~
 - ~~Load variable number of scrobbles~~
 - ~~Custom orderer combinations in config file~~
 - ~~Rearrange songs in playlist~~

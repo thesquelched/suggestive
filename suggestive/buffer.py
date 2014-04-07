@@ -493,13 +493,6 @@ class LibraryBuffer(Buffer):
     def play_track(self, track):
         self.play_tracks([track])
 
-    #def track_num(self, trackno):
-    #    if isinstance(trackno, (tuple, list)):
-    #        trackno = trackno[0]
-
-    #    simplified = re.sub(r'(\d+)/\d+', r'\1', str(trackno))
-    #    return int(simplified)
-
     def enqueue_tracks(self, tracks):
         mpd = mstat.initialize_mpd(self.conf)
 
@@ -510,8 +503,6 @@ class LibraryBuffer(Buffer):
             mpd.listallinfo(track.filename) for track in tracks))
 
         for i, track in enumerate(mpd_tracks):
-            #trackno = str(track.get('track', i))
-            #trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
             track['track'] = track_num(track.get('track', i))
 
         sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
@@ -523,7 +514,6 @@ class LibraryBuffer(Buffer):
         if tracks:
             logger.info('Play: {}'.format(album_text(tracks[0].album)))
 
-        mpd.clear()
         ids = self.enqueue_tracks(tracks)
         if ids:
             mpd.playid(ids[0])
