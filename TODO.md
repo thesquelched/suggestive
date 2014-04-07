@@ -26,6 +26,7 @@ New features
 - Command to perform MPD update on selected album
 - Tiling buffer manager?
 - Shuffle buffer order
+- ~~Added keybindings for (un)love~~
 - ~~Change library 'play' binding to append, then play first appended track~~
 - ~~Load variable number of scrobbles~~
 - ~~Custom orderer combinations in config file~~

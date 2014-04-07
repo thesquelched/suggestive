@@ -4,6 +4,7 @@ import suggestive.mstat as mstat
 from suggestive.util import album_text, track_num
 import suggestive.analytics as analytics
 from suggestive.error import CommandError
+from suggestive.bindings import ENQUEUE, PLAY
 
 import logging
 import urwid
@@ -324,6 +325,18 @@ class LibraryBuffer(Buffer):
 
         return commands
 
+    def setup_bindings(self):
+        keybinds = super(LibraryBuffer, self).setup_bindings()
+
+        if self.conf.esc_resets_orderers():
+            keybinds.update({
+                'esc': lambda: self.reset_orderers(),
+                'L': self.love_selection,
+                'U': self.unlove_selection,
+            })
+
+        return keybinds
+
     def find_track_selection(self, track):
         o_widgets = (w.original_widget for w in self.list_view.body)
         match = (w for w in o_widgets
@@ -411,23 +424,15 @@ class LibraryBuffer(Buffer):
             self.add_orderer(orderer, *args, **kwArgs)
         return add_func
 
-    def setup_bindings(self):
-        keybinds = super(LibraryBuffer, self).setup_bindings()
-
-        if self.conf.esc_resets_orderers():
-            keybinds.update({
-                'esc': lambda: self.reset_orderers(),
-            })
-
-        return keybinds
-
     def suggestion_list(self):
         body = []
         for suggestion in self.suggestions:
             item = widget.SelectableAlbum(suggestion, self.show_score)
 
-            urwid.connect_signal(item, 'enqueue', self.enqueue_album)
-            urwid.connect_signal(item, 'play', self.play_album)
+            urwid.connect_signal(item, ENQUEUE, self.enqueue_album)
+            urwid.connect_signal(item, PLAY, self.play_album)
+            urwid.connect_signal(item, ENQUEUE, self.enqueue_album)
+            urwid.connect_signal(item, PLAY, self.play_album)
 
             body.append(urwid.AttrMap(item, 'album', 'focus album'))
 
@@ -592,6 +597,8 @@ class PlaylistBuffer(Buffer):
             'd': self.delete_track,
             'enter': self.play_track,
             'm': self.move_track,
+            'L': self.love_track,
+            'U': self.unlove_track,
         })
 
         return keybinds

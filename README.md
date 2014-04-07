@@ -93,6 +93,8 @@ General
 - `p` - Pause/resume playback
 - `<C-w>` - Switch between open buffers
 - `r` - Reload library (useful to recalculate album order)
+- `L` - Love selection
+- `U` - Unlove selection
 
 Movement
 --------
