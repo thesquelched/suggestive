@@ -260,6 +260,7 @@ class Application(Commandable):
         self.update_library_status('Library')
 
     def update_playlist_event(self):
+        # TODO: Optimize by checking what's changed
         logger.info('Updating playlist')
         self.event_loop.set_alarm_in(0, self.playlist_buffer.update)
         self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)

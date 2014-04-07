@@ -669,6 +669,8 @@ class PlaylistBuffer(Buffer):
             logger.error('Index out of range')
 
     def delete_track(self):
+        # TODO: Delete track from display right away instead of doing a total
+        # redraw
         current_position = self.playlist.focus_position
 
         if current_position is not None:
@@ -757,6 +759,7 @@ class PlaylistBuffer(Buffer):
 
         items = self.playlist_items()
 
+        # TODO: Do we really have to clear the playlist every time?
         self.clear_playlist()
         self.playlist.body.extend(items)
 
