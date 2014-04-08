@@ -662,21 +662,23 @@ class PlaylistBuffer(Buffer):
             elif index < current:
                 focus = items.pop(current)
                 items.insert(index, focus)
-
-            #self.playlist.body.insert(index, self.playlist.focus)
-            #self.playlist.body.pop(current)
         except IndexError:
             logger.error('Index out of range')
 
     def delete_track(self):
-        # TODO: Delete track from display right away instead of doing a total
-        # redraw
-        current_position = self.playlist.focus_position
+        try:
+            current_position = self.playlist.focus_position
+        except IndexError:
+            return
 
         if current_position is not None:
             mpd = mstat.initialize_mpd(self.conf)
-            mpd.delete(current_position)
-            self.update()
+            n_items = len(mpd.playlistinfo())
+            if n_items:
+                self.playlist.body.pop(current_position)
+                mpd.delete(current_position)
+                if n_items == 1:
+                    self.update()
 
     def play_track(self):
         current_position = self.playlist.focus_position

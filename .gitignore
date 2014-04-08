@@ -12,3 +12,4 @@ installtest
 *.egg-info
 alembic.ini
 *.pyc
+venv
