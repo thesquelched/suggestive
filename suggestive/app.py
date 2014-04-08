@@ -219,7 +219,7 @@ class Application(Commandable):
     def start_event_system(self):
         events = {
             'player': self.update_playlist_event,
-            'playlist': self.update_playlist_event,
+            'playlist': self.update_player_event,
             'database': self.update_database_event,
             'update': self.check_update_event,
         }
@@ -228,6 +228,9 @@ class Application(Commandable):
 
         self.dispatcher.start()
         self.observer.start()
+
+    def update_player_event(self):
+        self.playlist_buffer.update_playing_status()
 
     def update_database_event(self):
         self.update_library_status('Library (updating database...)')

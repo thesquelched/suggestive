@@ -771,8 +771,11 @@ class PlaylistBuffer(Buffer):
             except IndexError:
                 pass
 
-        self.update_status(self.status_text())
+        self.update_playing_status()
         self.redraw()
+
+    def update_playing_status(self):
+        self.update_status(self.status_text())
 
     def status_params(self, status, track):
         elapsed_time = int(status.get('time', '0').split(':')[0])
