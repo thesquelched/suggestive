@@ -84,6 +84,15 @@ class LibraryController(object):
         self._anl = analytics.Analytics(conf)
 
         self._model = self.load_model()
+        self._views = []
+
+    def register(self, view):
+        self._views.append(view)
+
+    def update(self):
+        logger.debug('Updating LibraryController views')
+        for view in self.views:
+            view.update()
 
     def load_model(self):
         suggestions = self._anl.order_albums(self._session, self._orderers)
@@ -101,11 +110,20 @@ class LibraryController(object):
         logger.debug('Orderers: {}'.format(
             ', '.join(map(repr, self._orderers))))
 
-        self._model = self.load_model()
+        self.model = self.load_model()
 
     @property
     def model(self):
         return self._model
+
+    @model.setter
+    def model(self, newmodel):
+        self._model = newmodel
+        self.update()
+
+    @property
+    def views(self):
+        return self._views
 
     @signal_handler
     def enqueue_album(self, album):
@@ -180,26 +198,44 @@ class LibraryView(widget.SuggestiveListBox):
         self._controller = controller
         self._conf = conf
 
-        walker = self.create_walker(controller, conf)
+        walker = self.create_walker()
         super(LibraryView, self).__init__(walker)
 
         # Set command map after super so bindings don't get overwritten
         self._command_map = bindings.AlbumListCommands
 
-    def create_walker(self, controller, conf):
-        if not controller.model.albums:
+        # Register view with controller
+        controller.register(self)
+
+    def update(self):
+        logger.debug('Updating LibraryView')
+        walker = self.body
+        walker[:] = self.library_items()
+
+    def library_items(self):
+        if not self._controller.model.albums:
             body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
         else:
             body = []
-            for album_m in controller.model.albums:
-                view = AlbumView(album_m, conf)
+            for album_m in self._controller.model.albums:
+                view = AlbumView(album_m, self._conf)
 
-                urwid.connect_signal(view, ENQUEUE, controller.enqueue_album)
-                urwid.connect_signal(view, PLAY, controller.play_album)
+                urwid.connect_signal(
+                    view,
+                    ENQUEUE,
+                    self._controller.enqueue_album)
+                urwid.connect_signal(
+                    view,
+                    PLAY,
+                    self._controller.play_album)
 
                 # TODO: AttrMap here or inside of view?
                 body.append(view)
 
+        return body
+
+    def create_walker(self):
+        body = self.library_items()
         return urwid.SimpleFocusListWalker(body)
 
     def sort_tracks(self, tracks):
