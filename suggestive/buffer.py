@@ -320,8 +320,8 @@ class NewLibraryBuffer(Buffer):
         commands = self.init_custom_orderers(self.conf)
         commands.update({
             'reset': self.controller.reset_orderers,
-            'unorder': self.clear_orderers,
-            'unordered': self.clear_orderers,
+            'unorder': self.controller.clear_orderers,
+            'unordered': self.controller.clear_orderers,
             'love': self.love_selection,
             'unlove': self.unlove_selection,
         })

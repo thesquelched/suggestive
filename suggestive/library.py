@@ -101,12 +101,39 @@ class LibraryController(object):
         self._mpd = mstat.initialize_mpd(conf)
         self._session = session
 
-        self._orderers = self._default_orderers.copy()
         self._anl = analytics.Analytics(conf)
 
-        self.update_model()
+        self._orderers = None
+        self.orderers = self._default_orderers.copy()
+
+    @property
+    def model(self):
+        return self._model
+
+    @model.setter
+    def model(self, newmodel):
+        self._model = newmodel
+
+    @property
+    def orderers(self):
+        return self._orderers
+
+    @orderers.setter
+    def orderers(self, neworderers):
+        if self._orderers != neworderers:
+            self._orderers = neworderers
+
+            self.log_orderers()
+            self.update_model()
+
+    def log_orderers(self):
+        logger.debug('Orderers: {}'.format(
+            ', '.join(map(repr, self.orderers))))
 
     def update_model(self):
+        """
+        Set the model album order, which in turn updates the views
+        """
         self._model.albums = self.order_albums()
 
     def order_albums(self):
@@ -121,28 +148,19 @@ class LibraryController(object):
         except ValueError:
             self._orderers.append(orderer)
 
-        logger.debug('Orderers: {}'.format(
-            ', '.join(map(repr, self._orderers))))
-
         self.update_model()
+
+    def clear_orderers(self):
+        self.orderers = [analytics.BaseOrder()]
 
     def reset_orderers(self):
         """
         Reset orderers to default
         """
-        self._orderers = self._default_orderers.copy()
-        self.update_model()
+        self.orderers = self._default_orderers
 
     def set_current_order_as_default(self):
         self._default_orderers = self._orderers.copy()
-
-    @property
-    def model(self):
-        return self._model
-
-    @model.setter
-    def model(self, newmodel):
-        self._model = newmodel
 
     #@signal_handler
     def enqueue_album(self, album):
