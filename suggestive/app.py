@@ -218,8 +218,8 @@ class Application(Commandable):
 
     def start_event_system(self):
         events = {
-            'player': self.update_playlist_event,
-            'playlist': self.update_player_event,
+            'playlist': self.update_playlist_event,
+            'player': self.update_player_event,
             'database': self.update_database_event,
             'update': self.check_update_event,
         }

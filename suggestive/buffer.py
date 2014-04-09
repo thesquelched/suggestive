@@ -430,8 +430,6 @@ class LibraryBuffer(Buffer):
 
             urwid.connect_signal(item, ENQUEUE, self.enqueue_album)
             urwid.connect_signal(item, PLAY, self.play_album)
-            urwid.connect_signal(item, ENQUEUE, self.enqueue_album)
-            urwid.connect_signal(item, PLAY, self.play_album)
 
             body.append(urwid.AttrMap(item, 'album', 'focus album'))
 
