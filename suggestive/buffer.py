@@ -5,6 +5,7 @@ from suggestive.util import album_text, track_num
 import suggestive.analytics as analytics
 from suggestive.error import CommandError
 from suggestive.bindings import ENQUEUE, PLAY
+from suggestive.library  import LibraryController, LibraryView
 
 import logging
 import urwid
@@ -225,39 +226,41 @@ class ScrobbleBuffer(Buffer):
         self.scrobble_list.next_search_item()
 
 
-class LibraryBuffer(Buffer):
+class NewLibraryBuffer(Buffer):
     signals = Buffer.signals + ['update_playlist']
 
     def __init__(self, conf, session):
         self.conf = conf
-        self.list_view = None
+        self.controller = LibraryController(conf, session)
+        self.view = LibraryView(self.controller, conf)
 
-        self.show_score = conf.show_score()
+        # OLD
+        #self.show_score = conf.show_score()
 
-        self.session = session
-        self.commands = self.setup_commands()
+        #self.session = session
+        #self.commands = self.setup_commands()
 
-        self.anl = analytics.Analytics(conf)
+        #self.anl = analytics.Analytics(conf)
 
-        self.orderers = [analytics.BaseOrder()]
-        self.default_orderers = list(self.init_default_orderers(conf))
-        self.searcher = None
+        #self.orderers = [analytics.BaseOrder()]
+        #self.default_orderers = list(self.init_default_orderers(conf))
+        #self.searcher = None
 
-        self.suggestions = []
+        #self.suggestions = []
 
-        self.search_matches = []
-        self.current_search_index = None
+        #self.search_matches = []
+        #self.current_search_index = None
 
-        self.list_view = self.suggestion_list()
+        #self.list_view = self.suggestion_list()
 
-        super(LibraryBuffer, self).__init__(self.list_view)
+        super(NewLibraryBuffer, self).__init__(self.view)
         self.update_status('Library')
 
     def search(self, searcher):
-        self.list_view.search(searcher)
+        self.view.search(searcher)
 
     def next_search(self):
-        self.list_view.next_search_item()
+        self.view.next_search_item()
 
     def orderer_command(self, orderer, defaults):
         if not defaults:
@@ -272,8 +275,6 @@ class LibraryBuffer(Buffer):
         order_commands = conf.default_orderers()
         for cmd in order_commands:
             self.execute_command(cmd)
-
-        return self.orderers
 
     def init_custom_orderers(self, conf):
         orderers = {}
@@ -326,7 +327,7 @@ class LibraryBuffer(Buffer):
         return commands
 
     def setup_bindings(self):
-        keybinds = super(LibraryBuffer, self).setup_bindings()
+        keybinds = super(NewLibraryBuffer, self).setup_bindings()
 
         if self.conf.esc_resets_orderers():
             keybinds.update({
@@ -452,17 +453,18 @@ class LibraryBuffer(Buffer):
 
         self.list_view = self.suggestion_list()
         self.remember_focus(last_album)
-        self.set_body(self.list_view)
+        self.set_body(self.view)
 
     def last_selected_album(self):
-        if self.list_view is not None:
-            try:
-                idx = self.list_view.focus_position
-                return self.suggestions[idx].album
-            except IndexError:
-                return None
-        else:
-            return None
+        return None
+        #if self.view is not None:
+        #    try:
+        #        idx = self.view.focus_position
+        #        return self.suggestions[idx].album
+        #    except IndexError:
+        #        return None
+        #else:
+        #    return None
 
     def remember_focus(self, last_album):
         if last_album is None:
@@ -521,17 +523,7 @@ class LibraryBuffer(Buffer):
             mpd.playid(ids[0])
 
     def add_orderer(self, orderer_class, *args, **kwArgs):
-        orderer = orderer_class(*args, **kwArgs)
-        try:
-            idx = list(map(type, self.orderers)).index(orderer)
-            self.orderers[idx] = orderer
-        except ValueError:
-            self.orderers.append(orderer)
-
-        logger.debug('Orderers: {}'.format(
-            ', '.join(map(repr, self.orderers))))
-
-        self.update_suggestions()
+        self.controller.add_orderer(orderer_class, *args, **kwArgs)
 
     def reset_orderers(self):
         logger.debug('Clear modes')
@@ -555,6 +547,339 @@ class LibraryBuffer(Buffer):
 
         self.update_suggestions()
         self.update_footer('suggestive')
+
+
+#class LibraryBuffer(Buffer):
+#    signals = Buffer.signals + ['update_playlist']
+#
+#    def __init__(self, conf, session):
+#        self.conf = conf
+#        self.list_view = None
+#
+#        self.show_score = conf.show_score()
+#
+#        self.session = session
+#        self.commands = self.setup_commands()
+#
+#        self.anl = analytics.Analytics(conf)
+#
+#        self.orderers = [analytics.BaseOrder()]
+#        self.default_orderers = list(self.init_default_orderers(conf))
+#        self.searcher = None
+#
+#        self.suggestions = []
+#
+#        self.search_matches = []
+#        self.current_search_index = None
+#
+#        self.list_view = self.suggestion_list()
+#
+#        super(LibraryBuffer, self).__init__(self.list_view)
+#        self.update_status('Library')
+#
+#    def search(self, searcher):
+#        self.list_view.search(searcher)
+#
+#    def next_search(self):
+#        self.list_view.next_search_item()
+#
+#    def orderer_command(self, orderer, defaults):
+#        if not defaults:
+#            return orderer
+#
+#        def orderer_func(*args, **kwArgs):
+#            kwArgs.update(defaults)
+#            return orderer(*args, **kwArgs)
+#        return orderer_func
+#
+#    def init_default_orderers(self, conf):
+#        order_commands = conf.default_orderers()
+#        for cmd in order_commands:
+#            self.execute_command(cmd)
+#
+#        return self.orderers
+#
+#    def init_custom_orderers(self, conf):
+#        orderers = {}
+#        for name, cmds in conf.custom_orderers().items():
+#            def orderer_cmd(cmds=cmds):
+#                for cmd in cmds:
+#                    logger.debug('order: {}'.format(cmd))
+#                    self.execute_command(cmd)
+#            orderers[name] = orderer_cmd
+#
+#        return orderers
+#
+#    def setup_orderers(self):
+#        return {
+#            ('artist', 'ar'): (analytics.ArtistFilter, None),
+#            ('album', 'al'): (analytics.AlbumFilter, None),
+#            ('sort',): (analytics.SortOrder, {
+#                'ignore_artist_the': self.conf.ignore_artist_the()
+#            }),
+#            ('loved', 'lo'): (analytics.FractionLovedOrder, None),
+#            ('banned', 'bn'): (analytics.BannedOrder, None),
+#            ('pc', 'playcount'): (analytics.PlaycountOrder, None),
+#            ('mod', 'modified'): (analytics.ModifiedOrder, None),
+#        }
+#
+#    def setup_commands(self):
+#        init_orderers = self.setup_orderers()
+#        orderers = dict(
+#            chain.from_iterable(
+#                ((command, self.orderer_command(func, defaults))
+#                    for command in commands)
+#                for commands, (func, defaults) in init_orderers.items()
+#            )
+#        )
+#
+#        commands = self.init_custom_orderers(self.conf)
+#        commands.update({
+#            'reset': self.reset_orderers,
+#            'unorder': self.clear_orderers,
+#            'unordered': self.clear_orderers,
+#            'love': self.love_selection,
+#            'unlove': self.unlove_selection,
+#        })
+#
+#        commands.update({
+#            name: self.orderer_func(orderer)
+#            for name, orderer in orderers.items()
+#        })
+#
+#        return commands
+#
+#    def setup_bindings(self):
+#        keybinds = super(LibraryBuffer, self).setup_bindings()
+#
+#        if self.conf.esc_resets_orderers():
+#            keybinds.update({
+#                'esc': lambda: self.reset_orderers(),
+#                'L': self.love_selection,
+#                'U': self.unlove_selection,
+#            })
+#
+#        return keybinds
+#
+#    def find_track_selection(self, track):
+#        o_widgets = (w.original_widget for w in self.list_view.body)
+#        match = (w for w in o_widgets
+#                 if isinstance(w, widget.SelectableTrack) and w.track == track)
+#        return next(match, None)
+#
+#    def love_track(self, track, loved=True):
+#        selection = self.find_track_selection(track)
+#        logger.debug('Found: {}'.format(selection))
+#        self.love_tracks(selection, [track], loved=loved)
+#
+#    def unlove_track(self, track):
+#        self.love_track(track, loved=False)
+#
+#    def love_selection(self):
+#        current = self.list_view.focus.original_widget
+#        tracks = current.tracks()
+#
+#        self.prompt = widget.Prompt(
+#            'Mark {} tracks loved? [Y/n]: '.format(len(tracks)),
+#            current,
+#            tracks)
+#        urwid.connect_signal(self.prompt, 'prompt_done',
+#                             self.complete_love_selection)
+#        footer = urwid.AttrMap(self.prompt, 'footer')
+#        self.update_footer(footer)
+#        self.update_focus('footer')
+#
+#    def complete_love_selection(self, value, selection, tracks):
+#        urwid.disconnect_signal(self, self.prompt, 'prompt_done',
+#                                self.complete_love_selection)
+#        self.update_focus('body')
+#
+#        if value is None:
+#            return
+#        elif value == '':
+#            value = 'y'
+#
+#        if value.lower()[0] == 'y':
+#            self.love_tracks(selection, tracks)
+#
+#    def love_tracks(self, selection, tracks, loved=True):
+#        fm = mstat.initialize_lastfm(self.conf)
+#        for track in tracks:
+#            mstat.set_track_loved(self.session, fm, track, loved=loved)
+#
+#        self.session.commit()
+#        if selection is not None:
+#            selection.update_text()
+#        self.redraw()
+#        urwid.emit_signal(self, 'update_playlist')
+#
+#    def unlove_selection(self):
+#        current = self.list_view.focus.original_widget
+#        tracks = current.tracks()
+#
+#        self.prompt = widget.Prompt(
+#            'Mark {} tracks unloved? [Y/n]: '.format(len(tracks)),
+#            current,
+#            tracks)
+#        urwid.connect_signal(self.prompt, 'prompt_done',
+#                             self.complete_unlove_selection)
+#        footer = urwid.AttrMap(self.prompt, 'footer')
+#        self.update_footer(footer)
+#        self.update_focus('footer')
+#
+#    def complete_unlove_selection(self, value, selection, tracks):
+#        urwid.disconnect_signal(self, self.prompt, 'prompt_done',
+#                                self.complete_love_selection)
+#        self.update_focus('body')
+#
+#        if value is None:
+#            return
+#        elif value == '':
+#            value = 'y'
+#
+#        if value.lower()[0] == 'y':
+#            self.unlove_tracks(selection, tracks)
+#
+#    def unlove_tracks(self, selection, tracks):
+#        self.love_tracks(selection, tracks, loved=False)
+#
+#    def orderer_func(self, orderer):
+#        def add_func(*args, **kwArgs):
+#            self.add_orderer(orderer, *args, **kwArgs)
+#        return add_func
+#
+#    def suggestion_list(self):
+#        body = []
+#        for suggestion in self.suggestions:
+#            item = widget.SelectableAlbum(suggestion, self.show_score)
+#
+#            urwid.connect_signal(item, ENQUEUE, self.enqueue_album)
+#            urwid.connect_signal(item, PLAY, self.play_album)
+#
+#            body.append(urwid.AttrMap(item, 'album', 'focus album'))
+#
+#        if not body:
+#            body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
+#
+#        albumlist = widget.AlbumList(self, urwid.SimpleFocusListWalker(body))
+#        urwid.connect_signal(albumlist, 'set_footer', self.update_footer)
+#
+#        return albumlist
+#
+#    def update_suggestions(self, *_args):
+#        logger.info('Update suggestions display')
+#
+#        last_album = self.last_selected_album()
+#
+#        logger.debug('Last album before update: {}'.format(last_album))
+#
+#        self.suggestions = self.get_suggestions()
+#
+#        self.list_view = self.suggestion_list()
+#        self.remember_focus(last_album)
+#        self.set_body(self.list_view)
+#
+#    def last_selected_album(self):
+#        if self.list_view is not None:
+#            try:
+#                idx = self.list_view.focus_position
+#                return self.suggestions[idx].album
+#            except IndexError:
+#                return None
+#        else:
+#            return None
+#
+#    def remember_focus(self, last_album):
+#        if last_album is None:
+#            return
+#
+#        try:
+#            albums = (s.album for s in self.suggestions)
+#            album_idx = next(
+#                (i for i, album in enumerate(albums)
+#                 if last_album.id == album.id),
+#                None
+#            )
+#            if album_idx is not None:
+#                self.list_view.focus_position = album_idx
+#        except IndexError:
+#            return
+#
+#    def get_suggestions(self):
+#        return self.anl.order_albums(self.session, self.orderers)
+#
+#    def enqueue_album(self, album):
+#        self.enqueue_tracks(album.tracks)
+#
+#    def play_album(self, album):
+#        self.play_tracks(album.tracks)
+#
+#    def enqueue_track(self, track):
+#        self.enqueue_tracks([track])
+#
+#    def play_track(self, track):
+#        self.play_tracks([track])
+#
+#    def enqueue_tracks(self, tracks):
+#        mpd = mstat.initialize_mpd(self.conf)
+#
+#        if tracks:
+#            logger.info('Enqueue {}'.format(album_text(tracks[0].album)))
+#
+#        mpd_tracks = list(chain.from_iterable(
+#            mpd.listallinfo(track.filename) for track in tracks))
+#
+#        for i, track in enumerate(mpd_tracks):
+#            track['track'] = track_num(track.get('track', i))
+#
+#        sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
+#        return [mpd.addid(track['file']) for track in sorted_tracks]
+#
+#    def play_tracks(self, tracks):
+#        mpd = mstat.initialize_mpd(self.conf)
+#
+#        if tracks:
+#            logger.info('Play: {}'.format(album_text(tracks[0].album)))
+#
+#        ids = self.enqueue_tracks(tracks)
+#        if ids:
+#            mpd.playid(ids[0])
+#
+#    def add_orderer(self, orderer_class, *args, **kwArgs):
+#        orderer = orderer_class(*args, **kwArgs)
+#        try:
+#            idx = list(map(type, self.orderers)).index(orderer)
+#            self.orderers[idx] = orderer
+#        except ValueError:
+#            self.orderers.append(orderer)
+#
+#        logger.debug('Orderers: {}'.format(
+#            ', '.join(map(repr, self.orderers))))
+#
+#        self.update_suggestions()
+#
+#    def reset_orderers(self):
+#        logger.debug('Clear modes')
+#        if self.orderers != self.default_orderers:
+#            self.orderers = list(self.default_orderers)
+#
+#            self.update_suggestions()
+#        else:
+#            logger.debug('Modes are already at default')
+#            logger.debug('Orderers: {}'.format(
+#                ', '.join(map(repr, self.orderers))))
+#
+#        self.update_footer('suggestive')
+#
+#    def clear_orderers(self):
+#        logger.debug('Clear all orderers')
+#
+#        self.orderers = [analytics.BaseOrder()]
+#        logger.debug('Orderers: {}'.format(
+#            ', '.join(map(repr, self.orderers))))
+#
+#        self.update_suggestions()
+#        self.update_footer('suggestive')
 
 
 class PlaylistBuffer(Buffer):

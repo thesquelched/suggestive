@@ -1,6 +1,16 @@
 import suggestive.widget as widget
 import suggestive.bindings as bindings
+import suggestive.mstat as mstat
+import suggestive.util as util
+import suggestive.analytics as analytics
+
 import urwid
+import logging
+from itertools import chain
+
+
+logger = logging.getLogger('suggestive')
+logger.addHandler(logging.NullHandler())
 
 
 ENQUEUE = 'enqueue'
@@ -63,24 +73,70 @@ def signal_handler(func):
 
 class LibraryController(object):
 
-    def __init__(self, conf):
+    def __init__(self, conf, session):
         self._conf = conf
+
+        # Connections
+        self._mpd = mstat.initialize_mpd(conf)
+        self._session = session
+
+        self._orderers = [analytics.BaseOrder()]
+        self._anl = analytics.Analytics(conf)
+
+        self._model = self.load_model()
+
+    def load_model(self):
+        suggestions = self._anl.order_albums(self._session, self._orderers)
+        albums = [AlbumModel(s.album, s.order) for s in suggestions]
+        return LibraryModel(albums)
+
+    def add_orderer(self, orderer_class, *args, **kwArgs):
+        orderer = orderer_class(*args, **kwArgs)
+        try:
+            idx = list([type(o) for o in self._orderers]).index(orderer)
+            self._orderers[idx] = orderer
+        except ValueError:
+            self._orderers.append(orderer)
+
+        logger.debug('Orderers: {}'.format(
+            ', '.join(map(repr, self._orderers))))
+
+        self._model = self.load_model()
+
+    @property
+    def model(self):
+        return self._model
 
     @signal_handler
     def enqueue_album(self, album):
-        pass
+        self.enqueue_tracks(album.tracks)
 
     @signal_handler
     def enqueue_track(self, track):
-        pass
+        self.enqueue_tracks([track])
 
     @signal_handler
     def play_album(self, album):
-        pass
+        self.play_tracks(album.tracks)
 
     @signal_handler
     def play_track(self, track):
-        pass
+        self.play_tracks([track])
+
+    def enqueue_tracks(self, tracks):
+        mpd_tracks = list(chain.from_iterable(
+            self._mpd.listallinfo(track.filename) for track in tracks))
+
+        for i, track in enumerate(mpd_tracks):
+            track['track'] = util.track_num(track.get('track', i))
+
+        sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
+        return [self._mpd.addid(track['file']) for track in sorted_tracks]
+
+    def play_tracks(self, tracks):
+        ids = self.enqueue_tracks(tracks)
+        if ids:
+            self._mpd.playid(ids[0])
 
 
 ######################################################################
