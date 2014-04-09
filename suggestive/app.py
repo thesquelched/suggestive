@@ -230,7 +230,10 @@ class Application(Commandable):
         self.observer.start()
 
     def update_player_event(self):
-        self.playlist_buffer.update_playing_status()
+        if self.playlist_buffer.track_changed():
+            self.update_playlist_event()
+        else:
+            self.playlist_buffer.update_playing_status()
 
     def update_database_event(self):
         self.update_library_status('Library (updating database...)')
@@ -266,7 +269,9 @@ class Application(Commandable):
         # TODO: Optimize by checking what's changed
         logger.info('Updating playlist')
         self.event_loop.set_alarm_in(0, self.playlist_buffer.update)
-        self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
+
+        if self.playlist_buffer.track_changed():
+            self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
 
     def dispatch(self, key):
         if key in self.bindings:

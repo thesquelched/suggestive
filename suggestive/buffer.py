@@ -569,8 +569,11 @@ class PlaylistBuffer(Buffer):
         self.show_numbers = False
         self.move_prompt = None
 
+        self.current_track = None
+
         self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
-        walker = urwid.SimpleFocusListWalker(self.playlist_items())
+        items, self.current_track = self.playlist_items()
+        walker = urwid.SimpleFocusListWalker(items)
         self.playlist = widget.SuggestiveListBox(walker)
         urwid.connect_signal(self.playlist, 'set_footer', self.update_footer)
         super(PlaylistBuffer, self).__init__(self.playlist)
@@ -731,6 +734,10 @@ class PlaylistBuffer(Buffer):
 
         return items
 
+    def track_changed(self):
+        mpd = mstat.initialize_mpd(self.conf)
+        return self.current_track != self.now_playing_index(mpd)
+
     def playlist_items(self):
         mpd = mstat.initialize_mpd(self.conf)
 
@@ -746,7 +753,7 @@ class PlaylistBuffer(Buffer):
             text = urwid.Text('Playlist is empty')
             body.append(urwid.AttrMap(text, 'playlist'))
 
-        return body
+        return body, now_playing
 
     def update(self, *args):
         current_position = 0
@@ -755,7 +762,7 @@ class PlaylistBuffer(Buffer):
         except IndexError:
             pass
 
-        items = self.playlist_items()
+        items, self._current_track = self.playlist_items()
 
         # TODO: Do we really have to clear the playlist every time?
         self.clear_playlist()
