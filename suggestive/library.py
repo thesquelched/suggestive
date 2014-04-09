@@ -17,8 +17,8 @@ logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
 
 
-ENQUEUE = 'enqueue'
-PLAY = 'play'
+SIGNAL_ENQUEUE = 'enqueue'
+SIGNAL_PLAY = 'play'
 
 
 ######################################################################
@@ -285,11 +285,11 @@ class LibraryView(widget.SuggestiveListBox, View):
 
                 urwid.connect_signal(
                     view,
-                    ENQUEUE,
+                    SIGNAL_ENQUEUE,
                     self._controller.enqueue_album)
                 urwid.connect_signal(
                     view,
-                    PLAY,
+                    SIGNAL_PLAY,
                     self._controller.play_album)
 
                 # TODO: AttrMap here or inside of view?
