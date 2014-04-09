@@ -54,7 +54,7 @@ class LibraryModel(Model):
 
     def __init__(self, albums):
         super(LibraryModel, self).__init__()
-        self._albums = sorted(albums, key=lambda album: album.score)
+        self.albums = albums
 
     def __repr__(self):
         return '<LibraryModel>'
@@ -65,13 +65,16 @@ class LibraryModel(Model):
 
     @albums.setter
     def albums(self, newalbums):
-        self._albums = sorted(newalbums, key=lambda album: album.score)
+        self._albums = sorted(
+            newalbums,
+            key=lambda album: album.score,
+            reverse=True)
         self.update()
+
 
 ######################################################################
 # Controllers
 ######################################################################
-
 
 def signal_handler(func):
     """
@@ -168,10 +171,9 @@ class AlbumView(widget.SelectableLibraryItem, View):
     def __init__(self, model, conf):
         View.__init__(self, model)
 
-        self._model = model
         self._show_score = conf.show_score()
-
         self._icon = urwid.SelectableIcon(self.text)
+
         super(AlbumView, self).__init__(
             urwid.AttrMap(self._icon, 'album', 'focus album'))
 
