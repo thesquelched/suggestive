@@ -4,6 +4,8 @@ import suggestive.mstat as mstat
 import suggestive.util as util
 import suggestive.analytics as analytics
 
+from suggestive.mvc import View, Model
+
 import urwid
 import logging
 from itertools import chain
@@ -21,9 +23,10 @@ PLAY = 'play'
 # Models
 ######################################################################
 
-class AlbumModel(object):
+class AlbumModel(Model):
 
     def __init__(self, db_album, score):
+        super(AlbumModel, self).__init__()
         self._db_album = db_album
         self._score = score
 
@@ -36,9 +39,10 @@ class AlbumModel(object):
         return self._db_album
 
 
-class TrackModel(object):
+class TrackModel(Model):
 
     def __init__(self, track):
+        super(TrackModel, self).__init__()
         self._track = track
 
     @property
@@ -46,14 +50,23 @@ class TrackModel(object):
         return self._track.name
 
 
-class LibraryModel(object):
+class LibraryModel(Model):
 
     def __init__(self, albums):
+        super(LibraryModel, self).__init__()
         self._albums = sorted(albums, key=lambda album: album.score)
+
+    def __repr__(self):
+        return '<LibraryModel>'
 
     @property
     def albums(self):
         return self._albums
+
+    @albums.setter
+    def albums(self, newalbums):
+        self._albums = sorted(newalbums, key=lambda album: album.score)
+        self.update()
 
 ######################################################################
 # Controllers
@@ -73,7 +86,8 @@ def signal_handler(func):
 
 class LibraryController(object):
 
-    def __init__(self, conf, session):
+    def __init__(self, model, conf, session):
+        self._model = model
         self._conf = conf
 
         # Connections
@@ -83,21 +97,14 @@ class LibraryController(object):
         self._orderers = [analytics.BaseOrder()]
         self._anl = analytics.Analytics(conf)
 
-        self._model = self.load_model()
-        self._views = []
+        self.update_model()
 
-    def register(self, view):
-        self._views.append(view)
+    def update_model(self):
+        self._model.albums = self.order_albums()
 
-    def update(self):
-        logger.debug('Updating LibraryController views')
-        for view in self.views:
-            view.update()
-
-    def load_model(self):
+    def order_albums(self):
         suggestions = self._anl.order_albums(self._session, self._orderers)
-        albums = [AlbumModel(s.album, s.order) for s in suggestions]
-        return LibraryModel(albums)
+        return [AlbumModel(s.album, s.order) for s in suggestions]
 
     def add_orderer(self, orderer_class, *args, **kwArgs):
         orderer = orderer_class(*args, **kwArgs)
@@ -110,7 +117,7 @@ class LibraryController(object):
         logger.debug('Orderers: {}'.format(
             ', '.join(map(repr, self._orderers))))
 
-        self.model = self.load_model()
+        self.update_model()
 
     @property
     def model(self):
@@ -119,11 +126,6 @@ class LibraryController(object):
     @model.setter
     def model(self, newmodel):
         self._model = newmodel
-        self.update()
-
-    @property
-    def views(self):
-        return self._views
 
     @signal_handler
     def enqueue_album(self, album):
@@ -161,15 +163,17 @@ class LibraryController(object):
 # Views
 ######################################################################
 
-class AlbumView(widget.SelectableLibraryItem):
+class AlbumView(widget.SelectableLibraryItem, View):
 
     def __init__(self, model, conf):
+        View.__init__(self, model)
+
         self._model = model
         self._show_score = conf.show_score()
 
-        icon = urwid.SelectableIcon(self.text)
+        self._icon = urwid.SelectableIcon(self.text)
         super(AlbumView, self).__init__(
-            urwid.AttrMap(icon, 'album', 'focus album'))
+            urwid.AttrMap(self._icon, 'album', 'focus album'))
 
     @property
     def score(self):
@@ -193,8 +197,11 @@ class AlbumView(widget.SelectableLibraryItem):
             return album_text
 
 
-class LibraryView(widget.SuggestiveListBox):
-    def __init__(self, controller, conf):
+class LibraryView(widget.SuggestiveListBox, View):
+    def __init__(self, model, controller, conf):
+        View.__init__(self, model)
+
+        self._model = model
         self._controller = controller
         self._conf = conf
 
@@ -204,20 +211,19 @@ class LibraryView(widget.SuggestiveListBox):
         # Set command map after super so bindings don't get overwritten
         self._command_map = bindings.AlbumListCommands
 
-        # Register view with controller
-        controller.register(self)
+        self._model.register(self)
 
     def update(self):
         logger.debug('Updating LibraryView')
         walker = self.body
-        walker[:] = self.library_items()
+        walker[:] = self.library_items(self.model)
 
-    def library_items(self):
-        if not self._controller.model.albums:
+    def library_items(self, model):
+        if not model.albums:
             body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
         else:
             body = []
-            for album_m in self._controller.model.albums:
+            for album_m in model.albums:
                 view = AlbumView(album_m, self._conf)
 
                 urwid.connect_signal(
@@ -235,7 +241,7 @@ class LibraryView(widget.SuggestiveListBox):
         return body
 
     def create_walker(self):
-        body = self.library_items()
+        body = self.library_items(self._controller.model)
         return urwid.SimpleFocusListWalker(body)
 
     def sort_tracks(self, tracks):

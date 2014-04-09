@@ -5,7 +5,7 @@ from suggestive.util import album_text, track_num
 import suggestive.analytics as analytics
 from suggestive.error import CommandError
 from suggestive.bindings import ENQUEUE, PLAY
-from suggestive.library  import LibraryController, LibraryView
+from suggestive.library import LibraryController, LibraryView, LibraryModel
 
 import logging
 import urwid
@@ -231,8 +231,9 @@ class NewLibraryBuffer(Buffer):
 
     def __init__(self, conf, session):
         self.conf = conf
-        self.controller = LibraryController(conf, session)
-        self.view = LibraryView(self.controller, conf)
+        self.model = LibraryModel([])
+        self.controller = LibraryController(self.model, conf, session)
+        self.view = LibraryView(self.model, self.controller, conf)
 
         # OLD
         #self.show_score = conf.show_score()
@@ -664,7 +665,8 @@ class NewLibraryBuffer(Buffer):
 #    def find_track_selection(self, track):
 #        o_widgets = (w.original_widget for w in self.list_view.body)
 #        match = (w for w in o_widgets
-#                 if isinstance(w, widget.SelectableTrack) and w.track == track)
+#                 if isinstance(w, widget.SelectableTrack)
+#                 and w.track == track)
 #        return next(match, None)
 #
 #    def love_track(self, track, loved=True):
