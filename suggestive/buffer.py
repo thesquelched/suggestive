@@ -332,7 +332,6 @@ class LibraryBuffer(Buffer):
             keybinds.update({
                 'esc': lambda: self.reset_orderers(),
                 'L': self.love_selection,
-                'U': self.unlove_selection,
             })
 
         return keybinds
@@ -598,7 +597,6 @@ class PlaylistBuffer(Buffer):
             'enter': self.play_track,
             'm': self.move_track,
             'L': self.love_track,
-            'U': self.unlove_track,
         })
 
         return keybinds
