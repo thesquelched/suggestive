@@ -4,6 +4,8 @@ import suggestive.mstat as mstat
 import suggestive.util as util
 import suggestive.analytics as analytics
 
+from mpd import ConnectionError
+
 from suggestive.mvc import View, Model
 
 import urwid
@@ -146,15 +148,36 @@ class LibraryController(object):
     def play_track(self, track):
         self.play_tracks([track])
 
-    def enqueue_tracks(self, tracks):
-        mpd_tracks = list(chain.from_iterable(
+    def mpd_retry(func):
+        """
+        Decorator that reconnects MPD client if the connection is lost
+        """
+        def wrapper(self, *args, **kwArgs):
+            try:
+                return func(self, *args, **kwArgs)
+            except ConnectionError:
+                logger.warning('Detect MPD connection error; reconnecting...')
+                self._mpd = mstat.initialize_mpd(self._conf)
+                return func(self, *args, **kwArgs)
+        return wrapper
+
+    @mpd_retry
+    def mpd_tracks(self, tracks):
+        return list(chain.from_iterable(
             self._mpd.listallinfo(track.filename) for track in tracks))
+
+    @mpd_retry
+    def add_mpd_track(self, track):
+        return self._mpd.addid(track['file'])
+
+    def enqueue_tracks(self, tracks):
+        mpd_tracks = self.mpd_tracks(tracks)
 
         for i, track in enumerate(mpd_tracks):
             track['track'] = util.track_num(track.get('track', i))
 
         sorted_tracks = sorted(mpd_tracks, key=lambda track: track['track'])
-        return [self._mpd.addid(track['file']) for track in sorted_tracks]
+        return [self.add_mpd_track(t) for t in sorted_tracks]
 
     def play_tracks(self, tracks):
         ids = self.enqueue_tracks(tracks)
