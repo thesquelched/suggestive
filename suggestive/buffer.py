@@ -255,6 +255,8 @@ class NewLibraryBuffer(Buffer):
         #self.list_view = self.suggestion_list()
 
         super(NewLibraryBuffer, self).__init__(self.view)
+
+        self.init_default_orderers(conf)
         self.update_status('Library')
 
     def search(self, searcher):
@@ -274,6 +276,7 @@ class NewLibraryBuffer(Buffer):
 
     def init_default_orderers(self, conf):
         order_commands = conf.default_orderers()
+        logger.debug('Initializing default orders: {}'.format(order_commands))
         for cmd in order_commands:
             self.execute_command(cmd)
 
@@ -524,6 +527,7 @@ class NewLibraryBuffer(Buffer):
             mpd.playid(ids[0])
 
     def add_orderer(self, orderer_class, *args, **kwArgs):
+        logger.debug('Adding orderer: {}'.format(orderer_class.__name__))
         self.controller.add_orderer(orderer_class, *args, **kwArgs)
 
     def reset_orderers(self):
