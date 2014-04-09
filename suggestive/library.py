@@ -130,19 +130,19 @@ class LibraryController(object):
     def model(self, newmodel):
         self._model = newmodel
 
-    @signal_handler
+    #@signal_handler
     def enqueue_album(self, album):
         self.enqueue_tracks(album.tracks)
 
-    @signal_handler
+    #@signal_handler
     def enqueue_track(self, track):
         self.enqueue_tracks([track])
 
-    @signal_handler
+    #@signal_handler
     def play_album(self, album):
         self.play_tracks(album.tracks)
 
-    @signal_handler
+    #@signal_handler
     def play_track(self, track):
         self.play_tracks([track])
 
@@ -170,6 +170,8 @@ class AlbumView(widget.SelectableLibraryItem, View):
 
     def __init__(self, model, conf):
         View.__init__(self, model)
+
+        self.content = model.db_album
 
         self._show_score = conf.show_score()
         self._icon = urwid.SelectableIcon(self.text)
