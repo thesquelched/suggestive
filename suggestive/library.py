@@ -95,11 +95,13 @@ class LibraryController(object):
         self._model = model
         self._conf = conf
 
+        self._default_orderers = [analytics.BaseOrder()]
+
         # Connections
         self._mpd = mstat.initialize_mpd(conf)
         self._session = session
 
-        self._orderers = [analytics.BaseOrder()]
+        self._orderers = self._default_orderers.copy()
         self._anl = analytics.Analytics(conf)
 
         self.update_model()
@@ -123,6 +125,16 @@ class LibraryController(object):
             ', '.join(map(repr, self._orderers))))
 
         self.update_model()
+
+    def reset_orderers(self):
+        """
+        Reset orderers to default
+        """
+        self._orderers = self._default_orderers.copy()
+        self.update_model()
+
+    def set_current_order_as_default(self):
+        self._default_orderers = self._orderers.copy()
 
     @property
     def model(self):

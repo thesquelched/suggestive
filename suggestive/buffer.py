@@ -256,7 +256,10 @@ class NewLibraryBuffer(Buffer):
 
         super(NewLibraryBuffer, self).__init__(self.view)
 
+        # Set up default orderers
         self.init_default_orderers(conf)
+        self.controller.set_current_order_as_default()
+
         self.update_status('Library')
 
     def search(self, searcher):
@@ -316,7 +319,7 @@ class NewLibraryBuffer(Buffer):
 
         commands = self.init_custom_orderers(self.conf)
         commands.update({
-            'reset': self.reset_orderers,
+            'reset': self.controller.reset_orderers,
             'unorder': self.clear_orderers,
             'unordered': self.clear_orderers,
             'love': self.love_selection,
@@ -335,7 +338,7 @@ class NewLibraryBuffer(Buffer):
 
         if self.conf.esc_resets_orderers():
             keybinds.update({
-                'esc': lambda: self.reset_orderers(),
+                'esc': lambda: self.controller.reset_orderers(),
                 'L': self.love_selection,
             })
 
