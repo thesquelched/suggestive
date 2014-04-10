@@ -54,17 +54,25 @@ class TrackModel(Model):
         return self._db_track
 
     @property
+    def db_album(self):
+        return self._db_track.album
+
+    @property
+    def db_artist(self):
+        return self._db_track.artist
+
+    @property
     def name(self):
-        return self.db_track.name
+        return self._db_track.name
 
     @property
     def loved(self):
-        info = self.db_track.lastfm_info
+        info = self._db_track.lastfm_info
         return info and info.loved
 
     @property
     def banned(self):
-        info = self.db_track.lastfm_info
+        info = self._db_track.lastfm_info
         return info and info.banned
 
     @property
