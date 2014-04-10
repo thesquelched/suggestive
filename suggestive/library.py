@@ -401,15 +401,19 @@ class LibraryView(widget.SuggestiveListBox, View):
         view.expanded = True
         #self.set_focus_valign('top')
 
-    def collapse_album(self, view):
+    def album_index(self, view):
         current = self.focus_position
-        album_index = self.body.index(view, 0, current + 1)
+        return self.body.index(view, 0, current + 1)
+
+    def collapse_album(self, view):
+        album_index = self.album_index(view)
 
         album = view.db_album
         for i in range(len(album.tracks)):
             self.body.pop(album_index + 1)
 
         view.expanded = False
+        self.body.set_focus(album_index)
 
     def collapse_album_from_track(self, track_view, album_view):
         self.collapse_album(album_view)
@@ -421,30 +425,3 @@ class LibraryView(widget.SuggestiveListBox, View):
             self.collapse_album(view)
         else:
             self.expand_album(view)
-
-        #if isinstance(widget.original_widget, SelectableTrack):
-        #    widget = widget.original_widget.parent
-
-        #if widget.original_widget.expanded:
-        #    self.collapse_album(widget)
-        #else:
-        #    self.expand_album(widget)
-
-        #album = widget.original_widget.album
-
-        #logger.info('Expand: {} ({} tracks)'.format(
-        #    album_text(album),
-        #    len(album.tracks)))
-
-    def keypress(self, size, key):
-        #cmd = self._command_map[key]
-        #if cmd == 'expand':
-        #    self.toggle_expand()
-        #else:
-        #    return super(LibraryView, self).keypress(size, key)
-        return super(LibraryView, self).keypress(size, key)
-
-        # Necessary to get list focus to redraw
-        #super(LibraryView, self).keypress(size, None)
-
-        #return True
