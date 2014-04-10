@@ -399,7 +399,7 @@ class LibraryView(widget.SuggestiveListBox, View):
             self.body.insert(current + 1, track_view)
 
         view.expanded = True
-        #self.set_focus_valign('top')
+        self.set_focus_valign('top')
 
     def album_index(self, view):
         current = self.focus_position
@@ -416,9 +416,15 @@ class LibraryView(widget.SuggestiveListBox, View):
         self.body.set_focus(album_index)
 
     def collapse_album_from_track(self, track_view, album_view):
+        """
+        Collapse album when a track is in focus
+        """
         self.collapse_album(album_view)
 
     def toggle_expand(self, view):
+        """
+        Toggle album track display
+        """
         logger.debug('Toggle: {}'.format(view))
 
         if view.expanded:
