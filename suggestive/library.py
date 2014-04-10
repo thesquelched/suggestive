@@ -44,9 +44,10 @@ class AlbumModel(Model):
 
 class TrackModel(Model):
 
-    def __init__(self, db_track):
+    def __init__(self, db_track, number):
         super(TrackModel, self).__init__()
         self._db_track = db_track
+        self._number = number
 
     @property
     def db_track(self):
@@ -55,6 +56,20 @@ class TrackModel(Model):
     @property
     def name(self):
         return self.db_track.name
+
+    @property
+    def loved(self):
+        info = self.db_track.lastfm_info
+        return info and info.loved
+
+    @property
+    def banned(self):
+        info = self.db_track.lastfm_info
+        return info and info.banned
+
+    @property
+    def number(self):
+        return self._number
 
 
 class LibraryModel(Model):
@@ -230,7 +245,10 @@ class LibraryController(object):
             trackno = util.track_num(mpd_track.get('track', i))
             track_and_num.append((int(trackno), tracks[i]))
 
-        return sorted(track_and_num, key=lambda pair: pair[0])
+        return sorted(
+            track_and_num,
+            key=lambda pair: pair[0],
+            reverse=True)
 
 
 ######################################################################
@@ -250,7 +268,14 @@ class TrackView(widget.SelectableLibraryItem, View):
 
     @property
     def text(self):
-        return self.model.name
+        model = self.model
+        if model.loved:
+            suffix = ' [L]'
+        elif model.banned:
+            suffix = ' [B]'
+        else:
+            suffix = ''
+        return '{} - {}{}'.format(model.number, model.name, suffix)
 
 
 class AlbumView(widget.SelectableLibraryItem, View):
@@ -354,7 +379,7 @@ class LibraryView(widget.SuggestiveListBox, View):
 
         sorted_tracks = self._controller.sort_tracks(album.tracks)
         for track_no, track in sorted_tracks:
-            model = TrackModel(track)
+            model = TrackModel(track, track_no)
             track_view = TrackView(model, self._conf)
 
             urwid.connect_signal(
@@ -365,6 +390,11 @@ class LibraryView(widget.SuggestiveListBox, View):
                 track_view,
                 SIGNAL_PLAY,
                 self._controller.play_track)
+            urwid.connect_signal(
+                track_view,
+                SIGNAL_EXPAND,
+                self.collapse_album_from_track,
+                view)
 
             self.body.insert(current + 1, track_view)
 
@@ -375,19 +405,14 @@ class LibraryView(widget.SuggestiveListBox, View):
         current = self.focus_position
         album_index = self.body.index(view, 0, current + 1)
 
-        logger.debug('Album index: {}'.format(album_index))
-
         album = view.db_album
         for i in range(len(album.tracks)):
             self.body.pop(album_index + 1)
-            #track_view = self.body[album_index + 1]
-            #if isinstance(track_widget.original_widget, SelectableTrack):
-            #    self.body.pop(album_index + 1)
-            #else:
-            #    logger.error('Item #{} is not a track'.format(i))
 
         view.expanded = False
-        #album_widget.original_widget.expanded = False
+
+    def collapse_album_from_track(self, track_view, album_view):
+        self.collapse_album(album_view)
 
     def toggle_expand(self, view):
         logger.debug('Toggle: {}'.format(view))
