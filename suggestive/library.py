@@ -19,6 +19,7 @@ logger.addHandler(logging.NullHandler())
 
 SIGNAL_ENQUEUE = 'enqueue'
 SIGNAL_PLAY = 'play'
+SIGNAL_EXPAND = 'expand'
 
 
 ######################################################################
@@ -43,13 +44,17 @@ class AlbumModel(Model):
 
 class TrackModel(Model):
 
-    def __init__(self, track):
+    def __init__(self, db_track):
         super(TrackModel, self).__init__()
-        self._track = track
+        self._db_track = db_track
+
+    @property
+    def db_track(self):
+        return self._db_track
 
     @property
     def name(self):
-        return self._track.name
+        return self.db_track.name
 
 
 class LibraryModel(Model):
@@ -214,10 +219,39 @@ class LibraryController(object):
         if ids:
             self._mpd.playid(ids[0])
 
+    def sort_tracks(self, tracks):
+        track_and_num = []
+        mpd_tracks = self.mpd_tracks(tracks)
+
+        for i, mpd_track in enumerate(mpd_tracks):
+            if not mpd_track:
+                continue
+
+            trackno = util.track_num(mpd_track.get('track', i))
+            track_and_num.append((int(trackno), tracks[i]))
+
+        return sorted(track_and_num, key=lambda pair: pair[0])
+
 
 ######################################################################
 # Views
 ######################################################################
+
+class TrackView(widget.SelectableLibraryItem, View):
+
+    def __init__(self, model, conf):
+        View.__init__(self, model)
+
+        self.content = model.db_track
+        self._icon = urwid.SelectableIcon(self.text)
+
+        super(TrackView, self).__init__(
+            urwid.AttrMap(self._icon, 'track', 'focus track'))
+
+    @property
+    def text(self):
+        return self.model.name
+
 
 class AlbumView(widget.SelectableLibraryItem, View):
 
@@ -225,6 +259,7 @@ class AlbumView(widget.SelectableLibraryItem, View):
         View.__init__(self, model)
 
         self.content = model.db_album
+        self._expanded = False
 
         self._show_score = conf.show_score()
         self._icon = urwid.SelectableIcon(self.text)
@@ -252,6 +287,14 @@ class AlbumView(widget.SelectableLibraryItem, View):
             return '{} ({:.4g})'.format(album_text, self.score)
         else:
             return album_text
+
+    @property
+    def expanded(self):
+        return self._expanded
+
+    @expanded.setter
+    def expanded(self, value):
+        self._expanded = value
 
 
 class LibraryView(widget.SuggestiveListBox, View):
@@ -291,6 +334,10 @@ class LibraryView(widget.SuggestiveListBox, View):
                     view,
                     SIGNAL_PLAY,
                     self._controller.play_album)
+                urwid.connect_signal(
+                    view,
+                    SIGNAL_EXPAND,
+                    self.toggle_expand)
 
                 # TODO: AttrMap here or inside of view?
                 body.append(view)
@@ -301,66 +348,54 @@ class LibraryView(widget.SuggestiveListBox, View):
         body = self.library_items(self._controller.model)
         return urwid.SimpleFocusListWalker(body)
 
-    def sort_tracks(self, tracks):
-        pass
-        #track_and_num = []
-        #mpd = mstat.initialize_mpd(self.app.conf)
+    def expand_album(self, view):
+        album = view.db_album
+        current = self.focus_position
 
-        #for i, track in enumerate(tracks):
-        #    try:
-        #        mpd_track = mpd.listallinfo(track.filename)
-        #    except MpdCommandError:
-        #        continue
+        sorted_tracks = self._controller.sort_tracks(album.tracks)
+        for track_no, track in sorted_tracks:
+            model = TrackModel(track)
+            track_view = TrackView(model, self._conf)
 
-        #    if not mpd_track:
-        #        continue
+            urwid.connect_signal(
+                track_view,
+                SIGNAL_ENQUEUE,
+                self._controller.enqueue_track)
+            urwid.connect_signal(
+                track_view,
+                SIGNAL_PLAY,
+                self._controller.play_track)
 
-        #    trackno = track_num(mpd_track[0].get('track', i))
+            self.body.insert(current + 1, track_view)
 
-        #    track_and_num.append((int(trackno), track))
-
-        #return sorted(track_and_num, key=lambda pair: pair[0])
-
-    def expand_album(self, album_widget):
-        pass
-        #current = self.focus_position
-        #album = album_widget.original_widget.album
-
-        #sorted_tracks = self.sort_tracks(album.tracks)
-        #for track_no, track in reversed(sorted_tracks):
-        #    track_widget = SelectableTrack(
-        #        album_widget, track, track_no)
-
-        #    urwid.connect_signal(track_widget, 'enqueue',
-        #                         self.app.enqueue_track)
-        #    urwid.connect_signal(track_widget, 'play', self.app.play_track)
-
-        #    item = urwid.AttrMap(track_widget, 'track', 'focus track')
-        #    self.body.insert(current + 1, item)
-
-        #album_widget.original_widget.expanded = True
+        view.expanded = True
         #self.set_focus_valign('top')
 
-    def collapse_album(self, album_widget):
-        pass
-        #current = self.focus_position
-        #album_index = self.body.index(album_widget, 0, current + 1)
+    def collapse_album(self, view):
+        current = self.focus_position
+        album_index = self.body.index(view, 0, current + 1)
 
-        #logger.debug('Album index: {}'.format(album_index))
+        logger.debug('Album index: {}'.format(album_index))
 
-        #album = album_widget.original_widget.album
-        #for i in range(len(album.tracks)):
-        #    track_widget = self.body[album_index + 1]
-        #    if isinstance(track_widget.original_widget, SelectableTrack):
-        #        self.body.pop(album_index + 1)
-        #    else:
-        #        logger.error('Item #{} is not a track'.format(i))
+        album = view.db_album
+        for i in range(len(album.tracks)):
+            self.body.pop(album_index + 1)
+            #track_view = self.body[album_index + 1]
+            #if isinstance(track_widget.original_widget, SelectableTrack):
+            #    self.body.pop(album_index + 1)
+            #else:
+            #    logger.error('Item #{} is not a track'.format(i))
 
+        view.expanded = False
         #album_widget.original_widget.expanded = False
 
-    def toggle_expand(self):
-        pass
-        #widget = self.focus
+    def toggle_expand(self, view):
+        logger.debug('Toggle: {}'.format(view))
+
+        if view.expanded:
+            self.collapse_album(view)
+        else:
+            self.expand_album(view)
 
         #if isinstance(widget.original_widget, SelectableTrack):
         #    widget = widget.original_widget.parent
@@ -377,13 +412,14 @@ class LibraryView(widget.SuggestiveListBox, View):
         #    len(album.tracks)))
 
     def keypress(self, size, key):
-        cmd = self._command_map[key]
-        if cmd == 'expand':
-            self.toggle_expand()
-        else:
-            return super(LibraryView, self).keypress(size, key)
+        #cmd = self._command_map[key]
+        #if cmd == 'expand':
+        #    self.toggle_expand()
+        #else:
+        #    return super(LibraryView, self).keypress(size, key)
+        return super(LibraryView, self).keypress(size, key)
 
         # Necessary to get list focus to redraw
-        super(LibraryView, self).keypress(size, None)
+        #super(LibraryView, self).keypress(size, None)
 
-        return True
+        #return True

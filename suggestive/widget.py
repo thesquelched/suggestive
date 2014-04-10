@@ -263,7 +263,7 @@ class SearchableItem(object):
 
 class SelectableLibraryItem(urwid.WidgetWrap, SearchableItem):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['enqueue', 'play']
+    signals = ['enqueue', 'play', 'expand']
 
     _command_map = bindings.AlbumListCommands
     content = None
@@ -273,6 +273,8 @@ class SelectableLibraryItem(urwid.WidgetWrap, SearchableItem):
             urwid.emit_signal(self, 'enqueue', self.content)
         elif self._command_map[key] == 'play':
             urwid.emit_signal(self, 'play', self.content)
+        elif self._command_map[key] == 'expand':
+            urwid.emit_signal(self, 'expand', self)
         else:
             return key
 
