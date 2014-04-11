@@ -57,6 +57,9 @@ class PlaylistController(Controller):
         self._mpd = mstat.initialize_mpd(conf)
         self._session = session
 
+        # Initialize
+        self.update_model()
+
     # Signal handler
     def play_track(self, view):
         pass
@@ -121,6 +124,9 @@ class PlaylistController(Controller):
 
         #return items
 
+    def update_model(self):
+        self.model.tracks = self.playlist_tracks()
+
 
 ######################################################################
 # Views
@@ -137,7 +143,7 @@ class TrackView(widget.SelectableLibraryItem, View):
         self._icon = urwid.SelectableIcon(self.text)
 
         super(TrackView, self).__init__(
-            urwid.AttrMap(self._icon, 'track', 'focus track'))
+            urwid.AttrMap(self._icon, 'playlist', 'focus playlist'))
 
     @property
     def text(self):
