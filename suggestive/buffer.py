@@ -596,26 +596,6 @@ class NewPlaylistBuffer(Buffer):
 
     def will_accept_focus(self):
         return len(self.model.tracks) > 0
-        #mpd = mstat.initialize_mpd(self.conf)
-        #return len(mpd.playlistinfo()) > 0
-
-    #def setup_bindings(self):
-    #    keybinds = super(NewPlaylistBuffer, self).setup_bindings()
-    #    keybinds.update({
-    #        #'c': self.clear_mpd_playlist,
-    #        #'d': self.delete_track,
-    #        #'enter': self.play_track,
-    #        'm': self.move_track,
-    #        'L': self.love_track,
-    #    })
-
-    #    return keybinds
-
-    def setup_commands(self):
-        return {
-            'love': self.love_track,
-            'unlove': self.unlove_track,
-        }
 
     def move_track(self):
         self.show_numbers = True
@@ -673,46 +653,6 @@ class NewPlaylistBuffer(Buffer):
         except IndexError:
             logger.error('Index out of range')
 
-    def delete_track(self):
-        try:
-            current_position = self.playlist.focus_position
-        except IndexError:
-            return
-
-        if current_position is not None:
-            mpd = mstat.initialize_mpd(self.conf)
-            n_items = len(mpd.playlistinfo())
-            if n_items:
-                self.playlist.body.pop(current_position)
-                mpd.delete(current_position)
-                if n_items == 1:
-                    self.update()
-
-    def play_track(self):
-        current_position = self.playlist.focus_position
-
-        if current_position is not None:
-            mpd = mstat.initialize_mpd(self.conf)
-            mpd.play(current_position)
-
-    def format_track(self, track):
-        db_track = mstat.database_track_from_mpd(self.session, track)
-        info = db_track.lastfm_info
-        if info is None:
-            suffix = ''
-        elif info.loved:
-            suffix = ' [L]'
-        elif info.banned:
-            suffix = ' [B]'
-        else:
-            suffix = ''
-
-        replace = {key: 'Unknown' for key in self.format_keys}
-        replace.update(track)
-        replace.update(suffix=suffix)
-
-        return self.ITEM_FORMAT.format(**replace)
-
     def now_playing_index(self, mpd):
         current = mpd.currentsong()
         if current and 'pos' in current:
@@ -743,28 +683,6 @@ class NewPlaylistBuffer(Buffer):
 
     def update(self, *args):
         self.controller.update_model()
-        #current_position = 0
-        #try:
-        #    current_position = self.playlist.focus_position
-        #except IndexError:
-        #    pass
-
-        #items, self._current_track = self.playlist_items()
-
-        ## TODO: Do we really have to clear the playlist every time?
-        #self.clear_playlist()
-        #self.playlist.body.extend(items)
-
-        #try:
-        #    self.playlist.focus_position = current_position
-        #except IndexError:
-        #    try:
-        #        self.playlist.focus_position = current_position - 1
-        #    except IndexError:
-        #        pass
-
-        #self.update_playing_status()
-        #self.redraw()
 
     def update_playing_status(self):
         self.update_status(self.status_text())
@@ -825,82 +743,6 @@ class NewPlaylistBuffer(Buffer):
         mpd.clear()
 
         self.update()
-
-    def love_track(self):
-        current_position = self.playlist.focus_position
-
-        if current_position is None:
-            return
-
-        track = mstat.get_playlist_track(self.session, self.conf,
-                                         current_position)
-        if track is None:
-            logger.debug('Could not find track to love')
-            return
-
-        self.prompt = widget.Prompt(
-            'Mark track loved? [Y/n]: ',
-            self.playlist.focus.original_widget,
-            track)
-
-        urwid.connect_signal(self.prompt, 'prompt_done',
-                             self.complete_love_track)
-
-        footer = urwid.AttrMap(self.prompt, 'footer')
-
-        self.update_footer(footer)
-        self.update_focus('footer')
-
-    def complete_love_track(self, value, selection, track):
-        urwid.disconnect_signal(self, self.prompt, 'prompt_done',
-                                self.complete_love_track)
-        self.update_focus('body')
-
-        if value is None:
-            return
-        elif value == '':
-            value = 'y'
-
-        if value.lower()[0] == 'y':
-            urwid.emit_signal(self, 'love_track', track)
-
-    def unlove_track(self):
-        current_position = self.playlist.focus_position
-
-        if current_position is None:
-            return
-
-        track = mstat.get_playlist_track(self.session, self.conf,
-                                         current_position)
-        if track is None:
-            logger.debug('Could not find track to unlove')
-            return
-
-        self.prompt = widget.Prompt(
-            'Mark track unloved? [Y/n]: ',
-            self.playlist.focus.original_widget,
-            track)
-
-        urwid.connect_signal(self.prompt, 'prompt_done',
-                             self.complete_unlove_track)
-
-        footer = urwid.AttrMap(self.prompt, 'footer')
-
-        self.update_footer(footer)
-        self.update_focus('footer')
-
-    def complete_unlove_track(self, value, selection, track):
-        urwid.disconnect_signal(self, self.prompt, 'prompt_done',
-                                self.complete_unlove_track)
-        self.update_focus('body')
-
-        if value is None:
-            return
-        elif value == '':
-            value = 'y'
-
-        if value.lower()[0] == 'y':
-            urwid.emit_signal(self, 'unlove_track', track)
 
     def load_playlist(self, name=None):
         if name is None:

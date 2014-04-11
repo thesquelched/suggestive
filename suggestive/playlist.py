@@ -58,6 +58,7 @@ class PlaylistController(Controller):
 
         # Connections
         self._mpd = mstat.initialize_mpd(conf)
+        self._lastfm = mstat.initialize_lastfm(conf)
         self._session = session
 
         # Initialize
@@ -80,24 +81,36 @@ class PlaylistController(Controller):
     # Signal handler
     @mpd_retry
     def play_track(self, view):
-        logger.info('Play playlist track'.format(view.text))
+        logger.info('Play playlist track: {}'.format(view.canonical_text))
         self._mpd.play(view.model.number)
 
     # Signal handler
     @mpd_retry
     def delete_track(self, view):
-        logger.info('Delete playlist track'.format(view.text))
+        logger.info('Delete playlist track: {}'.format(view.canonical_text))
         self._mpd.delete(view.model.number)
         self.update_model()
 
     # Signal handler
     def love_track(self, view):
-        logger.info('Love playlist track'.format(view.text))
-        pass
+        logger.info('Toggle loved for playlist track: {}'.format(
+            view.canonical_text))
+
+        db_track = view.model.db_track
+        loved = db_track.lastfm_info.loved if db_track.lastfm_info else False
+        mstat.set_track_loved(
+            self._session,
+            self._lastfm,
+            db_track,
+            loved=not loved)
+
+        self._session.commit()
+
+        view.update()
 
     # Signal handler
     def move_track(self, view):
-        logger.info('Move playlist track: {}'.format(view.text))
+        logger.info('Move playlist track: {}'.format(view.canonical_text))
         pass
 
     @mpd_retry
@@ -193,6 +206,18 @@ class TrackView(urwid.WidgetWrap, View):
             album=model.db_album.name,
             title=model.name,
             suffix=suffix)
+
+    @property
+    def canonical_text(self):
+        model = self.model
+        return self.TRACK_FORMAT.format(
+            artist=model.db_artist.name,
+            album=model.db_album.name,
+            title=model.name,
+            suffix='')
+
+    def update(self):
+        self._w.original_widget.set_text(self.text)
 
 
 class PlaylistView(widget.SuggestiveListBox, View):
