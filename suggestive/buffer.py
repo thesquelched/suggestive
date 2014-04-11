@@ -6,12 +6,12 @@ import suggestive.analytics as analytics
 from suggestive.error import CommandError
 from suggestive.bindings import ENQUEUE, PLAY
 from suggestive.library import LibraryController, LibraryView, LibraryModel
+from suggestive.playlist import PlaylistController, PlaylistView, PlaylistModel
 
 import logging
 import urwid
 from itertools import chain
 from mpd import CommandError as MpdCommandError
-import re
 from math import log10, floor
 
 
@@ -557,26 +557,31 @@ class NewLibraryBuffer(Buffer):
         self.update_footer('suggestive')
 
 
-class PlaylistBuffer(Buffer):
+class NewPlaylistBuffer(Buffer):
     signals = Buffer.signals + ['love_track', 'unlove_track']
     ITEM_FORMAT = '{artist} - {album} - {title}{suffix}'
 
     def __init__(self, conf, session):
         self.conf = conf
-        self.session = session
-        self.status_format = conf.playlist_status_format()
-        self.searcher = None
-        self.show_numbers = False
-        self.move_prompt = None
+        self.model = PlaylistModel([])
+        self.controller = PlaylistController(self.model, conf, session)
+        self.view = PlaylistView(self.model, self.controller, conf)
+        #self.session = session
+        #self.status_format = conf.playlist_status_format()
+        #self.searcher = None
+        #self.show_numbers = False
+        #self.move_prompt = None
 
-        self.current_track = None
+        #self.current_track = None
 
-        self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
-        items, self.current_track = self.playlist_items()
-        walker = urwid.SimpleFocusListWalker(items)
-        self.playlist = widget.SuggestiveListBox(walker)
-        urwid.connect_signal(self.playlist, 'set_footer', self.update_footer)
-        super(PlaylistBuffer, self).__init__(self.playlist)
+        #self.format_keys = re.findall(r'\{(\w+)\}', self.ITEM_FORMAT)
+        #items, self.current_track = self.playlist_items()
+        #walker = urwid.SimpleFocusListWalker(items)
+        #self.playlist = widget.SuggestiveListBox(walker)
+        #urwid.connect_signal(self.playlist, 'set_footer', self.update_footer)
+        #super(PlaylistBuffer, self).__init__(self.playlist)
+
+        super(NewPlaylistBuffer, self).__init__(self.view)
 
         self.update_status('Playlist')
 
@@ -591,7 +596,7 @@ class PlaylistBuffer(Buffer):
         return len(mpd.playlistinfo()) > 0
 
     def setup_bindings(self):
-        keybinds = super(PlaylistBuffer, self).setup_bindings()
+        keybinds = super(NewPlaylistBuffer, self).setup_bindings()
         keybinds.update({
             #'c': self.clear_mpd_playlist,
             'd': self.delete_track,

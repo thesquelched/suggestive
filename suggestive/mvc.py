@@ -34,3 +34,17 @@ class View(object):
     @property
     def model(self):
         return self._model
+
+
+class Controller(object):
+
+    def __init__(self, model):
+        self._model = model
+
+    @property
+    def model(self):
+        return self._model
+
+    @model.setter
+    def model(self, newmodel):
+        self._model = newmodel

@@ -5,7 +5,7 @@ import suggestive.mstat as mstat
 
 from mpd import ConnectionError
 
-from suggestive.mvc import View, Model
+from suggestive.mvc import View, Model, Controller
 
 import urwid
 import logging
@@ -47,23 +47,15 @@ class PlaylistModel(Model):
 # Controllers
 ######################################################################
 
-class PlaylistController(object):
+class PlaylistController(Controller):
 
     def __init__(self, model, conf, session):
-        self._model = model
+        super(PlaylistController, self).__init__(model)
         self._conf = conf
 
         # Connections
         self._mpd = mstat.initialize_mpd(conf)
         self._session = session
-
-    @property
-    def model(self):
-        return self._model
-
-    @model.setter
-    def model(self, newmodel):
-        self._model = newmodel
 
     # Signal handler
     def play_track(self, view):
@@ -168,7 +160,6 @@ class PlaylistView(widget.SuggestiveListBox, View):
     def __init__(self, model, controller, conf):
         View.__init__(self, model)
 
-        self._model = model
         self._controller = controller
         self._conf = conf
 
@@ -178,7 +169,7 @@ class PlaylistView(widget.SuggestiveListBox, View):
         # Set command map after super so bindings don't get overwritten
         self._command_map = bindings.AlbumListCommands
 
-        self._model.register(self)
+        self.model.register(self)
 
     def update(self):
         logger.debug('Updating PlaylistView')
@@ -186,7 +177,16 @@ class PlaylistView(widget.SuggestiveListBox, View):
         walker[:] = self.track_views()
 
     def track_views(self):
-        pass
+        if not self.model.tracks:
+            body = [urwid.AttrMap(urwid.Text('Playlist is empty'), 'track')]
+        else:
+            body = []
+            for track_m in self.model.tracks:
+                view = TrackView(track_m, self._conf)
+                body.append(view)
+
+        return body
+
         #if not self.model.albums:
         #    body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
         #else:
@@ -213,7 +213,7 @@ class PlaylistView(widget.SuggestiveListBox, View):
         #return body
 
     def create_walker(self):
-        body = self.library_items(self._controller.model)
+        body = self.track_views()
         return urwid.SimpleFocusListWalker(body)
 
     def expand_album(self, view):
