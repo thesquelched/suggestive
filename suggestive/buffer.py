@@ -566,6 +566,8 @@ class NewPlaylistBuffer(Buffer):
         self.model = PlaylistModel([])
         self.controller = PlaylistController(self.model, conf, session)
         self.view = PlaylistView(self.model, self.controller, conf)
+
+        self.current_track = None
         #self.session = session
         #self.status_format = conf.playlist_status_format()
         #self.searcher = None
@@ -761,28 +763,29 @@ class NewPlaylistBuffer(Buffer):
         return body, now_playing
 
     def update(self, *args):
-        current_position = 0
-        try:
-            current_position = self.playlist.focus_position
-        except IndexError:
-            pass
+        self.controller.update_model()
+        #current_position = 0
+        #try:
+        #    current_position = self.playlist.focus_position
+        #except IndexError:
+        #    pass
 
-        items, self._current_track = self.playlist_items()
+        #items, self._current_track = self.playlist_items()
 
-        # TODO: Do we really have to clear the playlist every time?
-        self.clear_playlist()
-        self.playlist.body.extend(items)
+        ## TODO: Do we really have to clear the playlist every time?
+        #self.clear_playlist()
+        #self.playlist.body.extend(items)
 
-        try:
-            self.playlist.focus_position = current_position
-        except IndexError:
-            try:
-                self.playlist.focus_position = current_position - 1
-            except IndexError:
-                pass
+        #try:
+        #    self.playlist.focus_position = current_position
+        #except IndexError:
+        #    try:
+        #        self.playlist.focus_position = current_position - 1
+        #    except IndexError:
+        #        pass
 
-        self.update_playing_status()
-        self.redraw()
+        #self.update_playing_status()
+        #self.redraw()
 
     def update_playing_status(self):
         self.update_status(self.status_text())

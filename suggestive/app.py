@@ -268,11 +268,12 @@ class Application(Commandable):
 
     def update_playlist_event(self):
         # TODO: Optimize by checking what's changed
-        logger.info('Updating playlist')
         self.event_loop.set_alarm_in(0, self.playlist_buffer.update)
 
-        if self.playlist_buffer.track_changed():
-            self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
+        # TODO: Re-enable in appropriate place
+        #if self.playlist_buffer.track_changed():
+        #    self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
+        self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
 
     def dispatch(self, key):
         if key in self.bindings:

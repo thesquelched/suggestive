@@ -125,6 +125,7 @@ class PlaylistController(Controller):
         #return items
 
     def update_model(self):
+        logger.debug('Updating PlaylistController model')
         self.model.tracks = self.playlist_tracks()
 
 
@@ -136,14 +137,19 @@ class TrackView(widget.SelectableLibraryItem, View):
 
     TRACK_FORMAT = '{artist} - {album} - {title}{suffix}'
 
-    def __init__(self, model, conf):
+    def __init__(self, model, conf, playing=False):
         View.__init__(self, model)
 
         self.content = model.db_track
         self._icon = urwid.SelectableIcon(self.text)
 
+        if playing:
+            styles = ('playing', 'focus playing')
+        else:
+            styles = ('playlist', 'focus playlist')
+
         super(TrackView, self).__init__(
-            urwid.AttrMap(self._icon, 'playlist', 'focus playlist'))
+            urwid.AttrMap(self._icon, *styles))
 
     @property
     def text(self):
@@ -177,18 +183,38 @@ class PlaylistView(widget.SuggestiveListBox, View):
 
         self.model.register(self)
 
+    @property
+    def controller(self):
+        return self._controller
+
     def update(self):
         logger.debug('Updating PlaylistView')
+
+        current_position = self.focus_position
         walker = self.body
+
         walker[:] = self.track_views()
 
+        try:
+            self.set_focus(current_position)
+        except IndexError:
+            try:
+                self.set_focus(current_position - 1)
+            except IndexError:
+                pass
+
     def track_views(self):
+        current = self.controller.now_playing()
+
         if not self.model.tracks:
             body = [urwid.AttrMap(urwid.Text('Playlist is empty'), 'track')]
         else:
             body = []
             for track_m in self.model.tracks:
-                view = TrackView(track_m, self._conf)
+                view = TrackView(
+                    track_m,
+                    self._conf,
+                    playing=(track_m.number == current))
                 body.append(view)
 
         return body
@@ -226,7 +252,7 @@ class PlaylistView(widget.SuggestiveListBox, View):
         album = view.db_album
         current = self.focus_position
 
-        sorted_tracks = self._controller.sort_tracks(album.tracks)
+        sorted_tracks = self.controller.sort_tracks(album.tracks)
         for track_no, track in sorted_tracks:
             model = TrackModel(track, track_no)
             track_view = TrackView(model, self._conf)
