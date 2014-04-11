@@ -599,17 +599,17 @@ class NewPlaylistBuffer(Buffer):
         #mpd = mstat.initialize_mpd(self.conf)
         #return len(mpd.playlistinfo()) > 0
 
-    def setup_bindings(self):
-        keybinds = super(NewPlaylistBuffer, self).setup_bindings()
-        keybinds.update({
-            #'c': self.clear_mpd_playlist,
-            'd': self.delete_track,
-            'enter': self.play_track,
-            'm': self.move_track,
-            'L': self.love_track,
-        })
+    #def setup_bindings(self):
+    #    keybinds = super(NewPlaylistBuffer, self).setup_bindings()
+    #    keybinds.update({
+    #        #'c': self.clear_mpd_playlist,
+    #        #'d': self.delete_track,
+    #        #'enter': self.play_track,
+    #        'm': self.move_track,
+    #        'L': self.love_track,
+    #    })
 
-        return keybinds
+    #    return keybinds
 
     def setup_commands(self):
         return {
@@ -719,29 +719,6 @@ class NewPlaylistBuffer(Buffer):
             return int(current['pos'])
         else:
             return None
-
-    def decorated_playlist_items(self, playlist, now_playing, digits):
-        items = []
-
-        for position, track in enumerate(playlist):
-            pieces = [self.format_track(track)]
-            if self.show_numbers and digits:
-                # Mark current position as 'C'
-                if position == self.playlist.focus_position:
-                    position = 'C'
-
-                number = str(position).ljust(digits + 1, ' ')
-                pieces.insert(0, ('bumper', number))
-
-            text = widget.PlaylistItem(pieces)
-            if position == now_playing:
-                styles = ('playing', 'focus playing')
-            else:
-                styles = ('playlist', 'focus playlist')
-
-            items.append(urwid.AttrMap(text, *styles))
-
-        return items
 
     def track_changed(self):
         mpd = mstat.initialize_mpd(self.conf)

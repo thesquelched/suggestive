@@ -12,6 +12,39 @@ logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
 
 
+def signal_map(mapping):
+    """
+    Class decorator.  Takes a dictionary of mapping from keybind -> signal.  If
+    one of the keybinds is detected, the specified signal is sent with the
+    calling object as the only argument.
+    """
+
+    def decorator(cls):
+        if not hasattr(cls, 'signals'):
+            return cls
+
+        cls.__keymap = mapping
+
+        def keypress(self, size, key):
+            if key in self.__keymap:
+                signal = self.__keymap[key]
+                logger.debug("Keypress '{}' sent signal '{}'".format(
+                    key, signal))
+                # Emit signal with self as the only argument
+                urwid.emit_signal(self, self.__keymap[key], self)
+
+                super(cls, self).keypress(size, None)
+                return True
+
+            return super(cls, self).keypress(size, key)
+
+        cls.keypress = keypress
+
+        return cls
+
+    return decorator
+
+
 ######################################################################
 # Prompts
 ######################################################################

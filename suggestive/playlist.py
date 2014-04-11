@@ -18,6 +18,9 @@ logger.addHandler(logging.NullHandler())
 SIGNAL_ENQUEUE = 'enqueue'
 SIGNAL_PLAY = 'play'
 SIGNAL_EXPAND = 'expand'
+SIGNAL_DELETE = 'delete'
+SIGNAL_MOVE = 'move'
+SIGNAL_LOVE = 'love'
 
 
 ######################################################################
@@ -60,14 +63,7 @@ class PlaylistController(Controller):
         # Initialize
         self.update_model()
 
-    # Signal handler
-    def play_track(self, view):
-        pass
-
-    # Signal handler
-    def delete_track(self, view):
-        pass
-
+    # TODO: Move to mpd module
     def mpd_retry(func):
         """
         Decorator that reconnects MPD client if the connection is lost
@@ -80,6 +76,29 @@ class PlaylistController(Controller):
                 self._mpd = mstat.initialize_mpd(self._conf)
                 return func(self, *args, **kwArgs)
         return wrapper
+
+    # Signal handler
+    @mpd_retry
+    def play_track(self, view):
+        logger.info('Play playlist track'.format(view.text))
+        self._mpd.play(view.model.number)
+
+    # Signal handler
+    @mpd_retry
+    def delete_track(self, view):
+        logger.info('Delete playlist track'.format(view.text))
+        self._mpd.delete(view.model.number)
+        self.update_model()
+
+    # Signal handler
+    def love_track(self, view):
+        logger.info('Love playlist track'.format(view.text))
+        pass
+
+    # Signal handler
+    def move_track(self, view):
+        logger.info('Move playlist track: {}'.format(view.text))
+        pass
 
     @mpd_retry
     def mpd_playlist(self):
@@ -133,7 +152,15 @@ class PlaylistController(Controller):
 # Views
 ######################################################################
 
-class TrackView(widget.SelectableLibraryItem, View):
+@widget.signal_map({
+    'd': 'delete',
+    'enter': 'play',
+    'm': 'move',
+    'L': 'love'
+})
+class TrackView(urwid.WidgetWrap, View):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['play', 'delete', 'move', 'love']
 
     TRACK_FORMAT = '{artist} - {album} - {title}{suffix}'
 
@@ -215,34 +242,27 @@ class PlaylistView(widget.SuggestiveListBox, View):
                     track_m,
                     self._conf,
                     playing=(track_m.number == current))
+
+                urwid.connect_signal(
+                    view,
+                    SIGNAL_PLAY,
+                    self.controller.play_track)
+                urwid.connect_signal(
+                    view,
+                    SIGNAL_DELETE,
+                    self.controller.delete_track)
+                urwid.connect_signal(
+                    view,
+                    SIGNAL_MOVE,
+                    self.controller.move_track)
+                urwid.connect_signal(
+                    view,
+                    SIGNAL_LOVE,
+                    self.controller.love_track)
+
                 body.append(view)
 
         return body
-
-        #if not self.model.albums:
-        #    body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
-        #else:
-        #    body = []
-        #    for album_m in self.model.albums:
-        #        view = AlbumView(album_m, self._conf)
-
-        #        urwid.connect_signal(
-        #            view,
-        #            SIGNAL_ENQUEUE,
-        #            self._controller.enqueue_album)
-        #        urwid.connect_signal(
-        #            view,
-        #            SIGNAL_PLAY,
-        #            self._controller.play_album)
-        #        urwid.connect_signal(
-        #            view,
-        #            SIGNAL_EXPAND,
-        #            self.toggle_expand)
-
-        #        # TODO: AttrMap here or inside of view?
-        #        body.append(view)
-
-        #return body
 
     def create_walker(self):
         body = self.track_views()
