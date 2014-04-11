@@ -228,7 +228,7 @@ class Config(object):
             self._palette('playlist', playlist),
             self._palette('focus playlist', playlist_focus),
             self._palette('playing', playlist, bold=True),
-            self._palette('playing focus', playlist_focus, bold=True,
+            self._palette('focus playing', playlist_focus, bold=True,
                           invert=True),
 
             self._palette('track', track),

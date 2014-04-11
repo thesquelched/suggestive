@@ -415,7 +415,6 @@ class Application(Commandable):
         screen.set_terminal_properties(colors=colormode)
 
     def playing_update(self, *args):
-        # TODO: Only do this on mpd change
         text = self.playlist_buffer.status_text()
         self.playlist_buffer.update_status(text)
         self.event_loop.set_alarm_in(1, self.playing_update)

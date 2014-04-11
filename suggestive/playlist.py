@@ -116,7 +116,7 @@ class PlaylistController(Controller):
 
         #    text = widget.PlaylistItem(pieces)
         #    if position == now_playing:
-        #        styles = ('playing', 'playing focus')
+        #        styles = ('playing', 'focus playing')
         #    else:
         #        styles = ('playlist', 'focus playlist')
 

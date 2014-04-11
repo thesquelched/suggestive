@@ -568,8 +568,9 @@ class NewPlaylistBuffer(Buffer):
         self.view = PlaylistView(self.model, self.controller, conf)
 
         self.current_track = None
+        self.status_format = conf.playlist_status_format()
+
         #self.session = session
-        #self.status_format = conf.playlist_status_format()
         #self.searcher = None
         #self.show_numbers = False
         #self.move_prompt = None
@@ -594,8 +595,9 @@ class NewPlaylistBuffer(Buffer):
         self.playlist.next_search_item()
 
     def will_accept_focus(self):
-        mpd = mstat.initialize_mpd(self.conf)
-        return len(mpd.playlistinfo()) > 0
+        return len(self.model.tracks) > 0
+        #mpd = mstat.initialize_mpd(self.conf)
+        #return len(mpd.playlistinfo()) > 0
 
     def setup_bindings(self):
         keybinds = super(NewPlaylistBuffer, self).setup_bindings()
@@ -733,7 +735,7 @@ class NewPlaylistBuffer(Buffer):
 
             text = widget.PlaylistItem(pieces)
             if position == now_playing:
-                styles = ('playing', 'playing focus')
+                styles = ('playing', 'focus playing')
             else:
                 styles = ('playlist', 'focus playlist')
 
