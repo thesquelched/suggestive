@@ -6,7 +6,7 @@ import suggestive.analytics as analytics
 
 from mpd import ConnectionError
 
-from suggestive.mvc import View, Model
+from suggestive.mvc import View, Model, Controller
 
 import urwid
 import logging
@@ -106,21 +106,10 @@ class LibraryModel(Model):
 # Controllers
 ######################################################################
 
-def signal_handler(func):
-    """
-    Signal handler callback, for when the signalling widget should be ignored
-    """
-
-    def handler(self, signalling_widget, *args):
-        return func(self, *args)
-
-    return handler
-
-
-class LibraryController(object):
+class LibraryController(Controller):
 
     def __init__(self, model, conf, session):
-        self._model = model
+        super(LibraryController, self).__init__(model)
         self._conf = conf
 
         self._default_orderers = [analytics.BaseOrder()]
@@ -133,14 +122,6 @@ class LibraryController(object):
 
         self._orderers = None
         self.orderers = self._default_orderers.copy()
-
-    @property
-    def model(self):
-        return self._model
-
-    @model.setter
-    def model(self, newmodel):
-        self._model = newmodel
 
     @property
     def orderers(self):
@@ -162,7 +143,7 @@ class LibraryController(object):
         """
         Set the model album order, which in turn updates the views
         """
-        self._model.albums = self.order_albums()
+        self.model.albums = self.order_albums()
 
     def order_albums(self):
         suggestions = self._anl.order_albums(self._session, self._orderers)
@@ -190,19 +171,19 @@ class LibraryController(object):
     def set_current_order_as_default(self):
         self._default_orderers = self._orderers.copy()
 
-    #@signal_handler
+    #signal_handler
     def enqueue_album(self, album):
         self.enqueue_tracks(album.tracks)
 
-    #@signal_handler
+    #signal_handler
     def enqueue_track(self, track):
         self.enqueue_tracks([track])
 
-    #@signal_handler
+    #signal_handler
     def play_album(self, album):
         self.play_tracks(album.tracks)
 
-    #@signal_handler
+    #signal_handler
     def play_track(self, track):
         self.play_tracks([track])
 
