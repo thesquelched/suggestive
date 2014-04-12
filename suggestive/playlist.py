@@ -2,12 +2,12 @@ from suggestive.library import TrackModel
 import suggestive.widget as widget
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
+from suggestive.mvc import View, Model, Controller
 
 from mpd import ConnectionError
 
-from suggestive.mvc import View, Model, Controller
-
 import urwid
+from math import floor, log10
 import logging
 
 
@@ -63,6 +63,10 @@ class PlaylistController(Controller):
 
         # Initialize
         self.update_model()
+
+    @property
+    def playlist_size(self):
+        return len(self.model.tracks)
 
     # TODO: Move to mpd module
     def mpd_retry(func):
@@ -177,9 +181,12 @@ class TrackView(urwid.WidgetWrap, View):
 
     TRACK_FORMAT = '{artist} - {album} - {title}{suffix}'
 
-    def __init__(self, model, conf, playing=False):
+    def __init__(self, model, controller, conf, playing=False):
         View.__init__(self, model)
 
+        self._controller = controller
+
+        self._show_bumper = False
         self.content = model.db_track
         self._icon = urwid.SelectableIcon(self.text)
 
@@ -192,6 +199,19 @@ class TrackView(urwid.WidgetWrap, View):
             urwid.AttrMap(self._icon, *styles))
 
     @property
+    def controller(self):
+        return self._controller
+
+    def add_bumper(self, text):
+        size = self.controller.playlist_size
+        digits = (floor(log10(size)) + 1) if size else 0
+
+        return [
+            ('bumper', str(self.model.number).ljust(digits + 1, ' ')),
+            text
+        ]
+
+    @property
     def text(self):
         model = self.model
         if model.loved:
@@ -201,11 +221,16 @@ class TrackView(urwid.WidgetWrap, View):
         else:
             suffix = ''
 
-        return self.TRACK_FORMAT.format(
+        text = self.TRACK_FORMAT.format(
             artist=model.db_artist.name,
             album=model.db_album.name,
             title=model.name,
             suffix=suffix)
+
+        if self._show_bumper:
+            return self.add_bumper(text)
+        else:
+            return text
 
     @property
     def canonical_text(self):
@@ -265,6 +290,7 @@ class PlaylistView(widget.SuggestiveListBox, View):
             for track_m in self.model.tracks:
                 view = TrackView(
                     track_m,
+                    self.controller,
                     self._conf,
                     playing=(track_m.number == current))
 
@@ -292,62 +318,3 @@ class PlaylistView(widget.SuggestiveListBox, View):
     def create_walker(self):
         body = self.track_views()
         return urwid.SimpleFocusListWalker(body)
-
-    def expand_album(self, view):
-        album = view.db_album
-        current = self.focus_position
-
-        sorted_tracks = self.controller.sort_tracks(album.tracks)
-        for track_no, track in sorted_tracks:
-            model = TrackModel(track, track_no)
-            track_view = TrackView(model, self._conf)
-
-            urwid.connect_signal(
-                track_view,
-                SIGNAL_ENQUEUE,
-                self._controller.enqueue_track)
-            urwid.connect_signal(
-                track_view,
-                SIGNAL_PLAY,
-                self._controller.play_track)
-            urwid.connect_signal(
-                track_view,
-                SIGNAL_EXPAND,
-                self.collapse_album_from_track,
-                view)
-
-            self.body.insert(current + 1, track_view)
-
-        view.expanded = True
-        self.set_focus_valign('top')
-
-    def album_index(self, view):
-        current = self.focus_position
-        return self.body.index(view, 0, current + 1)
-
-    def collapse_album(self, view):
-        album_index = self.album_index(view)
-
-        album = view.db_album
-        for i in range(len(album.tracks)):
-            self.body.pop(album_index + 1)
-
-        view.expanded = False
-        self.body.set_focus(album_index)
-
-    def collapse_album_from_track(self, track_view, album_view):
-        """
-        Collapse album when a track is in focus
-        """
-        self.collapse_album(album_view)
-
-    def toggle_expand(self, view):
-        """
-        Toggle album track display
-        """
-        logger.debug('Toggle: {}'.format(view))
-
-        if view.expanded:
-            self.collapse_album(view)
-        else:
-            self.expand_album(view)
