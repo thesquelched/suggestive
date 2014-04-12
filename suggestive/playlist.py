@@ -179,22 +179,31 @@ class TrackView(urwid.WidgetWrap, View):
                  controller,
                  conf,
                  playing=False,
-                 show_bumper=False):
+                 show_bumper=False,
+                 focused=False):
         View.__init__(self, model)
 
         self._controller = controller
 
         self._show_bumper = show_bumper
+
         self.content = model.db_track
         self._icon = urwid.SelectableIcon(self.text)
 
-        if playing:
-            styles = ('playing', 'focus playing')
-        else:
-            styles = ('playlist', 'focus playlist')
+        styles = self.styles(playing, focused)
 
         super(TrackView, self).__init__(
             urwid.AttrMap(self._icon, *styles))
+
+    def styles(self, playing, focused):
+        if focused and playing:
+            return ('focus playing',)
+        elif focused:
+            return ('focus playlist',)
+        elif playing:
+            return ('playing', 'focus playing')
+        else:
+            return ('playlist', 'focus playlist')
 
     @property
     def controller(self):
@@ -290,6 +299,7 @@ class PlaylistView(widget.SuggestiveListBox, View):
 
     def track_views(self, show_bumper=False):
         current = self.controller.now_playing()
+        focus = self.focus_position if show_bumper else None
 
         if not self.model.tracks:
             body = [urwid.AttrMap(urwid.Text('Playlist is empty'), 'track')]
@@ -301,7 +311,8 @@ class PlaylistView(widget.SuggestiveListBox, View):
                     self.controller,
                     self._conf,
                     playing=(track_m.number == current),
-                    show_bumper=show_bumper)
+                    show_bumper=show_bumper,
+                    focused=(track_m.number == focus))
 
                 urwid.connect_signal(
                     view,
