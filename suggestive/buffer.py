@@ -614,7 +614,7 @@ class NewPlaylistBuffer(Buffer):
         urwid.connect_signal(self.move_prompt, 'prompt_done',
                              self.complete_move)
         urwid.connect_signal(self.move_prompt, 'update_index',
-                             self.view.update_index)
+                             self.view.move_update_index)
 
         self.update_footer(urwid.AttrMap(self.move_prompt, 'footer'))
         self.update_focus('footer')
@@ -623,7 +623,7 @@ class NewPlaylistBuffer(Buffer):
         urwid.disconnect_signal(self, self.move_prompt, 'prompt_done',
                                 self.complete_move)
         urwid.disconnect_signal(self, self.move_prompt, 'update_index',
-                                self.view.update_index)
+                                self.view.move_update_index)
 
         self.update_focus('body')
 
@@ -709,11 +709,8 @@ class NewPlaylistBuffer(Buffer):
         if name is None:
             raise CommandError('Missing parameter: name')
 
-        mpd = mstat.initialize_mpd(self.conf)
-        self.clear_mpd_playlist()
-
         try:
-            mpd.load(name)
+            self.controller.load_playlist(name)
             self.update_footer('Loaded playlist {}'.format(name))
             return True
         except MpdCommandError as ex:
@@ -725,11 +722,8 @@ class NewPlaylistBuffer(Buffer):
         if name is None:
             raise CommandError('Missing parameter: name')
 
-        mpd = mstat.initialize_mpd(self.conf)
-
         try:
-            mpd.rm(name)
-            mpd.save(name)
+            self.controller.save_playlist(name)
             self.update_footer('Saved playlist {}'.format(name))
             return True
         except MpdCommandError as ex:

@@ -121,6 +121,17 @@ class PlaylistController(Controller):
         self.update_model()
 
     @mpd_retry
+    def load_playlist(self, name):
+        self._mpd.stop()
+        self._mpd.clear()
+        self._mpd.load(name)
+
+    @mpd_retry
+    def save_playlist(self, name):
+        self._mpd.rm(name)
+        self._mpd.save(name)
+
+    @mpd_retry
     def mpd_playlist(self):
         return self._mpd.playlistinfo()
 
@@ -193,9 +204,10 @@ class TrackView(urwid.WidgetWrap, View):
         size = self.controller.playlist_size
         digits = (floor(log10(size)) + 1) if size else 0
 
-        number = str(self.model.number + 1)
+        bumper = str(self.model.number)
+
         return [
-            ('bumper', number.ljust(digits + 1, ' ')),
+            ('bumper', bumper.ljust(digits + 1, ' ')),
             text
         ]
 
@@ -312,7 +324,7 @@ class PlaylistView(widget.SuggestiveListBox, View):
         body = self.track_views()
         return urwid.SimpleFocusListWalker(body)
 
-    def update_index(self, current, index):
+    def move_update_index(self, current, index):
         try:
             items = self.body
             n_items = len(items)
