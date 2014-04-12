@@ -12,7 +12,6 @@ import logging
 import urwid
 from itertools import chain
 from mpd import CommandError as MpdCommandError
-from math import log10, floor
 
 
 logger = logging.getLogger('suggestive')
@@ -588,6 +587,15 @@ class NewPlaylistBuffer(Buffer):
 
         self.update_status('Playlist')
 
+    def setup_bindings(self):
+        keybinds = super(NewPlaylistBuffer, self).setup_bindings()
+        keybinds.update({
+            #'c': self.clear_mpd_playlist,
+            'm': self.move_track,
+        })
+
+        return keybinds
+
     def search(self, searcher):
         self.playlist.search(searcher)
 
@@ -598,16 +606,15 @@ class NewPlaylistBuffer(Buffer):
         return len(self.model.tracks) > 0
 
     def move_track(self):
-        self.show_numbers = True
-        self.update()
         logger.debug('Start playlist move')
+        self.view.update(show_bumper=True)
 
         self.move_prompt = widget.PlaylistMovePrompt(
-            self.playlist.focus_position)
+            self.view.focus_position)
         urwid.connect_signal(self.move_prompt, 'prompt_done',
                              self.complete_move)
         urwid.connect_signal(self.move_prompt, 'update_index',
-                             self.update_index)
+                             self.view.update_index)
 
         self.update_footer(urwid.AttrMap(self.move_prompt, 'footer'))
         self.update_focus('footer')
@@ -615,43 +622,22 @@ class NewPlaylistBuffer(Buffer):
     def complete_move(self, value):
         urwid.disconnect_signal(self, self.move_prompt, 'prompt_done',
                                 self.complete_move)
+        urwid.disconnect_signal(self, self.move_prompt, 'update_index',
+                                self.view.update_index)
+
         self.update_focus('body')
-        self.show_numbers = False
 
         try:
             new_index = int(value)
             logger.debug('Moving playlist track from {} to {}'.format(
-                self.playlist.focus_position, new_index))
+                self.view.focus_position, new_index))
 
             mpd = mstat.initialize_mpd(self.conf)
-            mpd.move(self.playlist.focus_position, new_index)
+            mpd.move(self.view.focus_position, new_index)
         except (TypeError, ValueError):
             logger.error('Invalid move index: {}'.format(value))
 
         self.update()
-
-    def update_index(self, current, index):
-        try:
-            items = self.playlist.body
-            n_items = len(items)
-
-            if index >= n_items:
-                raise IndexError
-
-            logger.debug('Temporary move from {} to {}'.format(
-                current, index))
-
-            if index > current:
-                focus = items[current]
-                logger.debug('Current focus: {}'.format(
-                    focus.original_widget._w.get_text()))
-                items.insert(index + 1, focus)
-                items.pop(current)
-            elif index < current:
-                focus = items.pop(current)
-                items.insert(index, focus)
-        except IndexError:
-            logger.error('Index out of range')
 
     def now_playing_index(self, mpd):
         current = mpd.currentsong()
@@ -663,23 +649,6 @@ class NewPlaylistBuffer(Buffer):
     def track_changed(self):
         mpd = mstat.initialize_mpd(self.conf)
         return self.current_track != self.now_playing_index(mpd)
-
-    def playlist_items(self):
-        mpd = mstat.initialize_mpd(self.conf)
-
-        playlist = mpd.playlistinfo()
-        now_playing = self.now_playing_index(mpd)
-
-        n_items = len(playlist)
-        digits = (floor(log10(n_items)) + 1) if n_items else 0
-
-        body = self.decorated_playlist_items(playlist, now_playing, digits)
-
-        if not body:
-            text = urwid.Text('Playlist is empty')
-            body.append(urwid.AttrMap(text, 'playlist'))
-
-        return body, now_playing
 
     def update(self, *args):
         self.controller.update_model()
@@ -729,20 +698,12 @@ class NewPlaylistBuffer(Buffer):
             if track:
                 params = self.status_params(status, track[0])
                 text = self.status_format.format(**params)
+                return 'Playlist | ' + text
 
-        return 'Playlist | ' + text
-
-    def clear_playlist(self):
-        del self.playlist.body[:]
+        return 'Playlist'
 
     def clear_mpd_playlist(self):
-        logger.debug('clearing list')
-
-        mpd = mstat.initialize_mpd(self.conf)
-        mpd.stop()
-        mpd.clear()
-
-        self.update()
+        self.controller.clear()
 
     def load_playlist(self, name=None):
         if name is None:

@@ -296,6 +296,9 @@ class Application(Commandable):
         raise urwid.ExitMainLoop()
 
     def setup_bindings(self):
+        """
+        Set up global application bindings
+        """
         return {
             'q': lambda: self.exit(),
             'u': lambda: self.start_mpd_update(),
@@ -310,6 +313,9 @@ class Application(Commandable):
         }
 
     def setup_commands(self):
+        """
+        Set up global application commands
+        """
         return {
             'playlist': self.open_playlist,
             'library': self.open_library,

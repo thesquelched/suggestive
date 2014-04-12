@@ -21,6 +21,8 @@ SIGNAL_EXPAND = 'expand'
 SIGNAL_DELETE = 'delete'
 SIGNAL_MOVE = 'move'
 SIGNAL_LOVE = 'love'
+SIGNAL_PROMPT_DONE = 'prompt_done'
+SIGNAL_UPDATE_INDEX = 'update_index'
 
 
 ######################################################################
@@ -112,10 +114,11 @@ class PlaylistController(Controller):
 
         view.update()
 
-    # Signal handler
-    def move_track(self, view):
-        logger.info('Move playlist track: {}'.format(view.canonical_text))
-        pass
+    @mpd_retry
+    def clear(self):
+        self._mpd.stop()
+        self._mpd.clear()
+        self.update_model()
 
     @mpd_retry
     def mpd_playlist(self):
@@ -138,27 +141,6 @@ class PlaylistController(Controller):
             models.append(TrackModel(db_track, position))
 
         return models
-        #items = []
-
-        #for position, track in enumerate(playlist):
-        #    pieces = [self.format_track(track)]
-        #    if self.show_numbers and digits:
-        #        # Mark current position as 'C'
-        #        if position == self.playlist.focus_position:
-        #            position = 'C'
-
-        #        number = str(position).ljust(digits + 1, ' ')
-        #        pieces.insert(0, ('bumper', number))
-
-        #    text = widget.PlaylistItem(pieces)
-        #    if position == now_playing:
-        #        styles = ('playing', 'focus playing')
-        #    else:
-        #        styles = ('playlist', 'focus playlist')
-
-        #    items.append(urwid.AttrMap(text, *styles))
-
-        #return items
 
     def update_model(self):
         logger.debug('Updating PlaylistController model')
@@ -181,12 +163,17 @@ class TrackView(urwid.WidgetWrap, View):
 
     TRACK_FORMAT = '{artist} - {album} - {title}{suffix}'
 
-    def __init__(self, model, controller, conf, playing=False):
+    def __init__(self,
+                 model,
+                 controller,
+                 conf,
+                 playing=False,
+                 show_bumper=False):
         View.__init__(self, model)
 
         self._controller = controller
 
-        self._show_bumper = False
+        self._show_bumper = show_bumper
         self.content = model.db_track
         self._icon = urwid.SelectableIcon(self.text)
 
@@ -206,8 +193,9 @@ class TrackView(urwid.WidgetWrap, View):
         size = self.controller.playlist_size
         digits = (floor(log10(size)) + 1) if size else 0
 
+        number = str(self.model.number + 1)
         return [
-            ('bumper', str(self.model.number).ljust(digits + 1, ' ')),
+            ('bumper', number.ljust(digits + 1, ' ')),
             text
         ]
 
@@ -264,23 +252,31 @@ class PlaylistView(widget.SuggestiveListBox, View):
     def controller(self):
         return self._controller
 
-    def update(self):
+    def update(self, show_bumper=False):
         logger.debug('Updating PlaylistView')
 
-        current_position = self.focus_position
+        previous_position = self.focus_position
         walker = self.body
 
-        walker[:] = self.track_views()
+        walker[:] = self.track_views(show_bumper=show_bumper)
+
+        self.focus_remembered_position(previous_position)
+
+    def focus_remembered_position(self, position):
+        if len(self.body) == 0:
+            return
 
         try:
-            self.set_focus(current_position)
+            # Try to focus on the same position in the playlist before we
+            # updated
+            self.set_focus(position)
         except IndexError:
-            try:
-                self.set_focus(current_position - 1)
-            except IndexError:
-                pass
+            # If that failed, the playlist probably shrunk due to a deletion,
+            # and we were on the last position before the delete.  Therefore,
+            # we should be able to focus on the position before the last
+            self.set_focus(position - 1)
 
-    def track_views(self):
+    def track_views(self, show_bumper=False):
         current = self.controller.now_playing()
 
         if not self.model.tracks:
@@ -292,7 +288,8 @@ class PlaylistView(widget.SuggestiveListBox, View):
                     track_m,
                     self.controller,
                     self._conf,
-                    playing=(track_m.number == current))
+                    playing=(track_m.number == current),
+                    show_bumper=show_bumper)
 
                 urwid.connect_signal(
                     view,
@@ -302,10 +299,6 @@ class PlaylistView(widget.SuggestiveListBox, View):
                     view,
                     SIGNAL_DELETE,
                     self.controller.delete_track)
-                urwid.connect_signal(
-                    view,
-                    SIGNAL_MOVE,
-                    self.controller.move_track)
                 urwid.connect_signal(
                     view,
                     SIGNAL_LOVE,
@@ -318,3 +311,32 @@ class PlaylistView(widget.SuggestiveListBox, View):
     def create_walker(self):
         body = self.track_views()
         return urwid.SimpleFocusListWalker(body)
+
+    def update_index(self, current, index):
+        try:
+            items = self.body
+            n_items = len(items)
+
+            if index >= n_items:
+                raise IndexError
+
+            logger.debug('Temporary move from {} to {}'.format(
+                current, index))
+
+            if index > current:
+                focus = items[current]
+                items.insert(index + 1, focus)
+                items.pop(current)
+            elif index < current:
+                focus = items.pop(current)
+                items.insert(index, focus)
+        except IndexError:
+            logger.error('Index out of range')
+
+    def keypress(self, size, key):
+        if key == 'c':
+            self.controller.clear()
+            super(PlaylistView, self).keypress(size, None)
+            return True
+
+        return super(PlaylistView, self).keypress(size, key)
