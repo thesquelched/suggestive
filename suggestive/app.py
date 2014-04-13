@@ -4,7 +4,6 @@ Main application/UI
 
 from suggestive.threads import (
     MpdObserver, EventDispatcher, DatabaseUpdater, ScrobbleInitializeThread)
-from suggestive.analytics import Analytics
 from suggestive.config import Config
 from suggestive.command import CommanderEdit, Commandable, typed
 import suggestive.widget as widget
@@ -35,6 +34,10 @@ MEGABYTE = 1024 * 1024
 
 
 class MainWindow(urwid.Frame):
+    """
+    Main window for urwid display
+    """
+
     __metaclass__ = urwid.signals.MetaSignals
     signals = [signals.SET_FOOTER, signals.SET_FOCUS]
 
@@ -56,22 +59,16 @@ class MainWindow(urwid.Frame):
 
 
 class Application(Commandable):
+    """
+    Application class for urwid interface
+    """
+
     def __init__(self, args, conf, session):
         self.conf = conf
         self.session = session
 
         self.mpd = mstat.initialize_mpd(conf)
-        self.db_update_thread = None
-
         self.quit_event = threading.Event()
-
-        self.anl = Analytics(conf)
-
-        self.suggestions = []
-
-        self.search_matches = []
-        self.current_search_index = None
-
         self.orientation = self.conf.orientation()
 
         if self.orientation == 'vertical':
@@ -87,25 +84,24 @@ class Application(Commandable):
         self.playlist_buffer = self.create_playlist_buffer()
         self.scrobble_buffer = self.create_scrobble_buffer()
 
-        urwid.connect_signal(
-            self.library_buffer,
-            signals.UPDATE_PLAYLIST,
-            self.playlist_buffer.update)
-
         self.setup_buffers()
         self.bindings = self.setup_bindings()
         self.commands = self.setup_commands()
 
         self.update_footer_text('suggestive')
-        self.playing_update()
+        self.continuously_update_playlist_status()
 
         if not args.no_update and (args.update or conf.update_on_startup()):
             self.start_mpd_update()
 
     def update_library_status(self, *args, **kwArgs):
+        """
+        Update the library buffer status footer
+        """
         self.library_buffer.update_status(*args, **kwArgs)
 
     def setup_buffers(self):
+        # TODO: Create buffer list view
         default_buffers = self.conf.default_buffers()
 
         if 'library' in default_buffers:
@@ -119,6 +115,9 @@ class Application(Commandable):
             self.scrobble_buffer.active = True
 
     def change_orientation(self, orientation=None):
+        """
+        Change the buffer list orientation between vertical and horizontal
+        """
         if orientation is None:
             orientation = ('vertical' if self.orientation == 'horizontal'
                            else 'horizontal')
@@ -142,12 +141,16 @@ class Application(Commandable):
         self.top.body = urwid.AttrMap(self.buffers, 'footer')
 
     def update_footer(self, value, error=False):
+        """Update the main window footer"""
+
         if isinstance(value, str):
             self.update_footer_text(value, error=error)
         else:
             self.top.update_footer(value)
 
     def update_footer_text(self, value, error=False):
+        """Update the main window footer text contents"""
+
         text = urwid.AttrMap(
             urwid.Text(value),
             'footer error' if error else 'footer'
@@ -425,10 +428,12 @@ class Application(Commandable):
         colormode = 256 if self.conf.use_256_colors() else 88
         screen.set_terminal_properties(colors=colormode)
 
-    def playing_update(self, *args):
+    def continuously_update_playlist_status(self, *args):
         text = self.playlist_buffer.status_text()
         self.playlist_buffer.update_status(text)
-        self.event_loop.set_alarm_in(1, self.playing_update)
+        self.event_loop.set_alarm_in(
+            1,
+            self.continuously_update_playlist_status)
 
     def main_loop(self):
         mainloop = urwid.MainLoop(
