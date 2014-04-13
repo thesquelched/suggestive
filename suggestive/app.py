@@ -157,7 +157,6 @@ class Application(Commandable):
         buf = LibraryBuffer(self.conf, self.session)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
         urwid.connect_signal(buf, 'set_footer', self.update_footer)
-        urwid.connect_signal(buf, 'redraw', self.event_loop.draw_screen)
 
         return buf
 
@@ -165,7 +164,6 @@ class Application(Commandable):
         buf = PlaylistBuffer(self.conf, self.session)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
         urwid.connect_signal(buf, 'set_footer', self.update_footer)
-        urwid.connect_signal(buf, 'redraw', self.event_loop.draw_screen)
 
         return buf
 
@@ -173,7 +171,6 @@ class Application(Commandable):
         buf = ScrobbleBuffer(self.conf, self.session)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
         urwid.connect_signal(buf, 'set_footer', self.update_footer)
-        urwid.connect_signal(buf, 'redraw', self.event_loop.draw_screen)
 
         return buf
 

@@ -17,6 +17,10 @@ logger.addHandler(logging.NullHandler())
 ######################################################################
 
 class BufferList(object):
+    """
+    Super class for different buffer orientation styles
+    """
+
     def __init__(self):
         self.buffers = []
 
@@ -111,8 +115,13 @@ class VerticalBufferList(urwid.Columns, BufferList):
 ######################################################################
 
 class Buffer(urwid.Frame, Commandable):
+    """
+    Super class for buffer objects.  Based on urwid.Frame.  Defines a footer
+    that can display a status message or anchor a prompt.
+    """
+
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['set_footer', 'set_focus', 'set_status', 'redraw']
+    signals = ['set_footer', 'set_focus', 'set_status']
 
     def __init__(self, *args, **kwArgs):
         super(Buffer, self).__init__(*args, **kwArgs)
@@ -135,9 +144,6 @@ class Buffer(urwid.Frame, Commandable):
 
     def update_footer(self, footer, focus=False):
         urwid.emit_signal(self, 'set_footer', footer, focus)
-
-    def redraw(self):
-        urwid.emit_signal(self, 'redraw')
 
     def setup_bindings(self):
         return {}
