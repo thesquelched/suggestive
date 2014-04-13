@@ -1,6 +1,7 @@
 import suggestive.widget as widget
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
+import suggestive.signals as signals
 from suggestive.error import CommandError
 from suggestive.mvc import View, Model, Controller, TrackModel
 from suggestive.buffer import Buffer, MpdCommandError
@@ -14,16 +15,6 @@ import logging
 
 logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
-
-
-SIGNAL_ENQUEUE = 'enqueue'
-SIGNAL_PLAY = 'play'
-SIGNAL_EXPAND = 'expand'
-SIGNAL_DELETE = 'delete'
-SIGNAL_MOVE = 'move'
-SIGNAL_LOVE = 'love'
-SIGNAL_PROMPT_DONE = 'prompt_done'
-SIGNAL_UPDATE_INDEX = 'update_index'
 
 
 ######################################################################
@@ -317,15 +308,15 @@ class PlaylistView(widget.SuggestiveListBox, View):
 
                 urwid.connect_signal(
                     view,
-                    SIGNAL_PLAY,
+                    signals.PLAY,
                     self.controller.play_track)
                 urwid.connect_signal(
                     view,
-                    SIGNAL_DELETE,
+                    signals.DELETE,
                     self.controller.delete_track)
                 urwid.connect_signal(
                     view,
-                    SIGNAL_LOVE,
+                    signals.LOVE,
                     self.controller.love_track)
 
                 body.append(view)

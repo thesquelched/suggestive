@@ -3,6 +3,7 @@ import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 import suggestive.util as util
 import suggestive.analytics as analytics
+import suggestive.signals as signals
 from suggestive.buffer import Buffer
 
 from mpd import ConnectionError
@@ -16,11 +17,6 @@ from itertools import chain
 
 logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
-
-
-SIGNAL_ENQUEUE = 'enqueue'
-SIGNAL_PLAY = 'play'
-SIGNAL_EXPAND = 'expand'
 
 
 ######################################################################
@@ -322,15 +318,15 @@ class LibraryView(widget.SuggestiveListBox, View):
 
                 urwid.connect_signal(
                     view,
-                    SIGNAL_ENQUEUE,
+                    signals.ENQUEUE,
                     self._controller.enqueue_album)
                 urwid.connect_signal(
                     view,
-                    SIGNAL_PLAY,
+                    signals.PLAY,
                     self._controller.play_album)
                 urwid.connect_signal(
                     view,
-                    SIGNAL_EXPAND,
+                    signals.EXPAND,
                     self.toggle_expand)
 
                 # TODO: AttrMap here or inside of view?
@@ -353,15 +349,15 @@ class LibraryView(widget.SuggestiveListBox, View):
 
             urwid.connect_signal(
                 track_view,
-                SIGNAL_ENQUEUE,
+                signals.ENQUEUE,
                 self._controller.enqueue_track)
             urwid.connect_signal(
                 track_view,
-                SIGNAL_PLAY,
+                signals.PLAY,
                 self._controller.play_track)
             urwid.connect_signal(
                 track_view,
-                SIGNAL_EXPAND,
+                signals.EXPAND,
                 self.collapse_album_from_track,
                 view)
 
