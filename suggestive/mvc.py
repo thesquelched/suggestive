@@ -48,3 +48,47 @@ class Controller(object):
     @model.setter
     def model(self, newmodel):
         self._model = newmodel
+
+
+######################################################################
+# Common models
+######################################################################
+
+class TrackModel(Model):
+
+    def __init__(self, db_track, number):
+        super(TrackModel, self).__init__()
+        self._db_track = db_track
+        self._number = number
+
+    @property
+    def db_track(self):
+        return self._db_track
+
+    @property
+    def db_album(self):
+        return self._db_track.album
+
+    @property
+    def db_artist(self):
+        return self._db_track.artist
+
+    @property
+    def name(self):
+        return self._db_track.name
+
+    @property
+    def loved(self):
+        info = self._db_track.lastfm_info
+        return info and info.loved
+
+    @property
+    def banned(self):
+        info = self._db_track.lastfm_info
+        return info and info.banned
+
+    @property
+    def number(self):
+        return self._number
+
+

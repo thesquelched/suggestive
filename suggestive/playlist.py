@@ -1,8 +1,7 @@
-from suggestive.library import TrackModel
 import suggestive.widget as widget
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
-from suggestive.mvc import View, Model, Controller
+from suggestive.mvc import View, Model, Controller, TrackModel
 
 from mpd import ConnectionError
 

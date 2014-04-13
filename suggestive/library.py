@@ -3,10 +3,11 @@ import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 import suggestive.util as util
 import suggestive.analytics as analytics
+from suggestive.buffer import Buffer
 
 from mpd import ConnectionError
 
-from suggestive.mvc import View, Model, Controller
+from suggestive.mvc import View, Model, Controller, TrackModel
 
 import urwid
 import logging
@@ -40,44 +41,6 @@ class AlbumModel(Model):
     @property
     def db_album(self):
         return self._db_album
-
-
-class TrackModel(Model):
-
-    def __init__(self, db_track, number):
-        super(TrackModel, self).__init__()
-        self._db_track = db_track
-        self._number = number
-
-    @property
-    def db_track(self):
-        return self._db_track
-
-    @property
-    def db_album(self):
-        return self._db_track.album
-
-    @property
-    def db_artist(self):
-        return self._db_track.artist
-
-    @property
-    def name(self):
-        return self._db_track.name
-
-    @property
-    def loved(self):
-        info = self._db_track.lastfm_info
-        return info and info.loved
-
-    @property
-    def banned(self):
-        info = self._db_track.lastfm_info
-        return info and info.banned
-
-    @property
-    def number(self):
-        return self._number
 
 
 class LibraryModel(Model):
@@ -437,3 +400,113 @@ class LibraryView(widget.SuggestiveListBox, View):
             self.collapse_album(view)
         else:
             self.expand_album(view)
+
+
+######################################################################
+# Buffer
+######################################################################
+
+class LibraryBuffer(Buffer):
+    signals = Buffer.signals + ['update_playlist']
+
+    def __init__(self, conf, session):
+        self.conf = conf
+        self.model = LibraryModel([])
+        self.controller = LibraryController(self.model, conf, session)
+        self.view = LibraryView(self.model, self.controller, conf)
+
+        super(LibraryBuffer, self).__init__(self.view)
+
+        # Set up default orderers
+        self.init_default_orderers(conf)
+        self.controller.set_current_order_as_default()
+
+        self.update_status('Library')
+
+    def search(self, searcher):
+        self.view.search(searcher)
+
+    def next_search(self):
+        self.view.next_search_item()
+
+    def orderer_command(self, orderer, defaults):
+        if not defaults:
+            return orderer
+
+        def orderer_func(*args, **kwArgs):
+            kwArgs.update(defaults)
+            return orderer(*args, **kwArgs)
+        return orderer_func
+
+    def orderer_func(self, orderer):
+        def add_func(*args, **kwArgs):
+            self.add_orderer(orderer, *args, **kwArgs)
+        return add_func
+
+    def init_default_orderers(self, conf):
+        order_commands = conf.default_orderers()
+        logger.debug('Initializing default orders: {}'.format(order_commands))
+        for cmd in order_commands:
+            self.execute_command(cmd)
+
+    def init_custom_orderers(self, conf):
+        orderers = {}
+        for name, cmds in conf.custom_orderers().items():
+            def orderer_cmd(cmds=cmds):
+                for cmd in cmds:
+                    logger.debug('order: {}'.format(cmd))
+                    self.execute_command(cmd)
+            orderers[name] = orderer_cmd
+
+        return orderers
+
+    def setup_orderers(self):
+        return {
+            ('artist', 'ar'): (analytics.ArtistFilter, None),
+            ('album', 'al'): (analytics.AlbumFilter, None),
+            ('sort',): (analytics.SortOrder, {
+                'ignore_artist_the': self.conf.ignore_artist_the()
+            }),
+            ('loved', 'lo'): (analytics.FractionLovedOrder, None),
+            ('banned', 'bn'): (analytics.BannedOrder, None),
+            ('pc', 'playcount'): (analytics.PlaycountOrder, None),
+            ('mod', 'modified'): (analytics.ModifiedOrder, None),
+        }
+
+    def setup_commands(self):
+        init_orderers = self.setup_orderers()
+        orderers = dict(
+            chain.from_iterable(
+                ((command, self.orderer_command(func, defaults))
+                    for command in commands)
+                for commands, (func, defaults) in init_orderers.items()
+            )
+        )
+
+        commands = self.init_custom_orderers(self.conf)
+        commands.update({
+            'reset': self.controller.reset_orderers,
+            'unorder': self.controller.clear_orderers,
+            'unordered': self.controller.clear_orderers,
+        })
+
+        commands.update({
+            name: self.orderer_func(orderer)
+            for name, orderer in orderers.items()
+        })
+
+        return commands
+
+    def setup_bindings(self):
+        keybinds = super(LibraryBuffer, self).setup_bindings()
+
+        if self.conf.esc_resets_orderers():
+            keybinds.update({
+                'esc': lambda: self.controller.reset_orderers(),
+            })
+
+        return keybinds
+
+    def add_orderer(self, orderer_class, *args, **kwArgs):
+        logger.debug('Adding orderer: {}'.format(orderer_class.__name__))
+        self.controller.add_orderer(orderer_class, *args, **kwArgs)
