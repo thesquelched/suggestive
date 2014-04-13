@@ -401,19 +401,29 @@ class PlaylistBuffer(Buffer):
 
         self.move_prompt = widget.PlaylistMovePrompt(
             self.view.focus_position)
-        urwid.connect_signal(self.move_prompt, 'prompt_done',
-                             self.complete_move)
-        urwid.connect_signal(self.move_prompt, 'update_index',
-                             self.view.move_update_index)
+        urwid.connect_signal(
+            self.move_prompt,
+            signals.PROMPT_DONE,
+            self.complete_move)
+        urwid.connect_signal(
+            self.move_prompt,
+            signals.UPDATE_INDEX,
+            self.view.move_update_index)
 
         self.update_footer(urwid.AttrMap(self.move_prompt, 'footer'))
         self.update_focus('footer')
 
     def complete_move(self, value):
-        urwid.disconnect_signal(self, self.move_prompt, 'prompt_done',
-                                self.complete_move)
-        urwid.disconnect_signal(self, self.move_prompt, 'update_index',
-                                self.view.move_update_index)
+        urwid.disconnect_signal(
+            self,
+            self.move_prompt,
+            signals.PROMPT_DONE,
+            self.complete_move)
+        urwid.disconnect_signal(
+            self,
+            self.move_prompt,
+            signals.UPDATE_INDEX,
+            self.view.move_update_index)
 
         self.update_focus('body')
 

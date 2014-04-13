@@ -1,6 +1,7 @@
 from suggestive.command import Commandable
 import suggestive.widget as widget
 import suggestive.mstat as mstat
+import suggestive.signals as signals
 
 import logging
 import urwid
@@ -121,14 +122,18 @@ class Buffer(urwid.Frame, Commandable):
     """
 
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['set_footer', 'set_focus', 'set_status']
+    signals = [
+        signals.SET_FOOTER,
+        signals.SET_FOCUS,
+        signals.SET_STATUS
+    ]
 
     def __init__(self, *args, **kwArgs):
         super(Buffer, self).__init__(*args, **kwArgs)
         self.bindings = self.setup_bindings()
         self.commands = self.setup_commands()
         self.active = False
-        urwid.connect_signal(self, 'set_status', self.update_status)
+        urwid.connect_signal(self, signals.SET_STATUS, self.update_status)
 
     def update_status(self, value):
         if isinstance(value, str):
@@ -140,10 +145,10 @@ class Buffer(urwid.Frame, Commandable):
         self.set_footer(footer)
 
     def update_focus(self, to_focus):
-        urwid.emit_signal(self, 'set_focus', to_focus)
+        urwid.emit_signal(self, signals.SET_FOCUS, to_focus)
 
     def update_footer(self, footer, focus=False):
-        urwid.emit_signal(self, 'set_footer', footer, focus)
+        urwid.emit_signal(self, signals.SET_FOOTER, footer, focus)
 
     def setup_bindings(self):
         return {}

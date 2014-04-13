@@ -1,5 +1,6 @@
 import suggestive.bindings as bindings
 import suggestive.mstat as mstat
+import suggestive.signals as signals
 
 import urwid
 import logging
@@ -48,7 +49,7 @@ def signal_map(mapping):
 
 class Prompt(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['prompt_done']
+    signals = [signals.PROMPT_DONE]
 
     def __init__(self, prompt, *metadata):
         super(Prompt, self).__init__(prompt)
@@ -56,10 +57,17 @@ class Prompt(urwid.Edit):
 
     def keypress(self, size, key):
         if key == 'enter':
-            urwid.emit_signal(self, 'prompt_done', self.get_edit_text(),
-                              *self.metadata)
+            urwid.emit_signal(
+                self,
+                signals.PROMPT_DONE,
+                self.get_edit_text(),
+                *self.metadata)
         elif key == 'esc':
-            urwid.emit_signal(self, 'prompt_done', None, *self.metadata)
+            urwid.emit_signal(
+                self,
+                signals.PROMPT_DONE,
+                None,
+                *self.metadata)
         else:
             super(Prompt, self).keypress(size, key)
 
@@ -68,7 +76,7 @@ class Prompt(urwid.Edit):
 
 class PlaylistMovePrompt(Prompt):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['update_index']
+    signals = [signals.UPDATE_INDEX]
 
     def __init__(self, original_position):
         super(PlaylistMovePrompt, self).__init__('Move item to: ')
@@ -79,8 +87,11 @@ class PlaylistMovePrompt(Prompt):
     def update_index(self, index=None):
         try:
             index = self.position() if index is None else index
-            urwid.emit_signal(self, 'update_index', self.current_position,
-                              index)
+            urwid.emit_signal(
+                self,
+                signals.UPDATE_INDEX,
+                self.current_position,
+                index)
             self.current_position = index
         except IndexError:
             pass
@@ -233,7 +244,7 @@ class SuggestiveListBox(urwid.ListBox):
         self.searcher = None
 
     def update_footer(self, *args, **kwArgs):
-        urwid.emit_signal(self, 'set_footer', *args, **kwArgs)
+        urwid.emit_signal(self, signals.SET_FOOTER, *args, **kwArgs)
 
     def search(self, searcher):
         logger.debug('Start search')
@@ -298,18 +309,22 @@ class Searchable(object):
 
 class SelectableLibraryItem(urwid.WidgetWrap, Searchable):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['enqueue', 'play', 'expand']
+    signals = [
+        signals.ENQUEUE,
+        signals.PLAY,
+        signals.EXPAND
+    ]
 
     _command_map = bindings.AlbumListCommands
     content = None
 
     def keypress(self, size, key):
-        if self._command_map[key] == 'enqueue':
-            urwid.emit_signal(self, 'enqueue', self.content)
-        elif self._command_map[key] == 'play':
-            urwid.emit_signal(self, 'play', self.content)
-        elif self._command_map[key] == 'expand':
-            urwid.emit_signal(self, 'expand', self)
+        if self._command_map[key] == signals.ENQUEUE:
+            urwid.emit_signal(self, signals.ENQUEUE, self.content)
+        elif self._command_map[key] == signals.PLAY:
+            urwid.emit_signal(self, signals.PLAY, self.content)
+        elif self._command_map[key] == signals.EXPAND:
+            urwid.emit_signal(self, signals.EXPAND, self)
         else:
             return key
 

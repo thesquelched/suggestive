@@ -17,6 +17,7 @@ from suggestive.buffer import (
 )
 from suggestive.library import LibraryBuffer
 from suggestive.playlist import PlaylistBuffer
+import suggestive.signals as signals
 
 import argparse
 import urwid
@@ -35,15 +36,15 @@ MEGABYTE = 1024 * 1024
 
 class MainWindow(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['set_footer', 'set_focus']
+    signals = [signals.SET_FOOTER, signals.SET_FOCUS]
 
     def __init__(self, conf, *args, **kwArgs):
         super(MainWindow, self).__init__(*args, **kwArgs)
         self.conf = conf
 
         # Signals
-        urwid.connect_signal(self, 'set_footer', self.update_footer)
-        urwid.connect_signal(self, 'set_focus', self.update_focus)
+        urwid.connect_signal(self, signals.SET_FOOTER, self.update_footer)
+        urwid.connect_signal(self, signals.SET_FOCUS, self.update_focus)
 
     def update_footer(self, footer, focus=False):
         self.set_footer(footer)
@@ -88,7 +89,7 @@ class Application(Commandable):
 
         urwid.connect_signal(
             self.library_buffer,
-            'update_playlist',
+            signals.UPDATE_PLAYLIST,
             self.playlist_buffer.update)
 
         self.setup_buffers()
@@ -155,22 +156,22 @@ class Application(Commandable):
 
     def create_library_buffer(self):
         buf = LibraryBuffer(self.conf, self.session)
-        urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
-        urwid.connect_signal(buf, 'set_footer', self.update_footer)
+        urwid.connect_signal(buf, signals.SET_FOCUS, self.top.update_focus)
+        urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
 
         return buf
 
     def create_playlist_buffer(self):
         buf = PlaylistBuffer(self.conf, self.session)
-        urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
-        urwid.connect_signal(buf, 'set_footer', self.update_footer)
+        urwid.connect_signal(buf, signals.SET_FOCUS, self.top.update_focus)
+        urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
 
         return buf
 
     def create_scrobble_buffer(self):
         buf = ScrobbleBuffer(self.conf, self.session)
-        urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
-        urwid.connect_signal(buf, 'set_footer', self.update_footer)
+        urwid.connect_signal(buf, signals.SET_FOCUS, self.top.update_focus)
+        urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
 
         return buf
 
@@ -335,8 +336,11 @@ class Application(Commandable):
 
     def start_search(self, reverse=False):
         self.edit = widget.Prompt('/')
-        urwid.connect_signal(self.edit, 'prompt_done', self.search_done,
-                             reverse)
+        urwid.connect_signal(
+            self.edit,
+            signals.PROMPT_DONE,
+            self.search_done,
+            reverse)
         footer = urwid.AttrMap(self.edit, 'footer')
         self.update_footer(footer)
         self.top.update_focus('footer')
@@ -344,8 +348,11 @@ class Application(Commandable):
     def search_done(self, pattern, reverse=False):
         logger.debug('Reverse: {}'.format(reverse))
         self.top.update_focus('body')
-        urwid.disconnect_signal(self, self.edit, 'prompt_done',
-                                self.search_done)
+        urwid.disconnect_signal(
+            self,
+            self.edit,
+            signals.PROMPT_DONE,
+            self.search_done)
 
         if pattern:
             logger.info('SEARCH FOR: {}'.format(pattern))
@@ -358,8 +365,16 @@ class Application(Commandable):
 
     def start_command(self):
         self.edit = CommanderEdit(self.command_history)
-        urwid.connect_signal(self.edit, 'command_done', self.command_done)
-        urwid.connect_signal(self.edit, 'autocomplete', self.autocomplete)
+
+        urwid.connect_signal(
+            self.edit,
+            signals.COMMAND_DONE,
+            self.command_done)
+        urwid.connect_signal(
+            self.edit,
+            signals.AUTOCOMPLETE,
+            self.autocomplete)
+
         footer = urwid.AttrMap(self.edit, 'footer')
         self.top.set_footer(footer)
         self.top.set_focus('footer')
@@ -377,8 +392,11 @@ class Application(Commandable):
 
     def command_done(self, command):
         self.top.set_focus('body')
-        urwid.disconnect_signal(self, self.edit, 'command_done',
-                                self.command_done)
+        urwid.disconnect_signal(
+            self,
+            self.edit,
+            signals.COMMAND_DONE,
+            self.command_done)
 
         if command:
             try:
