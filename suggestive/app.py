@@ -14,9 +14,9 @@ from suggestive.search import LazySearcher
 from suggestive.error import CommandError
 from suggestive.buffer import (
     VerticalBufferList, HorizontalBufferList, ScrobbleBuffer,
-    NewPlaylistBuffer
 )
 from suggestive.library import LibraryBuffer
+from suggestive.playlist import PlaylistBuffer
 
 import argparse
 import urwid
@@ -162,7 +162,7 @@ class Application(Commandable):
         return buf
 
     def create_playlist_buffer(self):
-        buf = NewPlaylistBuffer(self.conf, self.session)
+        buf = PlaylistBuffer(self.conf, self.session)
         urwid.connect_signal(buf, 'set_focus', self.top.update_focus)
         urwid.connect_signal(buf, 'set_footer', self.update_footer)
         urwid.connect_signal(buf, 'redraw', self.event_loop.draw_screen)
