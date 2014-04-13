@@ -253,7 +253,9 @@ class Application(Commandable):
     def update_library_event(self):
         logger.info('Updating library')
         self.session.expire_all()
-        self.event_loop.set_alarm_in(0, self.library_buffer.update_suggestions)
+        self.event_loop.set_alarm_in(
+            0,
+            lambda *args: self.library_buffer.controller.update_model())
         self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
         self.update_library_status('Library')
 
