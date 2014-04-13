@@ -244,7 +244,9 @@ class LibraryController(Controller):
 # Views
 ######################################################################
 
-class TrackView(widget.SelectableLibraryItem, View):
+class TrackView(widget.SelectableLibraryItem, View, widget.Searchable):
+
+    FORMAT = '{number} - {name}{suffix}'
 
     def __init__(self, model, conf):
         View.__init__(self, model)
@@ -264,7 +266,19 @@ class TrackView(widget.SelectableLibraryItem, View):
             suffix = ' [B]'
         else:
             suffix = ''
-        return '{} - {}{}'.format(model.number, model.name, suffix)
+
+        return self.FORMAT.format(
+            number=model.number,
+            name=model.name,
+            suffix=suffix)
+
+    @property
+    def canonical_text(self):
+        model = self.model
+        return self.FORMAT.format(
+            number=model.number,
+            name=model.name,
+            suffix='')
 
 
 class AlbumView(widget.SelectableLibraryItem, View):
@@ -294,13 +308,16 @@ class AlbumView(widget.SelectableLibraryItem, View):
         return self._show_score
 
     @property
-    def text(self):
+    def canonical_text(self):
         album = self.db_album
-        album_text = '{} - {}'.format(album.artist.name, album.name)
+        return '{} - {}'.format(album.artist.name, album.name)
+
+    @property
+    def text(self):
         if self.show_score:
-            return '{} ({:.4g})'.format(album_text, self.score)
+            return '{} ({:.4g})'.format(self.canonical_text, self.score)
         else:
-            return album_text
+            return self.canonical_text
 
     @property
     def expanded(self):

@@ -89,14 +89,6 @@ class Application(Commandable):
             self.library_buffer,
             'update_playlist',
             self.playlist_buffer.update)
-        urwid.connect_signal(
-            self.playlist_buffer,
-            'love_track',
-            self.library_buffer.love_track)
-        urwid.connect_signal(
-            self.playlist_buffer,
-            'unlove_track',
-            self.library_buffer.unlove_track)
 
         self.setup_buffers()
         self.bindings = self.setup_bindings()

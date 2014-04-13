@@ -1,12 +1,9 @@
 import suggestive.bindings as bindings
-from suggestive.util import album_text
 import suggestive.mstat as mstat
-from suggestive.util import track_num
 
 import urwid
 import logging
 from itertools import groupby
-from mpd import CommandError as MpdCommandError
 
 logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
@@ -239,15 +236,19 @@ class SuggestiveListBox(urwid.ListBox):
         urwid.emit_signal(self, 'set_footer', *args, **kwArgs)
 
     def search(self, searcher):
+        logger.debug('Start search')
         self.searcher = searcher
 
     def get_next_search(self, backward=False):
+        logger.debug('Get next search')
         if self.searcher is None:
             logger.debug('No search found')
             return
 
         index = self.searcher.next_item(self.body, self.focus_position,
                                         backward=backward)
+        logger.debug('Found next match: {}'.format(index))
+
         if index is None:
             raise ValueError('No match found')
 
@@ -288,13 +289,14 @@ class SuggestiveListBox(urwid.ListBox):
         return True
 
 
-class SearchableItem(object):
+class Searchable(object):
 
-    def item_text(self):
-        return self._w.get_text()[0]
+    @property
+    def search_text(self):
+        return self.canonical_text
 
 
-class SelectableLibraryItem(urwid.WidgetWrap, SearchableItem):
+class SelectableLibraryItem(urwid.WidgetWrap, Searchable):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['enqueue', 'play', 'expand']
 
@@ -321,152 +323,3 @@ class SelectableScrobble(SelectableLibraryItem):
         text = '{} - {}'.format(info.artist, info.title)
 
         super(SelectableScrobble, self).__init__(urwid.SelectableIcon(text))
-
-
-class SelectableAlbum(SelectableLibraryItem):
-
-    def __init__(self, suggestion, show_score=False):
-        self.content = self.album = suggestion.album
-        self.expanded = False
-
-        text = album_text(self.album)
-        if show_score:
-            text = '{} ({:.4g})'.format(text, suggestion.order)
-
-        super(SelectableAlbum, self).__init__(urwid.SelectableIcon(text))
-
-    def update_text(self):
-        self._w.set_text(album_text(self.album))
-
-    def tracks(self):
-        return self.album.tracks
-
-
-class SelectableTrack(SelectableLibraryItem):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = ['enqueue', 'play']
-
-    def __init__(self, parent, track, track_no):
-        self.parent = parent
-        self.content = self.track = track
-        self.track_no = track_no
-        super(SelectableTrack, self).__init__(
-            urwid.SelectableIcon(self.text(track, track_no)))
-
-    def update_text(self):
-        self._w.set_text(self.text(self.track, self.track_no))
-
-    @classmethod
-    def text(cls, track, track_no):
-        text = '{} - {}'.format(track_no, track.name)
-        if track.lastfm_info and track.lastfm_info.loved:
-            return text + ' [L]'
-        elif track.lastfm_info and track.lastfm_info.banned:
-            return text + ' [B]'
-        else:
-            return text
-
-    def tracks(self):
-        return [self.track]
-
-
-class PlaylistItem(urwid.WidgetWrap, SearchableItem):
-
-    def __init__(self, *args, **kwArgs):
-        super(PlaylistItem, self).__init__(
-            urwid.SelectableIcon(*args, **kwArgs))
-
-
-class AlbumList(SuggestiveListBox):
-    def __init__(self, app, *args, **kwArgs):
-        super(AlbumList, self).__init__(*args, **kwArgs)
-
-        # TODO: dirty, filthy hack. Do bindings externally and pass in conf
-        self.app = app
-
-        self._command_map = bindings.AlbumListCommands
-
-    def sort_tracks(self, tracks):
-        track_and_num = []
-        mpd = mstat.initialize_mpd(self.app.conf)
-
-        for i, track in enumerate(tracks):
-            try:
-                mpd_track = mpd.listallinfo(track.filename)
-            except MpdCommandError:
-                continue
-
-            if not mpd_track:
-                continue
-
-            trackno = track_num(mpd_track[0].get('track', i))
-            #trackno = str(mpd_track[0].get('track', i))
-            #trackno = re.sub(r'(\d+)/\d+', r'\1', trackno)
-
-            track_and_num.append((int(trackno), track))
-
-        return sorted(track_and_num, key=lambda pair: pair[0])
-
-    def expand_album(self, album_widget):
-        current = self.focus_position
-        album = album_widget.original_widget.album
-
-        sorted_tracks = self.sort_tracks(album.tracks)
-        for track_no, track in reversed(sorted_tracks):
-            track_widget = SelectableTrack(
-                album_widget, track, track_no)
-
-            urwid.connect_signal(track_widget, 'enqueue',
-                                 self.app.enqueue_track)
-            urwid.connect_signal(track_widget, 'play', self.app.play_track)
-
-            item = urwid.AttrMap(track_widget, 'track', 'focus track')
-            self.body.insert(current + 1, item)
-
-        album_widget.original_widget.expanded = True
-        self.set_focus_valign('top')
-
-    def collapse_album(self, album_widget):
-        current = self.focus_position
-        album_index = self.body.index(album_widget, 0, current + 1)
-
-        logger.debug('Album index: {}'.format(album_index))
-
-        album = album_widget.original_widget.album
-        for i in range(len(album.tracks)):
-            track_widget = self.body[album_index + 1]
-            if isinstance(track_widget.original_widget, SelectableTrack):
-                self.body.pop(album_index + 1)
-            else:
-                logger.error('Item #{} is not a track'.format(i))
-
-        album_widget.original_widget.expanded = False
-
-    def toggle_expand(self):
-        widget = self.focus
-
-        if isinstance(widget.original_widget, SelectableTrack):
-            widget = widget.original_widget.parent
-
-        if widget.original_widget.expanded:
-            self.collapse_album(widget)
-        else:
-            self.expand_album(widget)
-
-        album = widget.original_widget.album
-
-        logger.info('Expand: {} ({} tracks)'.format(
-            album_text(album),
-            len(album.tracks)))
-
-    def keypress(self, size, key):
-        cmd = self._command_map[key]
-        if cmd == 'expand':
-            self.toggle_expand()
-        else:
-            return super(AlbumList, self).keypress(size, key)
-
-        # Necessary to get list focus to redraw
-        super(AlbumList, self).keypress(size, None)
-
-        return True

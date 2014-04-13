@@ -168,7 +168,7 @@ class PlaylistController(Controller):
     'm': 'move',
     'L': 'love'
 })
-class TrackView(urwid.WidgetWrap, View):
+class TrackView(urwid.WidgetWrap, View, widget.Searchable):
     __metaclass__ = urwid.signals.MetaSignals
     signals = ['play', 'delete', 'move', 'love']
 
