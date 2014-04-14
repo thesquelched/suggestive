@@ -25,7 +25,9 @@ import logging
 from logging.handlers import RotatingFileHandler
 import threading
 import os.path
+from os import remove
 import sys
+import gzip
 
 
 logger = logging.getLogger('suggestive')
@@ -479,12 +481,21 @@ class Application(Commandable):
 
 
 def initialize_logging(conf):
+    def gzip_rotate(source, dest):
+        with open(source, 'rb') as sf:
+            with gzip.open(dest, 'wb') as df:
+                for line in sf:
+                    df.write(line)
+
+        remove(source)
+
     handler = RotatingFileHandler(
         conf.log_file(),
         mode='a',
         backupCount=3,
-        maxBytes=1 * MEGABYTE,
+        maxBytes=10 * MEGABYTE,
     )
+    handler.rotator = gzip_rotate
 
     fmt = logging.Formatter(
         '%(asctime)s %(levelname)s (%(name)s)| %(message)s',
