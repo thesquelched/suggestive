@@ -286,12 +286,7 @@ class Application(Commandable):
         self.update_library_status('Library')
 
     def update_playlist_event(self):
-        # TODO: Optimize by checking what's changed
         self.event_loop.set_alarm_in(0, self.top.playlist.update)
-
-        # TODO: Re-enable in appropriate place
-        #if self.playlist_buffer.track_changed():
-        #    self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
         self.event_loop.set_alarm_in(0, self.top.scrobbles.update)
 
     def dispatch(self, key):
