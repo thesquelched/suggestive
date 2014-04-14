@@ -120,7 +120,11 @@ class PlaylistController(Controller):
 
     @mpd_retry
     def save_playlist(self, name):
-        self._mpd.rm(name)
+        try:
+            self._mpd.rm(name)
+        except Exception:
+            pass
+
         self._mpd.save(name)
 
     @mpd_retry
