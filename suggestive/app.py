@@ -334,12 +334,6 @@ class Application(Commandable):
             'show_score',
             'false' if current else 'true')
         self.update_library_event()
-        #current = self.library_buffer.show_score
-        #logger.debug('Toggle show score; current={}, show={}'.format(
-        #    current, show))
-        #if show is None or bool(show) != current:
-        #    self.library_buffer.show_score = not current
-        #    self.library_buffer.update_suggestions()
 
     def pause(self):
         mpd = mstat.initialize_mpd(self.conf)

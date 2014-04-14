@@ -4,6 +4,9 @@ import re
 import logging
 
 
+# TODO: Use properties
+
+
 SECONDS_IN_DAY = 24 * 3600
 CONFIG_PATHS = [
     '$HOME/.suggestive.conf',
@@ -203,8 +206,12 @@ class Config(object):
                           colors['playlist_focus_bg'])
 
         scrobble = (colors['scrobble_fg'], colors['scrobble_bg'])
-        scrobble_focus = (colors['scrobble_focus_fg'], colors['scrobble_focus_bg'])
-        scrobble_date = (colors['scrobble_date_fg'], colors['scrobble_date_bg'])
+        scrobble_focus = (
+            colors['scrobble_focus_fg'],
+            colors['scrobble_focus_bg'])
+        scrobble_date = (
+            colors['scrobble_date_fg'],
+            colors['scrobble_date_bg'])
 
         track = (colors['track_fg'], colors['track_bg'])
         track_focus = (colors['track_focus_fg'], colors['track_focus_bg'])
