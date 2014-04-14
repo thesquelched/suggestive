@@ -43,6 +43,7 @@ class BufferList(object):
         logger.warn('Could not switch buffers')
 
     def current_buffer(self):
+        logger.debug('All buffers: {}'.format(list(self)))
         return self.buffers[self.focus_position]
 
     def buffer_index(self, buf):
@@ -100,6 +101,10 @@ class HorizontalBufferList(urwid.Pile, BufferList):
     def __iter__(self):
         return BufferList.__iter__(self)
 
+    @property
+    def orientation(self):
+        return 'horizontal'
+
 
 class VerticalBufferList(urwid.Columns, BufferList):
 
@@ -109,6 +114,10 @@ class VerticalBufferList(urwid.Columns, BufferList):
 
     def __iter__(self):
         return BufferList.__iter__(self)
+
+    @property
+    def orientation(self):
+        return 'vertical'
 
 
 ######################################################################

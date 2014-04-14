@@ -17,6 +17,7 @@ from suggestive.buffer import (
 from suggestive.library import LibraryBuffer
 from suggestive.playlist import PlaylistBuffer
 import suggestive.signals as signals
+#from suggestive.mvc import View
 
 import argparse
 import urwid
@@ -33,21 +34,147 @@ logger.addHandler(logging.NullHandler())
 MEGABYTE = 1024 * 1024
 
 
-class MainWindow(urwid.Frame):
+class MainView(urwid.Frame):
     """
-    Main window for urwid display
+    Main view for urwid display, containing all of the buffers, as well as the
+    main status footer
     """
 
     __metaclass__ = urwid.signals.MetaSignals
     signals = [signals.SET_FOOTER, signals.SET_FOCUS]
 
-    def __init__(self, conf, *args, **kwArgs):
-        super(MainWindow, self).__init__(*args, **kwArgs)
-        self.conf = conf
+    def __init__(self, conf, session):
+        self._conf = conf
+        self._session = session
+
+        self._buffers = self.initialize_buffers()
+        self._buffer_list = self.create_buffer_list()
+
+        super(MainView, self).__init__(
+            urwid.AttrMap(self._buffer_list, 'footer')
+        )
 
         # Signals
         urwid.connect_signal(self, signals.SET_FOOTER, self.update_footer)
         urwid.connect_signal(self, signals.SET_FOCUS, self.update_focus)
+
+    @property
+    def session(self):
+        return self._session
+
+    @property
+    def conf(self):
+        return self._conf
+
+    @property
+    def buffers(self):
+        return self._buffers
+
+    @property
+    def library(self):
+        return self.buffers['library']
+
+    @property
+    def playlist(self):
+        return self.buffers['playlist']
+
+    @property
+    def scrobbles(self):
+        return self.buffers['scrobbles']
+
+    def __iter__(self):
+        return iter(self._buffer_list)
+
+    def initialize_buffers(self):
+        default = set(self.conf.default_buffers())
+        logger.debug('Default buffers: {}'.format(default))
+
+        buffers = {
+            'library': self.create_library_buffer('library' in default),
+            'playlist': self.create_playlist_buffer('playlist' in default),
+            'scrobbles': self.create_scrobbles_buffer('scrobles' in default),
+        }
+
+        return buffers
+
+    def create_library_buffer(self, active=False):
+        buf = LibraryBuffer(self.conf, self.session)
+        buf.active = active
+        urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
+        urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
+
+        return buf
+
+    def create_playlist_buffer(self, active=False):
+        buf = PlaylistBuffer(self.conf, self.session)
+        buf.active = active
+        urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
+        urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
+
+        return buf
+
+    def create_scrobbles_buffer(self, active=False):
+        buf = ScrobbleBuffer(self.conf, self.session)
+        buf.active = active
+        urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
+        urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
+
+        return buf
+
+    def toggle_buffer(self, name):
+        buf = self.buffers.get(name)
+        if not buf:
+            raise CommandError('Unknown buffer: {}'.format(name))
+
+        if buf.active:
+            logger.debug('Close {}'.format(name))
+            if self._buffer_list.remove(buf):
+                buf.active = False
+        else:
+            logger.debug('Open {}'.format(name))
+            self._buffer_list.add(buf)
+            buf.active = True
+
+    def change_orientation(self, orientation=None):
+        """
+        Change the buffer list orientation between vertical and horizontal
+        """
+        if orientation not in ('vertical', 'horizontal'):
+            if self._buffer_list.orientation == 'vertical':
+                orientation = 'horizontal'
+            else:
+                orientation = 'vertical'
+
+        self.update(orientation)
+
+    def create_buffer_list(self, orientation=None):
+        if orientation == 'horizontal':
+            buffer_list = HorizontalBufferList()
+        else:
+            buffer_list = VerticalBufferList()
+
+        for bufname in ('library', 'playlist', 'scrobbles'):
+            buf = self.buffers[bufname]
+            logger.debug('Buffer {} is {}'.format(
+                bufname,
+                'active' if buf.active else 'not active'))
+
+            if buf.active:
+                buffer_list.add(buf)
+
+        logger.debug(list(buffer_list))
+
+        return buffer_list
+
+    def next_buffer(self):
+        self._buffer_list.next_buffer()
+
+    def current_buffer(self):
+        return self._buffer_list.current_buffer()
+
+    def update(self, orientation=None):
+        self._buffer_list = self.create_buffer_list(orientation)
+        self.body.original_widget = self._buffer_list
 
     def update_footer(self, footer, focus=False):
         self.set_footer(footer)
@@ -69,22 +196,10 @@ class Application(Commandable):
 
         self.mpd = mstat.initialize_mpd(conf)
         self.quit_event = threading.Event()
-        self.orientation = self.conf.orientation()
 
-        if self.orientation == 'vertical':
-            self.buffers = VerticalBufferList()
-        else:
-            self.buffers = HorizontalBufferList()
-
-        self.top = MainWindow(conf, urwid.AttrMap(self.buffers, 'footer'))
+        self.top = MainView(conf, session)
         self.event_loop = self.main_loop()
 
-        # Initialize buffers
-        self.library_buffer = self.create_library_buffer()
-        self.playlist_buffer = self.create_playlist_buffer()
-        self.scrobble_buffer = self.create_scrobble_buffer()
-
-        self.setup_buffers()
         self.bindings = self.setup_bindings()
         self.commands = self.setup_commands()
 
@@ -98,47 +213,7 @@ class Application(Commandable):
         """
         Update the library buffer status footer
         """
-        self.library_buffer.update_status(*args, **kwArgs)
-
-    def setup_buffers(self):
-        # TODO: Create buffer list view
-        default_buffers = self.conf.default_buffers()
-
-        if 'library' in default_buffers:
-            self.buffers.add(self.library_buffer)
-            self.library_buffer.active = True
-        if 'playlist' in default_buffers:
-            self.buffers.add(self.playlist_buffer)
-            self.playlist_buffer.active = True
-        if 'scrobbles' in default_buffers:
-            self.buffers.add(self.scrobble_buffer)
-            self.scrobble_buffer.active = True
-
-    def change_orientation(self, orientation=None):
-        """
-        Change the buffer list orientation between vertical and horizontal
-        """
-        if orientation is None:
-            orientation = ('vertical' if self.orientation == 'horizontal'
-                           else 'horizontal')
-
-        if orientation == 'vertical':
-            buffers = VerticalBufferList()
-        else:
-            buffers = HorizontalBufferList()
-
-        if self.library_buffer.active:
-            buffers.add(self.library_buffer)
-        if self.playlist_buffer.active:
-            buffers.add(self.playlist_buffer)
-        if self.scrobble_buffer.active:
-            buffers.add(self.scrobble_buffer)
-
-        self.orientation = orientation
-        self.buffers = buffers
-        self.top.body = self.buffers
-
-        self.top.body = urwid.AttrMap(self.buffers, 'footer')
+        self.top.library.update_status(*args, **kwArgs)
 
     def update_footer(self, value, error=False):
         """Update the main window footer"""
@@ -157,57 +232,6 @@ class Application(Commandable):
         )
         self.top.update_footer(text)
 
-    def create_library_buffer(self):
-        buf = LibraryBuffer(self.conf, self.session)
-        urwid.connect_signal(buf, signals.SET_FOCUS, self.top.update_focus)
-        urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
-
-        return buf
-
-    def create_playlist_buffer(self):
-        buf = PlaylistBuffer(self.conf, self.session)
-        urwid.connect_signal(buf, signals.SET_FOCUS, self.top.update_focus)
-        urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
-
-        return buf
-
-    def create_scrobble_buffer(self):
-        buf = ScrobbleBuffer(self.conf, self.session)
-        urwid.connect_signal(buf, signals.SET_FOCUS, self.top.update_focus)
-        urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
-
-        return buf
-
-    def open_playlist(self):
-        if self.playlist_buffer.active:
-            logger.debug('Close playlist')
-            if self.buffers.remove(self.playlist_buffer):
-                self.playlist_buffer.active = False
-        else:
-            logger.debug('Open playlist')
-            self.buffers.add(self.playlist_buffer)
-            self.playlist_buffer.active = True
-
-    def open_library(self):
-        if self.library_buffer.active:
-            logger.debug('Close playlist')
-            if self.buffers.remove(self.library_buffer):
-                self.library_buffer.active = False
-        else:
-            logger.debug('Open playlist')
-            self.buffers.add(self.library_buffer)
-            self.library_buffer.active = True
-
-    def open_scrobbles(self):
-        if self.scrobble_buffer.active:
-            logger.debug('Close scrobbles')
-            if self.buffers.remove(self.scrobble_buffer):
-                self.scrobble_buffer.active = False
-        else:
-            logger.debug('Open scrobbles')
-            self.buffers.add(self.scrobble_buffer)
-            self.scrobble_buffer.active = True
-
     def start_event_system(self):
         events = {
             'playlist': self.update_playlist_event,
@@ -222,10 +246,10 @@ class Application(Commandable):
         self.observer.start()
 
     def update_player_event(self):
-        if self.playlist_buffer.track_changed():
+        if self.top.playlist.track_changed():
             self.update_playlist_event()
         else:
-            self.playlist_buffer.update_playing_status()
+            self.top.playlist.update_playing_status()
 
     def update_database_event(self):
         self.update_library_status('Library (updating database...)')
@@ -255,18 +279,18 @@ class Application(Commandable):
         self.session.expire_all()
         self.event_loop.set_alarm_in(
             0,
-            lambda *args: self.library_buffer.controller.update_model())
-        self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
+            lambda *args: self.top.library.controller.update_model())
+        self.event_loop.set_alarm_in(0, self.top.scrobbles.update)
         self.update_library_status('Library')
 
     def update_playlist_event(self):
         # TODO: Optimize by checking what's changed
-        self.event_loop.set_alarm_in(0, self.playlist_buffer.update)
+        self.event_loop.set_alarm_in(0, self.top.playlist.update)
 
         # TODO: Re-enable in appropriate place
         #if self.playlist_buffer.track_changed():
         #    self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
-        self.event_loop.set_alarm_in(0, self.scrobble_buffer.update)
+        self.event_loop.set_alarm_in(0, self.top.scrobbles.update)
 
     def dispatch(self, key):
         if key in self.bindings:
@@ -280,7 +304,7 @@ class Application(Commandable):
         if self.conf.save_playlist_on_close():
             playlist = self.conf.playlist_save_name()
             try:
-                self.playlist_buffer.save_playlist(playlist)
+                self.top.playlist.save_playlist(playlist)
             except Exception as ex:
                 logger.error('Unable to save playlist: {}'.format(ex))
                 pass
@@ -298,7 +322,7 @@ class Application(Commandable):
             'U': lambda: self.update_database_event(),
             ':': lambda: self.start_command(),
             'p': lambda: self.pause(),
-            'ctrl w': lambda: self.buffers.next_buffer(),
+            'ctrl w': lambda: self.top.next_buffer(),
             'c': self.clear_playlist,
             'r': self.update_library_event,
             '/': lambda: self.start_search(),
@@ -310,21 +334,21 @@ class Application(Commandable):
         Set up global application commands
         """
         return {
-            'playlist': self.open_playlist,
-            'library': self.open_library,
-            'scrobbles': self.open_scrobbles,
+            'playlist': lambda: self.top.toggle_buffer('playlist'),
+            'library': lambda: self.top.toggle_buffer('library'),
+            'scrobbles': lambda: self.top.toggle_buffer('scrobbles'),
             'q': self.exit,
-            'orientation': self.change_orientation,
-            'or': self.change_orientation,
+            'orientation': self.top.change_orientation,
+            'or': self.top.change_orientation,
             'score': self.toggle_show_score,
-            'save': self.playlist_buffer.save_playlist,
-            'load': self.playlist_buffer.load_playlist,
+            'save': self.top.playlist.save_playlist,
+            'load': self.top.playlist.load_playlist,
         }
 
     def clear_playlist(self):
-        self.playlist_buffer.clear_mpd_playlist()
-        if self.buffers.current_buffer() is self.playlist_buffer:
-            self.buffers.next_buffer()
+        self.top.playlist.clear_mpd_playlist()
+        if self.top.current_buffer() is self.top.playlist:
+            self.top.next_buffer()
 
     @typed(show=bool)
     def toggle_show_score(self, show=None):
@@ -363,10 +387,10 @@ class Application(Commandable):
             logger.info('SEARCH FOR: {}'.format(pattern))
             searcher = LazySearcher(pattern, reverse=reverse)
 
-            for buf in self.buffers:
+            for buf in self.top:
                 buf.search(searcher)
 
-            self.buffers.current_buffer().next_search()
+            self.top.current_buffer().next_search()
 
     def start_command(self):
         self.edit = CommanderEdit(self.command_history)
@@ -387,7 +411,7 @@ class Application(Commandable):
     def autocomplete(self, partial):
         all_commands = dict(
             list(self.commands.items()) +
-            list(self.buffers.current_buffer().commands.items())
+            list(self.top.current_buffer().commands.items())
         )
         matches = [cmd for cmd in all_commands if cmd.startswith(partial)]
         logger.debug('Matching: {}'.format(matches))
@@ -405,7 +429,7 @@ class Application(Commandable):
 
         if command:
             try:
-                current_buf = self.buffers.current_buffer()
+                current_buf = self.top.current_buffer()
                 success = current_buf.execute_command(command)
                 if not success:
                     success = self.execute_command(command)
@@ -431,8 +455,8 @@ class Application(Commandable):
         screen.set_terminal_properties(colors=colormode)
 
     def continuously_update_playlist_status(self, *args):
-        text = self.playlist_buffer.status_text()
-        self.playlist_buffer.update_status(text)
+        text = self.top.playlist.status_text()
+        self.top.playlist.update_status(text)
         self.event_loop.set_alarm_in(
             1,
             self.continuously_update_playlist_status)
