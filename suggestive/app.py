@@ -94,7 +94,7 @@ class MainView(urwid.Frame):
         buffers = {
             'library': self.create_library_buffer('library' in default),
             'playlist': self.create_playlist_buffer('playlist' in default),
-            'scrobbles': self.create_scrobbles_buffer('scrobles' in default),
+            'scrobbles': self.create_scrobbles_buffer('scrobbles' in default),
         }
 
         return buffers
@@ -386,7 +386,7 @@ class Application(Commandable):
             self.search_done)
 
         if pattern:
-            logger.info('SEARCH FOR: {}'.format(pattern))
+            logger.debug('SEARCH FOR: {}'.format(pattern))
             searcher = LazySearcher(pattern, reverse=reverse)
 
             for buf in self.top:
