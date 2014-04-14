@@ -538,7 +538,7 @@ def run(args):
 
     with mstat.session_scope(conf, commit=False) as main_session:
         try:
-            logger.info('Starting event loop')
+            logger.debug('Starting event loop')
             app = Application(args, conf, main_session)
             app.event_loop.run()
         except KeyboardInterrupt:
