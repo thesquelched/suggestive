@@ -291,7 +291,11 @@ class PlaylistView(widget.SuggestiveListBox, View):
             # If that failed, the playlist probably shrunk due to a deletion,
             # and we were on the last position before the delete.  Therefore,
             # we should be able to focus on the position before the last
-            self.set_focus(position - 1)
+            try:
+                self.set_focus(position - 1)
+            except IndexError:
+                # There are no tracks left; don't bother setting focus
+                pass
 
     def track_views(self, show_bumper=False):
         current = self.controller.now_playing()
