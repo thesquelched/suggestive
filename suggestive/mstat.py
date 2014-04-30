@@ -12,6 +12,7 @@ from itertools import chain
 from os.path import basename, dirname
 from contextlib import contextmanager
 from difflib import get_close_matches
+from mpd import MPDError
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -20,6 +21,21 @@ logger.addHandler(logging.NullHandler())
 ######################################################################
 # Helper functions
 ######################################################################
+
+def mpd_retry(func):
+    """
+    Decorator that reconnects MPD client if the connection is lost
+    """
+    def wrapper(self, *args, **kwArgs):
+        try:
+            return func(self, *args, **kwArgs)
+        except (MPDError, OSError) as ex:
+            logger.warning('Detect MPD connection error; reconnecting...')
+            logger.debug(ex)
+            self._mpd = initialize_mpd(self._conf)
+            return func(self, *args, **kwArgs)
+    return wrapper
+
 
 @contextmanager
 def session_scope(conf, commit=True):
