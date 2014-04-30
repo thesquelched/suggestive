@@ -307,29 +307,7 @@ class Searchable(object):
         return self.canonical_text
 
 
-class SelectableLibraryItem(urwid.WidgetWrap, Searchable):
-    __metaclass__ = urwid.signals.MetaSignals
-    signals = [
-        signals.ENQUEUE,
-        signals.PLAY,
-        signals.EXPAND
-    ]
-
-    _command_map = bindings.AlbumListCommands
-    content = None
-
-    def keypress(self, size, key):
-        if self._command_map[key] == signals.ENQUEUE:
-            urwid.emit_signal(self, signals.ENQUEUE, self.content)
-        elif self._command_map[key] == signals.PLAY:
-            urwid.emit_signal(self, signals.PLAY, self.content)
-        elif self._command_map[key] == signals.EXPAND:
-            urwid.emit_signal(self, signals.EXPAND, self)
-        else:
-            return key
-
-
-class SelectableScrobble(SelectableLibraryItem):
+class SelectableScrobble(urwid.WidgetWrap):
 
     def __init__(self, scrobble):
         self.content = self.scrobble = scrobble

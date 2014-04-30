@@ -6,8 +6,6 @@ import suggestive.analytics as analytics
 import suggestive.signals as signals
 from suggestive.buffer import Buffer
 
-from mpd import ConnectionError
-
 from suggestive.mvc import View, Model, Controller, TrackModel
 
 import urwid
@@ -76,6 +74,7 @@ class LibraryController(Controller):
         # Connections
         self._mpd = mstat.initialize_mpd(conf)
         self._session = session
+        self._lastfm = mstat.initialize_lastfm(conf)
 
         self._anl = analytics.Analytics(conf)
 
@@ -125,46 +124,50 @@ class LibraryController(Controller):
         """
         Reset orderers to default
         """
-        self.orderers = self._default_orderers
+        self.orderers = self._default_orderers.copy()
 
     def set_current_order_as_default(self):
         self._default_orderers = self._orderers.copy()
 
     #signal_handler
-    def enqueue_album(self, album):
-        self.enqueue_tracks(album.tracks)
+    def enqueue_album(self, view):
+        self.enqueue_tracks(view.db_album.tracks)
 
     #signal_handler
-    def enqueue_track(self, track):
-        self.enqueue_tracks([track])
+    def enqueue_track(self, view):
+        self.enqueue_tracks([view.db_track])
 
     #signal_handler
-    def play_album(self, album):
-        self.play_tracks(album.tracks)
+    def play_album(self, view):
+        self.play_tracks(view.db_album.tracks)
 
     #signal_handler
-    def play_track(self, track):
-        self.play_tracks([track])
+    def play_track(self, view):
+        self.play_tracks([view.db_track])
 
-    def mpd_retry(func):
-        """
-        Decorator that reconnects MPD client if the connection is lost
-        """
-        def wrapper(self, *args, **kwArgs):
-            try:
-                return func(self, *args, **kwArgs)
-            except ConnectionError:
-                logger.warning('Detect MPD connection error; reconnecting...')
-                self._mpd = mstat.initialize_mpd(self._conf)
-                return func(self, *args, **kwArgs)
-        return wrapper
+    # Signal handler
+    def love_track(self, view):
+        logger.info('Toggle loved for playlist track: {}'.format(
+            view.canonical_text))
 
-    @mpd_retry
+        db_track = view.model.db_track
+        loved = db_track.lastfm_info.loved if db_track.lastfm_info else False
+        mstat.set_track_loved(
+            self._session,
+            self._lastfm,
+            db_track,
+            loved=not loved)
+
+        self._session.commit()
+
+        view.update()
+
+    @mstat.mpd_retry
     def mpd_tracks(self, tracks):
         return list(chain.from_iterable(
             self._mpd.listallinfo(track.filename) for track in tracks))
 
-    @mpd_retry
+    @mstat.mpd_retry
     def add_mpd_track(self, track):
         return self._mpd.addid(track['file'])
 
@@ -203,7 +206,15 @@ class LibraryController(Controller):
 # Views
 ######################################################################
 
-class TrackView(widget.SelectableLibraryItem, View, widget.Searchable):
+@widget.signal_map({
+    'z': 'expand',
+    'enter': 'play',
+    ' ': 'enqueue',
+    'L': 'love'
+})
+class TrackView(urwid.WidgetWrap, View, widget.Searchable):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['expand', 'play', 'enqueue', 'love']
 
     FORMAT = '{number} - {name}{suffix}'
 
@@ -215,6 +226,10 @@ class TrackView(widget.SelectableLibraryItem, View, widget.Searchable):
 
         super(TrackView, self).__init__(
             urwid.AttrMap(self._icon, 'track', 'focus track'))
+
+    @property
+    def db_track(self):
+        return self.model.db_track
 
     @property
     def text(self):
@@ -239,8 +254,18 @@ class TrackView(widget.SelectableLibraryItem, View, widget.Searchable):
             name=model.name,
             suffix='')
 
+    def update(self):
+        self._w.original_widget.set_text(self.text)
 
-class AlbumView(widget.SelectableLibraryItem, View):
+
+@widget.signal_map({
+    'z': 'expand',
+    'enter': 'play',
+    ' ': 'enqueue',
+})
+class AlbumView(urwid.WidgetWrap, View, widget.Searchable):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = ['expand', 'play', 'enqueue']
 
     def __init__(self, model, conf):
         View.__init__(self, model)
@@ -303,6 +328,10 @@ class LibraryView(widget.SuggestiveListBox, View):
 
         self._model.register(self)
 
+    @property
+    def controller(self):
+        return self._controller
+
     def update(self):
         logger.debug('Updating LibraryView')
         walker = self.body
@@ -319,11 +348,11 @@ class LibraryView(widget.SuggestiveListBox, View):
                 urwid.connect_signal(
                     view,
                     signals.ENQUEUE,
-                    self._controller.enqueue_album)
+                    self.controller.enqueue_album)
                 urwid.connect_signal(
                     view,
                     signals.PLAY,
-                    self._controller.play_album)
+                    self.controller.play_album)
                 urwid.connect_signal(
                     view,
                     signals.EXPAND,
@@ -335,14 +364,14 @@ class LibraryView(widget.SuggestiveListBox, View):
         return body
 
     def create_walker(self):
-        body = self.library_items(self._controller.model)
+        body = self.library_items(self.controller.model)
         return urwid.SimpleFocusListWalker(body)
 
     def expand_album(self, view):
         album = view.db_album
         current = self.focus_position
 
-        sorted_tracks = self._controller.sort_tracks(album.tracks)
+        sorted_tracks = self.controller.sort_tracks(album.tracks)
         for track_no, track in sorted_tracks:
             model = TrackModel(track, track_no)
             track_view = TrackView(model, self._conf)
@@ -350,16 +379,20 @@ class LibraryView(widget.SuggestiveListBox, View):
             urwid.connect_signal(
                 track_view,
                 signals.ENQUEUE,
-                self._controller.enqueue_track)
+                self.controller.enqueue_track)
             urwid.connect_signal(
                 track_view,
                 signals.PLAY,
-                self._controller.play_track)
+                self.controller.play_track)
             urwid.connect_signal(
                 track_view,
                 signals.EXPAND,
                 self.collapse_album_from_track,
                 view)
+            urwid.connect_signal(
+                track_view,
+                signals.LOVE,
+                self.controller.love_track)
 
             self.body.insert(current + 1, track_view)
 
