@@ -196,7 +196,7 @@ class Application(Commandable):
         self.conf = conf
         self.session = session
 
-        self.mpd = mstat.initialize_mpd(conf)
+        self._mpd = mstat.initialize_mpd(conf)
         self.quit_event = threading.Event()
 
         self.top = MainView(conf, session)
@@ -262,13 +262,14 @@ class Application(Commandable):
         updater.start()
 
     def check_update_event(self):
-        if 'updating_db' in self.mpd.status():
+        if 'updating_db' in self._mpd.status():
             self.update_library_status('Library (updating MPD...)')
         else:
             self.update_library_status('Library')
 
+    @mstat.mpd_retry
     def start_mpd_update(self):
-        self.mpd.update()
+        self._mpd.update()
 
     def start_scrobble_initialize(self):
         scrobble_thread = ScrobbleInitializeThread(

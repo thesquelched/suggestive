@@ -6,8 +6,6 @@ from suggestive.error import CommandError
 from suggestive.mvc import View, Model, Controller, TrackModel
 from suggestive.buffer import Buffer, MpdCommandError
 
-from mpd import ConnectionError
-
 import urwid
 from math import floor, log10
 import logging
@@ -62,28 +60,14 @@ class PlaylistController(Controller):
     def playlist_size(self):
         return len(self.model.tracks)
 
-    # TODO: Move to mpd module
-    def mpd_retry(func):
-        """
-        Decorator that reconnects MPD client if the connection is lost
-        """
-        def wrapper(self, *args, **kwArgs):
-            try:
-                return func(self, *args, **kwArgs)
-            except ConnectionError:
-                logger.warning('Detect MPD connection error; reconnecting...')
-                self._mpd = mstat.initialize_mpd(self._conf)
-                return func(self, *args, **kwArgs)
-        return wrapper
-
     # Signal handler
-    @mpd_retry
+    @mstat.mpd_retry
     def play_track(self, view):
         logger.info('Play playlist track: {}'.format(view.canonical_text))
         self._mpd.play(view.model.number)
 
     # Signal handler
-    @mpd_retry
+    @mstat.mpd_retry
     def delete_track(self, view):
         logger.info('Delete playlist track: {}'.format(view.canonical_text))
         self._mpd.delete(view.model.number)
@@ -106,19 +90,19 @@ class PlaylistController(Controller):
 
         view.update()
 
-    @mpd_retry
+    @mstat.mpd_retry
     def clear(self):
         self._mpd.stop()
         self._mpd.clear()
         self.update_model()
 
-    @mpd_retry
+    @mstat.mpd_retry
     def load_playlist(self, name):
         self._mpd.stop()
         self._mpd.clear()
         self._mpd.load(name)
 
-    @mpd_retry
+    @mstat.mpd_retry
     def save_playlist(self, name):
         try:
             self._mpd.rm(name)
@@ -127,11 +111,11 @@ class PlaylistController(Controller):
 
         self._mpd.save(name)
 
-    @mpd_retry
+    @mstat.mpd_retry
     def mpd_playlist(self):
         return self._mpd.playlistinfo()
 
-    @mpd_retry
+    @mstat.mpd_retry
     def now_playing(self):
         current = self._mpd.currentsong()
         if current and 'pos' in current:
