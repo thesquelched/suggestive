@@ -46,7 +46,7 @@ class Bindings(urwid.CommandMap):
         for key, command in bindings.items():
             self.__setitem__(key, command)
 
-base_commands = {
+ListCommands = Bindings({
     UP: ('k', 'up'),
     DOWN: ('j', 'down'),
     LEFT: ('h', 'left'),
@@ -59,15 +59,4 @@ base_commands = {
 
     SEARCH_NEXT: ('n',),
     SEARCH_PREV: ('N',),
-}
-
-ListCommands = Bindings(base_commands)
-
-AlbumListCommands = Bindings(dict(
-    list(base_commands.items()) +
-    [
-        (ENQUEUE, (' ',)),
-        (PLAY, ('enter',)),
-        (EXPAND, ('z',)),
-    ]
-))
+})

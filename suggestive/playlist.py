@@ -1,5 +1,4 @@
 import suggestive.widget as widget
-import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 import suggestive.signals as signals
 from suggestive.error import CommandError
@@ -243,9 +242,6 @@ class PlaylistView(widget.SuggestiveListBox, View):
 
         walker = self.create_walker()
         super(PlaylistView, self).__init__(walker)
-
-        # Set command map after super so bindings don't get overwritten
-        self._command_map = bindings.AlbumListCommands
 
         self.model.register(self)
 

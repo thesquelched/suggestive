@@ -323,9 +323,6 @@ class LibraryView(widget.SuggestiveListBox, View):
         walker = self.create_walker()
         super(LibraryView, self).__init__(walker)
 
-        # Set command map after super so bindings don't get overwritten
-        self._command_map = bindings.AlbumListCommands
-
         self._model.register(self)
 
     @property
