@@ -38,8 +38,11 @@ class View(object):
 
 class Controller(object):
 
+    _registry = {}
+
     def __init__(self, model):
         self._model = model
+        self._registry[self.__class__.__name__] = self
 
     @property
     def model(self):
@@ -48,6 +51,9 @@ class Controller(object):
     @model.setter
     def model(self, newmodel):
         self._model = newmodel
+
+    def controller_for(self, name):
+        return self._registry[name]
 
 
 ######################################################################
@@ -90,5 +96,3 @@ class TrackModel(Model):
     @property
     def number(self):
         return self._number
-
-

@@ -17,7 +17,7 @@ from suggestive.buffer import (
 from suggestive.library import LibraryBuffer
 from suggestive.playlist import PlaylistBuffer
 import suggestive.signals as signals
-#from suggestive.mvc import View
+from suggestive.mvc import Controller
 
 import argparse
 import urwid
@@ -96,6 +96,8 @@ class MainView(urwid.Frame):
             'playlist': self.create_playlist_buffer('playlist' in default),
             'scrobbles': self.create_scrobbles_buffer('scrobbles' in default),
         }
+
+        logger.debug('Controller registry: {}'.format(Controller._registry))
 
         return buffers
 
