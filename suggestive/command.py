@@ -34,7 +34,7 @@ def typed(**params):
 
 class CommanderEdit(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = [signals.COMMAND_DONE, 'autocomplete']
+    signals = [signals.COMMAND_DONE, signals.AUTOCOMPLETE]
 
     def __init__(self, history):
         super(CommanderEdit, self).__init__(':')

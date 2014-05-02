@@ -156,7 +156,7 @@ class PlaylistController(Controller):
 })
 class TrackView(urwid.WidgetWrap, View, widget.Searchable):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['play', 'delete', 'move', 'love']
+    signals = [signals.PLAY, signals.DELETE, signals.MOVE, signals.LOVE]
 
     TRACK_FORMAT = '{artist} - {album} - {title}{suffix}'
 
@@ -355,7 +355,7 @@ class PlaylistView(widget.SuggestiveListBox, View):
 ######################################################################
 
 class PlaylistBuffer(Buffer):
-    signals = Buffer.signals + ['love_track', 'unlove_track']
+
     ITEM_FORMAT = '{artist} - {album} - {title}{suffix}'
 
     def __init__(self, conf, session):

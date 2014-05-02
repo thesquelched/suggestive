@@ -228,7 +228,7 @@ class LibraryController(Controller):
 })
 class TrackView(urwid.WidgetWrap, View, widget.Searchable):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['expand', 'play', 'enqueue', 'love']
+    signals = [signals.EXPAND, signals.PLAY, signals.ENQUEUE, signals.LOVE]
 
     FORMAT = '{number} - {name}{suffix}'
 
@@ -280,7 +280,7 @@ class TrackView(urwid.WidgetWrap, View, widget.Searchable):
 })
 class AlbumView(urwid.WidgetWrap, View, widget.Searchable):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['expand', 'play', 'enqueue']
+    signals = [signals.EXPAND, signals.PLAY, signals.ENQUEUE]
 
     def __init__(self, model, conf):
         View.__init__(self, model)
@@ -448,7 +448,6 @@ class LibraryView(widget.SuggestiveListBox, View):
 ######################################################################
 
 class LibraryBuffer(Buffer):
-    signals = Buffer.signals + ['update_playlist']
 
     def __init__(self, conf, session):
         self.conf = conf

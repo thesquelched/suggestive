@@ -236,7 +236,7 @@ class ScrobbleListWalker(urwid.ListWalker):
 
 class SuggestiveListBox(urwid.ListBox):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['set_footer']
+    signals = [signals.SET_FOOTER]
 
     def __init__(self, *args, **kwArgs):
         super(SuggestiveListBox, self).__init__(*args, **kwArgs)
