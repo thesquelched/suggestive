@@ -27,6 +27,7 @@ class View(object):
 
     def __init__(self, model):
         self._model = model
+        model.register(self)
 
     def update(self):
         pass
