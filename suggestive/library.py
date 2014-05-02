@@ -126,6 +126,7 @@ class LibraryController(Controller):
         except ValueError:
             self._orderers.append(orderer)
 
+        self.log_orderers()
         self.update_model()
 
     def clear_orderers(self):

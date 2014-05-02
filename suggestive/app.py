@@ -166,8 +166,6 @@ class MainView(urwid.Frame):
             if buf.active:
                 buffer_list.add(buf)
 
-        logger.debug(list(buffer_list))
-
         return buffer_list
 
     def next_buffer(self):
