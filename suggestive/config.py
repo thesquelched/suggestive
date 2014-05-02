@@ -88,8 +88,7 @@ class Config(object):
         ),
         library=dict(
             ignore_artist_the=True,
-            default_order='loved min=0 max=1;'
-                          'banned remove_banned=true',
+            default_order='loved; playcount; banned remove_banned=true',
             show_score=False,
             esc_resets_orderers=True,
         ),
