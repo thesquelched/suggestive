@@ -1,5 +1,4 @@
 import suggestive.widget as widget
-import suggestive.bindings as bindings
 import suggestive.mstat as mstat
 import suggestive.util as util
 import suggestive.analytics as analytics
@@ -39,9 +38,14 @@ class AlbumModel(Model):
 
 class LibraryModel(Model):
 
-    def __init__(self, albums):
+    def __init__(self, albums, tracks=None):
+        if tracks is None:
+            tracks = {}
+
         super(LibraryModel, self).__init__()
-        self.albums = albums
+
+        self._albums = albums
+        self._tracks = tracks
 
     def __repr__(self):
         return '<LibraryModel>'
@@ -57,6 +61,13 @@ class LibraryModel(Model):
             key=lambda album: album.score,
             reverse=True)
         self.update()
+
+    @property
+    def tracks(self):
+        return self._tracks
+
+    def track_model_for(self, db_track):
+        return self.tracks.get(db_track.id)
 
 
 ######################################################################
@@ -258,6 +269,7 @@ class TrackView(urwid.WidgetWrap, View, widget.Searchable):
             suffix='')
 
     def update(self):
+        logger.debug('Updated {}'.format(self))
         self._w.original_widget.set_text(self.text)
 
 
@@ -326,8 +338,6 @@ class LibraryView(widget.SuggestiveListBox, View):
         walker = self.create_walker()
         super(LibraryView, self).__init__(walker)
 
-        self._model.register(self)
-
     @property
     def controller(self):
         return self._controller
@@ -339,27 +349,27 @@ class LibraryView(widget.SuggestiveListBox, View):
 
     def library_items(self, model):
         if not model.albums:
-            body = [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
-        else:
-            body = []
-            for album_m in model.albums:
-                view = AlbumView(album_m, self._conf)
+            return [urwid.AttrMap(urwid.Text('No albums found'), 'album')]
 
-                urwid.connect_signal(
-                    view,
-                    signals.ENQUEUE,
-                    self.controller.enqueue_album)
-                urwid.connect_signal(
-                    view,
-                    signals.PLAY,
-                    self.controller.play_album)
-                urwid.connect_signal(
-                    view,
-                    signals.EXPAND,
-                    self.toggle_expand)
+        body = []
+        for album_m in model.albums:
+            view = AlbumView(album_m, self._conf)
 
-                # TODO: AttrMap here or inside of view?
-                body.append(view)
+            urwid.connect_signal(
+                view,
+                signals.ENQUEUE,
+                self.controller.enqueue_album)
+            urwid.connect_signal(
+                view,
+                signals.PLAY,
+                self.controller.play_album)
+            urwid.connect_signal(
+                view,
+                signals.EXPAND,
+                self.toggle_expand)
+
+            # TODO: AttrMap here or inside of view?
+            body.append(view)
 
         return body
 
@@ -372,8 +382,8 @@ class LibraryView(widget.SuggestiveListBox, View):
         current = self.focus_position
 
         sorted_tracks = self.controller.sort_tracks(album.tracks)
-        for track_no, track in sorted_tracks:
-            model = TrackModel(track, track_no)
+        for track_no, db_track in sorted_tracks:
+            model = TrackModel(db_track, track_no)
             track_view = TrackView(model, self._conf)
 
             urwid.connect_signal(
@@ -395,6 +405,7 @@ class LibraryView(widget.SuggestiveListBox, View):
                 self.controller.love_track)
 
             self.body.insert(current + 1, track_view)
+            self.controller.model.tracks[db_track.id] = model
 
         view.expanded = True
         self.set_focus_valign('top')
@@ -408,7 +419,8 @@ class LibraryView(widget.SuggestiveListBox, View):
 
         album = view.db_album
         for i in range(len(album.tracks)):
-            self.body.pop(album_index + 1)
+            track_view = self.body.pop(album_index + 1)
+            del self.controller.model.tracks[track_view.model.db_track.id]
 
         view.expanded = False
         self.body.set_focus(album_index)
@@ -423,7 +435,7 @@ class LibraryView(widget.SuggestiveListBox, View):
         """
         Toggle album track display
         """
-        logger.debug('Toggle: {}'.format(view))
+        logger.debug('Toggle: {} ({})'.format(view, view.expanded))
 
         if view.expanded:
             self.collapse_album(view)

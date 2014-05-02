@@ -89,6 +89,13 @@ class PlaylistController(Controller):
 
         view.update()
 
+        # Update expanded track model
+        lib_ctrl = self.controller_for('LibraryController')
+        track_model = lib_ctrl.model.track_model_for(db_track)
+        if track_model:
+            logger.debug('Update track model: {}'.format(track_model))
+            track_model.update()
+
     @mstat.mpd_retry
     def clear(self):
         self._mpd.stop()
@@ -242,8 +249,6 @@ class PlaylistView(widget.SuggestiveListBox, View):
 
         walker = self.create_walker()
         super(PlaylistView, self).__init__(walker)
-
-        self.model.register(self)
 
     @property
     def controller(self):
