@@ -90,7 +90,7 @@ class PlaylistController(Controller):
         view.update()
 
         # Update expanded track model
-        lib_ctrl = self.controller_for('LibraryController')
+        lib_ctrl = self.controller_for('library')
         track_model = lib_ctrl.model.track_model_for(db_track)
         if track_model:
             logger.debug('Update track model: {}'.format(track_model))

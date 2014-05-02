@@ -174,7 +174,7 @@ class LibraryController(Controller):
         view.update()
 
         # Update playlist, just in case the track we loved is in the playlist
-        self.controller_for('PlaylistController').model.update()
+        self.controller_for('playlist').model.update()
 
     @mstat.mpd_retry
     def mpd_tracks(self, tracks):

@@ -7,6 +7,11 @@ logger.addHandler(logging.NullHandler())
 
 class Model(object):
 
+    """
+    Model superclass.  A model may be registered with one or more views, which
+    will be updated when the model is.
+    """
+
     def __init__(self):
         self._views = []
 
@@ -25,6 +30,11 @@ class Model(object):
 
 class View(object):
 
+    """
+    View superclass.  Views always register themselves with the model that they
+    represent so that, when the model is updated, the view also updates.
+    """
+
     def __init__(self, model):
         self._model = model
         model.register(self)
@@ -39,11 +49,32 @@ class View(object):
 
 class Controller(object):
 
+    """
+    Controller superclass.  Any controller instances derived from this are
+    automatically registered, so that any controller can access another with
+    the 'controller_for' method.
+
+    Note that controllers should be de facto singletons.  If you instantiate
+    more than one instance of any controller, it will be registered in place of
+    the existing controller.
+    """
+
     _registry = {}
 
     def __init__(self, model):
         self._model = model
-        self._registry[self.__class__.__name__] = self
+
+        # The registered name (for the purpose of using 'controller_for') is
+        # the lowerclass class name without the 'Controller' suffix.  For
+        # example, LibraryController -> library
+        name = self.__class__.__name__
+        if not name.endswith('Controller'):
+            raise TypeError("Invalid controller name: {}; controller class "
+                            "names must end with 'Controller'".format(name))
+
+        controller_name = name[:-len('Controller')].lower()
+
+        self._registry[controller_name] = self
 
     @property
     def model(self):
@@ -54,7 +85,7 @@ class Controller(object):
         self._model = newmodel
 
     def controller_for(self, name):
-        return self._registry[name]
+        return self._registry[name.lower()]
 
 
 ######################################################################
@@ -62,6 +93,10 @@ class Controller(object):
 ######################################################################
 
 class TrackModel(Model):
+
+    """
+    Represents an album track with LastFM metadata.
+    """
 
     def __init__(self, db_track, number):
         super(TrackModel, self).__init__()
