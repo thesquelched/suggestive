@@ -52,7 +52,10 @@ class Controller(object):
     """
     Controller superclass.  Any controller instances derived from this are
     automatically registered, so that any controller can access another with
-    the 'controller_for' method.
+    the 'controller_for' method.  The registered name is the lowercase class
+    name without the 'Controller' suffix.  For example, 'LibraryController'
+    registers as 'library'.  If the class name does not end with 'Controller',
+    a TypeError will be raised.
 
     Note that controllers should be de facto singletons.  If you instantiate
     more than one instance of any controller, it will be registered in place of
@@ -65,7 +68,7 @@ class Controller(object):
         self._model = model
 
         # The registered name (for the purpose of using 'controller_for') is
-        # the lowerclass class name without the 'Controller' suffix.  For
+        # the lowercase class name without the 'Controller' suffix.  For
         # example, LibraryController -> library
         name = self.__class__.__name__
         if not name.endswith('Controller'):
