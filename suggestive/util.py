@@ -1,6 +1,7 @@
 import logging
 import re
 
+
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
@@ -33,4 +34,3 @@ def track_num(trackno):
 
     simplified = re.sub(r'(\d+)/\d+', r'\1', str(trackno))
     return int(simplified)
-

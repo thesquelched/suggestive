@@ -3,9 +3,8 @@ TODO
 
 Bug fixes
 ---------
-- Expand/collapse does not always keep cursor on album
-- Loving entire album doesn't refresh tracks display when expanded
 - Intelligently truncate playlist track display
+- ~~Expand/collapse does not always keep cursor on album~~
 - ~~ESC shouldn't move cursor to the top of the screen~~
 - ~~Cycling through buffers doesn't work when next buffer doesn't accept focus~~
 - ~~Opening and closing vertical buffers now works correctly~~
@@ -23,7 +22,6 @@ New features
 - Color code part of track title (like blue album, red artist, yellow song)
 - Link albums so that they are always displayed as one
 - Binding to filter on album/artist in playlist
-- Command to perform MPD update on selected album
 - Tiling buffer manager?
 - Shuffle buffer order
 - ~~Added keybindings for (un)love~~

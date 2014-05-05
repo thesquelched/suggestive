@@ -93,8 +93,7 @@ General
 - `p` - Pause/resume playback
 - `<C-w>` - Switch between open buffers
 - `r` - Reload library (useful to recalculate album order)
-- `L` - Love selection
-- `U` - Unlove selection
+- `L` - Toggle track loved status
 
 Movement
 --------
@@ -168,8 +167,6 @@ Library
 - `:sort <reverse=false>` - Sort albums using the string 'artist - album'
 - `:reset` - Reset library order to default
 - `:unorder` - Remove all orderings (Alias: `unordered`)
-- `:love` - Mark the selected album/track loved in LastFM
-- `:unlove` - Mark the selected album/track unloved in LastFM
 
 ### Custom order commands
 

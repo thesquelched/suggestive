@@ -4,6 +4,9 @@ import re
 import logging
 
 
+# TODO: Use properties
+
+
 SECONDS_IN_DAY = 24 * 3600
 CONFIG_PATHS = [
     '$HOME/.suggestive.conf',
@@ -85,8 +88,7 @@ class Config(object):
         ),
         library=dict(
             ignore_artist_the=True,
-            default_order='loved min=0 max=1;'
-                          'banned remove_banned=true',
+            default_order='loved; playcount; banned remove_banned=true',
             show_score=False,
             esc_resets_orderers=True,
         ),
@@ -203,8 +205,12 @@ class Config(object):
                           colors['playlist_focus_bg'])
 
         scrobble = (colors['scrobble_fg'], colors['scrobble_bg'])
-        scrobble_focus = (colors['scrobble_focus_fg'], colors['scrobble_focus_bg'])
-        scrobble_date = (colors['scrobble_date_fg'], colors['scrobble_date_bg'])
+        scrobble_focus = (
+            colors['scrobble_focus_fg'],
+            colors['scrobble_focus_bg'])
+        scrobble_date = (
+            colors['scrobble_date_fg'],
+            colors['scrobble_date_bg'])
 
         track = (colors['track_fg'], colors['track_bg'])
         track_focus = (colors['track_focus_fg'], colors['track_focus_bg'])
@@ -228,7 +234,7 @@ class Config(object):
             self._palette('playlist', playlist),
             self._palette('focus playlist', playlist_focus),
             self._palette('playing', playlist, bold=True),
-            self._palette('playing focus', playlist_focus, bold=True,
+            self._palette('focus playing', playlist_focus, bold=True,
                           invert=True),
 
             self._palette('track', track),

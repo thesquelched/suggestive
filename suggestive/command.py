@@ -1,3 +1,5 @@
+import suggestive.signals as signals
+
 import urwid
 import re
 import shlex
@@ -32,7 +34,7 @@ def typed(**params):
 
 class CommanderEdit(urwid.Edit):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = ['command_done', 'autocomplete']
+    signals = [signals.COMMAND_DONE, signals.AUTOCOMPLETE]
 
     def __init__(self, history):
         super(CommanderEdit, self).__init__(':')
@@ -42,9 +44,10 @@ class CommanderEdit(urwid.Edit):
 
     def keypress(self, size, key):
         if key == 'enter':
-            urwid.emit_signal(self, 'command_done', self.get_edit_text())
+            text = self.get_edit_text()
+            urwid.emit_signal(self, signals.COMMAND_DONE, text)
         elif key == 'esc':
-            urwid.emit_signal(self, 'command_done', None)
+            urwid.emit_signal(self, signals.COMMAND_DONE, None)
         elif key in ('up', 'down'):
             self.get_history(key)
         elif key == 'tab':
@@ -55,7 +58,7 @@ class CommanderEdit(urwid.Edit):
         return True
 
     def autocomplete(self):
-        urwid.emit_signal(self, 'autocomplete', self.get_edit_text())
+        urwid.emit_signal(self, signals.AUTOCOMPLETE, self.get_edit_text())
 
     def get_history(self, key):
         if not self.history:
