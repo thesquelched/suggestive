@@ -34,6 +34,8 @@ optional arguments:
   --log LOG, -l LOG     Log file path
   --config CONFIG, -c CONFIG
                         Config file path
+  --update, -u          Update database
+  --no_update, -U       Do not update database
 ```
 
 Configuration
@@ -66,11 +68,9 @@ A [sample configuration file](suggestive.conf.example) is available.
 Known Issues
 ============
 
-`suggestive` is still very early in development, although it is quite
-functional already.  However, there are some outstanding issues:
-
-- Non-fatal exceptions may temporarily show up in the terminal
-- Opening/closing new buffers doesn't work well for vertical orientation
+Although I am using `suggestive` as my full-time MPD client, it's still
+somewhat early in development, and you might encounter some problems while
+using it.
 
 Sometimes, you can resolve an issue by deleting/renaming the `suggestive`
 database file (`$HOME/.suggestive/music.db` by default), and then re-running
@@ -186,8 +186,8 @@ mycommand = unorder; loved max=0; playcount
 just like any other orderer.
 
 
-Development
-===========
+Development Notes
+=================
 
 Database Migrations
 -------------------

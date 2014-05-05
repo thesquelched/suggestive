@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='suggestive',
-    version='0.2.2',
+    version='0.3.0',
     description='Python MPD client with integrated Last.FM support',
     author='Scott Kruger',
     author_email='thesquelched+python@gmail.com',
@@ -11,16 +11,18 @@ setup(
     keywords='suggestive mpd lastfm music',
 
     packages=['suggestive'],
-    entry_points = {
+    entry_points={
         'console_scripts': [
             'suggestive = suggestive.app:main',
         ],
     },
 
     package_data={
-        'suggestive': ['alembic/env.py',
-                        'alembic/script.py.mako',
-                        'alembic/versions/*.py'],
+        'suggestive': [
+            'alembic/env.py',
+            'alembic/script.py.mako',
+            'alembic/versions/*.py'
+        ],
     },
     install_requires=[
         'urwid>=1.1.1',

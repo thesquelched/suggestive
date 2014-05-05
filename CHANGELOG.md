@@ -1,25 +1,30 @@
-Development
-===========
+Version 0.3.0
+=============
 
 Improvements
 ------------
 - Search can now be performed forward or backward
 - Playlist now supports search and shares the same pattern with the library
 - Save/load playlists
-- You may now rearrange items in the playlist
+- You may now rearrange items in the playlist using the `m` binding
 - Added custom orderer commands, similar to the 'default_orderer' option
 - Added a 'recent scrobbles' buffer that also lists tracks played in the
   current session
+- Replaced the `love` and `unlove` commands with the `L` binding, which toggles
+  the loved status on the focused item
 
 Bug Fixes
 ---------
+- Improved reliability due to a large-scale refactor
+- Collapsing an album now properly focuses on that album, instead of the next
+  one
 - The library attempts to remember the last selected album when the album list
   is updated
 - Search works properly when library is updated or albums are expanded
 - Fixed adding/removing buffers in vertical orientation
 - Loved ordering no longer reintroduces filtered-out albums
 - Cycling through buffers works when the next buffer won't accept focus
-- Fixed mpd and suggestive database updates
+- Fixed several bugs with database updates
 
 
 Version 0.2.1
