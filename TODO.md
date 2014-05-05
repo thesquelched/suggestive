@@ -3,14 +3,9 @@ TODO
 
 Bug fixes
 ---------
-- ~~Expand/collapse does not always keep cursor on album~~
-- ~~ESC shouldn't move cursor to the top of the screen~~
-- ~~Cycling through buffers doesn't work when next buffer doesn't accept focus~~
-- ~~Opening and closing vertical buffers now works correctly~~
-- ~~Search is not updated for expanded tracks~~
-- ~~Track ordering is not correct~~
-- ~~Update should remove items that have been delete from the MPD DB~~
-- ~~Loving songs in playlist should cause library redraw if album is expanded~~
+
+Bugs will be tracked using the [GitHub issue tracker](https://github.com/thesquelched/suggestive/issues?state=open).
+
 
 New features
 ------------
