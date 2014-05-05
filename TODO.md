@@ -3,7 +3,6 @@ TODO
 
 Bug fixes
 ---------
-- Intelligently truncate playlist track display
 - ~~Expand/collapse does not always keep cursor on album~~
 - ~~ESC shouldn't move cursor to the top of the screen~~
 - ~~Cycling through buffers doesn't work when next buffer doesn't accept focus~~
@@ -15,6 +14,7 @@ Bug fixes
 
 New features
 ------------
+- Intelligently truncate playlist track display
 - Tag songs with lastfm metadata
 - Less crappy command completion
 - Complete command arguments
