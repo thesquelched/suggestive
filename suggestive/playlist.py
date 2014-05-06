@@ -20,9 +20,10 @@ logger.addHandler(logging.NullHandler())
 
 class PlaylistModel(Model):
 
-    def __init__(self, tracks):
+    def __init__(self):
         super(PlaylistModel, self).__init__()
-        self._tracks = tracks
+        self._tracks = []
+        self._mpd_playlist = []
 
     def __repr__(self):
         return '<PlaylistModel>'
@@ -38,6 +39,14 @@ class PlaylistModel(Model):
 
         self._tracks = newtracks
         self.update()
+
+    @property
+    def mpd_playlist(self):
+        return self._mpd_playlist
+
+    @mpd_playlist.setter
+    def mpd_playlist(self, tracks):
+        self._mpd_playlist = tracks
 
     def track_ids(self, tracks):
         return [track.db_track.id for track in tracks]
@@ -134,9 +143,7 @@ class PlaylistController(Controller):
         else:
             return None
 
-    def playlist_tracks(self):
-        playlist = self.mpd_playlist()
-
+    def playlist_tracks(self, playlist):
         models = []
         for position, track in enumerate(playlist):
             db_track = mstat.database_track_from_mpd(self.conf, track)
@@ -145,7 +152,12 @@ class PlaylistController(Controller):
         return models
 
     def update_model(self):
-        self.model.tracks = self.playlist_tracks()
+        playlist = self.mpd_playlist()
+        if playlist == self.model.mpd_playlist:
+            return
+
+        self.model.mpd_playlist = playlist
+        self.model.tracks = self.playlist_tracks(playlist)
 
     def track_model_for(self, db_track):
         return next(
@@ -371,7 +383,7 @@ class PlaylistBuffer(Buffer):
 
     def __init__(self, conf, async_runner):
         self.conf = conf
-        self.model = PlaylistModel([])
+        self.model = PlaylistModel()
         self.controller = PlaylistController(self.model, conf, async_runner)
         self.view = PlaylistView(self.model, self.controller, conf)
 
