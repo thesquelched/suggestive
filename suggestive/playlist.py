@@ -120,7 +120,6 @@ class PlaylistController(Controller):
         lib_ctrl = self.controller_for('library')
         track_model = lib_ctrl.model.track_model_for(db_track)
         if track_model:
-            logger.debug('Update track model: {}'.format(track_model))
             track_model.db_track = new_track
 
     @mstat.mpd_retry
@@ -157,14 +156,15 @@ class PlaylistController(Controller):
             return None
 
     def playlist_tracks(self, playlist, positions):
-        logger.debug('Playlist: {}'.format(playlist))
-        models = []
-        for position, track in zip(positions, playlist):
-            db_track = mstat.database_track_from_mpd(self.conf, track)
-            model = TrackModel(db_track, position)
-            models.append(model)
+        logger.debug('Get playlist tracks from db')
 
-        return models
+        db_tracks = mstat.database_tracks_from_mpd(self.conf, playlist)
+
+        logger.debug('Create models')
+        return [
+            TrackModel(db_track, position)
+            for db_track, position in zip(db_tracks, positions)
+        ]
 
     def track_models(self, playlist, current_tracks):
         """
@@ -192,17 +192,26 @@ class PlaylistController(Controller):
         return new_tracks
 
     def update_model(self):
+        logger.debug('Begin playlist model update')
         playlist = self.mpd_playlist()
         if playlist == self.model.mpd_playlist:
+            logger.debug('No playlist changes; aborting')
             return
 
+        logger.debug('Get current tracks')
         current_tracks = self.model.playlist_tracks
 
         # Update the playlist immediately so that extraneous attempts to update
         # the playlist will be ignored
+        logger.debug('Set model playlist')
         self.model.mpd_playlist = playlist
 
-        self.model.tracks = self.track_models(playlist, current_tracks)
+        logger.debug('Get track models')
+        models = self.track_models(playlist, current_tracks)
+
+        logger.debug('Set track models')
+        self.model.tracks = models
+        logger.debug('Finished playlist model update')
 
     def track_model_for(self, db_track):
         return next(

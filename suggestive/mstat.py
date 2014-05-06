@@ -115,15 +115,24 @@ def database_track_from_mpd(conf, track_info):
     """
     Return the database Track object corresponding to track info from MPD
     """
+    tracks = database_tracks_from_mpd(conf, [track_info])
+    return tracks[0] if tracks else None
+
+
+def database_tracks_from_mpd(conf, tracks_info):
+    """
+    Return the database Track object corresponding to track info from MPD
+    """
     with session_scope(conf, commit=False) as session:
+        filenames = [info['file'] for info in tracks_info]
         return session.query(Track).\
             options(
                 subqueryload(Track.album),
                 subqueryload(Track.artist),
                 subqueryload(Track.lastfm_info)
             ).\
-            filter_by(filename=track_info['file']).\
-            first()
+            filter(Track.filename.in_(filenames)).\
+            all()
 
 
 def get_scrobbles(session, limit, offset=None):
