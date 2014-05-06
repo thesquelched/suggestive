@@ -192,9 +192,8 @@ class Buffer(urwid.Frame, Commandable):
 
 class ScrobbleBuffer(Buffer):
 
-    def __init__(self, conf, session):
+    def __init__(self, conf, event_loop):
         self.conf = conf
-        self.session = session
 
         self.scrobble_list = self.create_scrobble_list()
         self.current_song_id = None
@@ -204,12 +203,16 @@ class ScrobbleBuffer(Buffer):
 
         self.update_status('Scrobbles')
 
+    def session(self, **kwArgs):
+        return mstat.session_scope(self.conf, **kwArgs)
+
     def create_scrobble_list(self, previous=None, plays=None):
-        walker = widget.ScrobbleListWalker(
-            self.conf,
-            self.session,
-            previous,
-            plays)
+        with self.session(commit=False) as session:
+            walker = widget.ScrobbleListWalker(
+                self.conf,
+                session,
+                previous,
+                plays)
         return widget.SuggestiveListBox(walker)
 
     def update(self, *args):
@@ -220,7 +223,10 @@ class ScrobbleBuffer(Buffer):
         if songid != self.current_song_id:
             try:
                 info = mpd.playlistid(songid)[0]
-                db_track = mstat.database_track_from_mpd(self.session, info)
+                with self.session(commit=False) as session:
+                    db_track = mstat.database_track_from_mpd(
+                        session,
+                        info)
                 self.plays.insert(0, db_track)
                 logger.debug('Plays: {}'.format(self.plays))
             except (MpdCommandError, IndexError):

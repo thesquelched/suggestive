@@ -1,3 +1,5 @@
+import suggestive.mstat as mstat
+
 import logging
 
 
@@ -64,8 +66,10 @@ class Controller(object):
 
     _registry = {}
 
-    def __init__(self, model):
+    def __init__(self, model, conf, async_runner):
         self._model = model
+        self._conf = conf
+        self._async_runner = async_runner
 
         # The registered name (for the purpose of using 'controller_for') is
         # the lowercase class name without the 'Controller' suffix.  For
@@ -87,8 +91,18 @@ class Controller(object):
     def model(self, newmodel):
         self._model = newmodel
 
+    @property
+    def conf(self):
+        return self._conf
+
+    def session(self, **kwArgs):
+        return mstat.session_scope(self.conf, **kwArgs)
+
     def controller_for(self, name):
         return self._registry[name.lower()]
+
+    def run_async(self, func):
+        self._async_runner.run_async(func)
 
 
 ######################################################################
@@ -110,26 +124,31 @@ class TrackModel(Model):
     def db_track(self):
         return self._db_track
 
+    @db_track.setter
+    def db_track(self, track):
+        self._db_track = track
+        self.update()
+
     @property
     def db_album(self):
-        return self._db_track.album
+        return self.db_track.album
 
     @property
     def db_artist(self):
-        return self._db_track.artist
+        return self.db_track.artist
 
     @property
     def name(self):
-        return self._db_track.name
+        return self.db_track.name
 
     @property
     def loved(self):
-        info = self._db_track.lastfm_info
+        info = self.db_track.lastfm_info
         return info and info.loved
 
     @property
     def banned(self):
-        info = self._db_track.lastfm_info
+        info = self.db_track.lastfm_info
         return info and info.banned
 
     @property

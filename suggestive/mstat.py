@@ -6,6 +6,7 @@ from suggestive.model import (
 import logging
 from mpd import MPDClient
 from sqlalchemy import create_engine, func
+from sqlalchemy.orm import subqueryload
 from datetime import datetime, timedelta
 from collections import defaultdict
 from itertools import chain
@@ -110,11 +111,19 @@ def get_playlist_track(session, config, index):
         return None
 
 
-def database_track_from_mpd(session, track_info):
+def database_track_from_mpd(conf, track_info):
     """
     Return the database Track object corresponding to track info from MPD
     """
-    return session.query(Track).filter_by(filename=track_info['file']).first()
+    with session_scope(conf, commit=False) as session:
+        return session.query(Track).\
+            options(
+                subqueryload(Track.album),
+                subqueryload(Track.artist),
+                subqueryload(Track.lastfm_info)
+            ).\
+            filter_by(filename=track_info['file']).\
+            first()
 
 
 def get_scrobbles(session, limit, offset=None):
@@ -132,6 +141,18 @@ def get_scrobbles(session, limit, offset=None):
         query = query.offset(offset)
 
     return query.all()
+
+
+def get_album_tracks(conf, album):
+    with session_scope(conf, commit=False) as session:
+        return session.query(Track).\
+            options(
+                subqueryload(Track.album),
+                subqueryload(Track.artist),
+                subqueryload(Track.lastfm_info)
+            ).\
+            filter(Track.album_id == album.id).\
+            all()
 
 
 ######################################################################
@@ -746,19 +767,21 @@ def load_scrobble_batch(session, lastfm, conf, batch):
 # Action helpers
 ######################################################################
 
-def set_track_loved(session, lastfm, track, loved=True):
+def get_db_track(conf, track_id):
+    with session_scope(conf, commit=False) as session:
+        return session.query(Track).\
+            options(
+                subqueryload(Track.album),
+                subqueryload(Track.artist),
+                subqueryload(Track.lastfm_info)
+            ).\
+            get(track_id)
+
+
+def set_track_loved(conf, lastfm, track, loved=True):
     """
     Mark the track loved (or unloved), then synchronize with LastFM
     """
-    db_track_info = track.lastfm_info
-    if db_track_info is None:
-        db_track_info = LastfmTrackInfo()
-        track.lastfm_info = db_track_info
-        session.add(db_track_info)
-
-    # Mark loved in DB
-    db_track_info.loved = bool(loved)
-
     # Mark loved in LastFM
     method = lastfm.love_track if loved else lastfm.unlove_track
     success = method(track.artist.name, track.name)
@@ -767,7 +790,21 @@ def set_track_loved(session, lastfm, track, loved=True):
         track.name,
         'loved' if loved else 'unloved',
         'successful' if success else 'failed'))
-    return success
+
+    if not success:
+        raise ValueError('Could not togle track loved')
+
+    with session_scope(conf, commit=True) as session:
+        db_track = session.query(Track).get(track.id)
+
+        db_track_info = db_track.lastfm_info
+        if db_track_info is None:
+            db_track_info = LastfmTrackInfo()
+            db_track.lastfm_info = db_track_info
+            session.add(db_track_info)
+
+        # Mark loved in DB
+        db_track_info.loved = bool(loved)
 
 
 def set_track_unloved(session, lastfm, track):

@@ -5,6 +5,7 @@ import logging
 import re
 import sys
 from sqlalchemy import func, Integer, distinct
+from sqlalchemy.orm import subqueryload
 from itertools import repeat
 from collections import defaultdict
 from operator import itemgetter
@@ -38,9 +39,15 @@ class BaseOrder(OrderDecorator):
     """Initialize all albums with unity order"""
 
     def order(self, albums, session, mpd):
+        db_albums = session.query(Album).\
+            options(
+                subqueryload(Album.artist),
+            ).\
+            all()
+
         return defaultdict(
             lambda: 1.0,
-            zip(session.query(Album).all(), repeat(1.0))
+            zip(db_albums, repeat(1.0))
         )
 
 
@@ -307,15 +314,16 @@ class Analytics(object):
     def __init__(self, conf):
         self.conf = conf
 
-    def order_albums(self, session, orderers=None):
+    def order_albums(self, orderers=None):
         mpd = mstat.initialize_mpd(self.conf)
 
         if orderers is None:
             orderers = [BaseOrder()]
 
         ordered = {}
-        for album_orderer in orderers:
-            ordered = album_orderer.order(ordered, session, mpd)
+        with mstat.session_scope(self.conf, commit=False) as session:
+            for album_orderer in orderers:
+                ordered = album_orderer.order(ordered, session, mpd)
 
         sorted_order = sorted(
             ordered.items(),

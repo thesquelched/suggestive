@@ -76,15 +76,13 @@ class LibraryModel(Model):
 
 class LibraryController(Controller):
 
-    def __init__(self, model, conf, session):
-        super(LibraryController, self).__init__(model)
-        self._conf = conf
+    def __init__(self, model, conf, async_runner):
+        super(LibraryController, self).__init__(model, conf, async_runner)
 
         self._default_orderers = [analytics.BaseOrder()]
 
         # Connections
         self._mpd = mstat.initialize_mpd(conf)
-        self._session = session
         self._lastfm = mstat.initialize_lastfm(conf)
 
         self._anl = analytics.Analytics(conf)
@@ -104,6 +102,9 @@ class LibraryController(Controller):
             self.log_orderers()
             self.update_model()
 
+    def album_tracks(self, album):
+        return mstat.get_album_tracks(self.conf, album)
+
     def log_orderers(self):
         logger.debug('Orderers: {}'.format(
             ', '.join(map(repr, self.orderers))))
@@ -115,7 +116,7 @@ class LibraryController(Controller):
         self.model.albums = self.order_albums()
 
     def order_albums(self):
-        suggestions = self._anl.order_albums(self._session, self._orderers)
+        suggestions = self._anl.order_albums(self._orderers)
         return [AlbumModel(s.album, s.order) for s in suggestions]
 
     def add_orderer(self, orderer_class, *args, **kwArgs):
@@ -143,7 +144,7 @@ class LibraryController(Controller):
 
     #signal_handler
     def enqueue_album(self, view):
-        self.enqueue_tracks(view.db_album.tracks)
+        self.enqueue_tracks(self.album_tracks(view.db_album))
 
     #signal_handler
     def enqueue_track(self, view):
@@ -151,7 +152,7 @@ class LibraryController(Controller):
 
     #signal_handler
     def play_album(self, view):
-        self.play_tracks(view.db_album.tracks)
+        self.play_tracks(self.album_tracks(view.db_album))
 
     #signal_handler
     def play_track(self, view):
@@ -165,17 +166,19 @@ class LibraryController(Controller):
         db_track = view.model.db_track
         loved = db_track.lastfm_info.loved if db_track.lastfm_info else False
         mstat.set_track_loved(
-            self._session,
+            self.conf,
             self._lastfm,
             db_track,
             loved=not loved)
 
-        self._session.commit()
-
-        view.update()
+        new_track = mstat.get_db_track(self.conf, db_track.id)
+        view.model.db_track = new_track
 
         # Update playlist, just in case the track we loved is in the playlist
-        self.controller_for('playlist').model.update()
+        #self.controller_for('playlist').model.update()
+        model = self.controller_for('playlist').track_model_for(new_track)
+        if model:
+            model.db_track = new_track
 
     @mstat.mpd_retry
     def mpd_tracks(self, tracks):
@@ -382,7 +385,8 @@ class LibraryView(widget.SuggestiveListBox, View):
         album = view.db_album
         current = self.focus_position
 
-        sorted_tracks = self.controller.sort_tracks(album.tracks)
+        album_tracks = self.controller.album_tracks(album)
+        sorted_tracks = self.controller.sort_tracks(album_tracks)
         for track_no, db_track in sorted_tracks:
             model = TrackModel(db_track, track_no)
             track_view = TrackView(model, self._conf)
@@ -418,8 +422,8 @@ class LibraryView(widget.SuggestiveListBox, View):
     def collapse_album(self, view):
         album_index = self.album_index(view)
 
-        album = view.db_album
-        for i in range(len(album.tracks)):
+        album_tracks = self.controller.album_tracks(view.db_album)
+        for i in range(len(album_tracks)):
             track_view = self.body.pop(album_index + 1)
             del self.controller.model.tracks[track_view.model.db_track.id]
 
@@ -450,10 +454,10 @@ class LibraryView(widget.SuggestiveListBox, View):
 
 class LibraryBuffer(Buffer):
 
-    def __init__(self, conf, session):
+    def __init__(self, conf, async_runner):
         self.conf = conf
         self.model = LibraryModel([])
-        self.controller = LibraryController(self.model, conf, session)
+        self.controller = LibraryController(self.model, conf, async_runner)
         self.view = LibraryView(self.model, self.controller, conf)
 
         super(LibraryBuffer, self).__init__(self.view)

@@ -45,9 +45,9 @@ class MainView(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
     signals = [signals.SET_FOOTER, signals.SET_FOCUS]
 
-    def __init__(self, conf, session):
+    def __init__(self, conf, async_runner):
         self._conf = conf
-        self._session = session
+        self._async_runner = async_runner
 
         self._buffers = self.initialize_buffers()
         self._buffer_list = self.create_buffer_list()
@@ -62,7 +62,7 @@ class MainView(urwid.Frame):
 
     @property
     def session(self):
-        return self._session
+        return mstat.initialize_session(self.conf)
 
     @property
     def conf(self):
@@ -102,7 +102,7 @@ class MainView(urwid.Frame):
         return buffers
 
     def create_library_buffer(self, active=False):
-        buf = LibraryBuffer(self.conf, self.session)
+        buf = LibraryBuffer(self.conf, self._async_runner)
         buf.active = active
         urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
         urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
@@ -110,7 +110,7 @@ class MainView(urwid.Frame):
         return buf
 
     def create_playlist_buffer(self, active=False):
-        buf = PlaylistBuffer(self.conf, self.session)
+        buf = PlaylistBuffer(self.conf, self._async_runner)
         buf.active = active
         urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
         urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
@@ -118,7 +118,7 @@ class MainView(urwid.Frame):
         return buf
 
     def create_scrobbles_buffer(self, active=False):
-        buf = ScrobbleBuffer(self.conf, self.session)
+        buf = ScrobbleBuffer(self.conf, self._async_runner)
         buf.active = active
         urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
         urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
@@ -187,20 +187,41 @@ class MainView(urwid.Frame):
         self.set_focus(to_focus)
 
 
+class AsyncRunner(object):
+
+    def __init__(self):
+        self._event_loop = None
+
+    @property
+    def event_loop(self):
+        return self._event_loop
+
+    @event_loop.setter
+    def event_loop(self, loop):
+        self._event_loop = loop
+
+    def run_async(self, func):
+        if self.event_loop is None:
+            raise TypeError('Event loop is not initialized')
+
+        self.event_loop.set_alarm_in(0, lambda *args: func())
+
+
 class Application(Commandable):
     """
     Application class for urwid interface
     """
 
-    def __init__(self, args, conf, session):
+    def __init__(self, args, conf):
         self.conf = conf
-        self.session = session
 
         self._mpd = mstat.initialize_mpd(conf)
         self.quit_event = threading.Event()
 
-        self.top = MainView(conf, session)
-        self.event_loop = self.main_loop()
+        async_runner = AsyncRunner()
+        self.top = MainView(conf, async_runner)
+
+        self.event_loop = async_runner.event_loop = self.main_loop()
 
         self.bindings = self.setup_bindings()
         self.commands = self.setup_commands()
@@ -279,7 +300,7 @@ class Application(Commandable):
 
     def update_library_event(self):
         logger.info('Updating library')
-        self.session.expire_all()
+        #self.session.expire_all()
         self.event_loop.set_alarm_in(
             0,
             lambda *args: self.top.library.controller.update_model())
@@ -532,18 +553,17 @@ def run(args):
         fm = mstat.initialize_lastfm(conf)
         assert(fm.session_key is not None)
 
-    with mstat.session_scope(conf, commit=False) as main_session:
-        try:
-            logger.debug('Starting event loop')
-            app = Application(args, conf, main_session)
-            app.event_loop.run()
-        except KeyboardInterrupt:
-            logger.error("Exited via keyboard interrupt; next time, use 'q'")
-        except Exception as err:
-            import traceback
-            logger.critical('Encountered exception: {}'.format(err))
-            logger.critical(traceback.format_exc())
-            raise
+    try:
+        logger.debug('Starting event loop')
+        app = Application(args, conf)
+        app.event_loop.run()
+    except KeyboardInterrupt:
+        logger.error("Exited via keyboard interrupt; next time, use 'q'")
+    except Exception as err:
+        import traceback
+        logger.critical('Encountered exception: {}'.format(err))
+        logger.critical(traceback.format_exc())
+        raise
 
 
 def main():

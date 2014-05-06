@@ -22,7 +22,7 @@ class PlaylistModel(Model):
 
     def __init__(self, tracks):
         super(PlaylistModel, self).__init__()
-        self.tracks = tracks
+        self._tracks = tracks
 
     def __repr__(self):
         return '<PlaylistModel>'
@@ -33,8 +33,14 @@ class PlaylistModel(Model):
 
     @tracks.setter
     def tracks(self, newtracks):
+        if self.track_ids(self._tracks) == self.track_ids(newtracks):
+            return
+
         self._tracks = newtracks
         self.update()
+
+    def track_ids(self, tracks):
+        return set(track.db_track.id for track in tracks)
 
 
 ######################################################################
@@ -43,14 +49,13 @@ class PlaylistModel(Model):
 
 class PlaylistController(Controller):
 
-    def __init__(self, model, conf, session):
-        super(PlaylistController, self).__init__(model)
+    def __init__(self, model, conf, async_runner):
+        super(PlaylistController, self).__init__(model, conf, async_runner)
         self._conf = conf
 
         # Connections
         self._mpd = mstat.initialize_mpd(conf)
         self._lastfm = mstat.initialize_lastfm(conf)
-        self._session = session
 
         # Initialize
         self.update_model()
@@ -66,8 +71,13 @@ class PlaylistController(Controller):
         self._mpd.play(view.model.number)
 
     # Signal handler
-    @mstat.mpd_retry
+
     def delete_track(self, view):
+        logger.debug('Delete async')
+        self.run_async(lambda: self._delete_track(view))
+
+    @mstat.mpd_retry
+    def _delete_track(self, view):
         logger.info('Delete playlist track: {}'.format(view.canonical_text))
         self._mpd.delete(view.model.number)
         self.update_model()
@@ -79,22 +89,22 @@ class PlaylistController(Controller):
 
         db_track = view.model.db_track
         loved = db_track.lastfm_info.loved if db_track.lastfm_info else False
+
         mstat.set_track_loved(
-            self._session,
+            self.conf,
             self._lastfm,
             db_track,
             loved=not loved)
 
-        self._session.commit()
-
-        view.update()
+        new_track = mstat.get_db_track(self.conf, db_track.id)
+        view.model.db_track = new_track
 
         # Update expanded track model
         lib_ctrl = self.controller_for('library')
         track_model = lib_ctrl.model.track_model_for(db_track)
         if track_model:
             logger.debug('Update track model: {}'.format(track_model))
-            track_model.update()
+            track_model.db_track = new_track
 
     @mstat.mpd_retry
     def clear(self):
@@ -134,14 +144,20 @@ class PlaylistController(Controller):
 
         models = []
         for position, track in enumerate(playlist):
-            db_track = mstat.database_track_from_mpd(self._session, track)
+            db_track = mstat.database_track_from_mpd(self.conf, track)
             models.append(TrackModel(db_track, position))
 
         return models
 
     def update_model(self):
-        logger.debug('Updating PlaylistController model')
         self.model.tracks = self.playlist_tracks()
+
+    def track_model_for(self, db_track):
+        return next(
+            (track for track in self.model.tracks if
+             track.db_track.id == db_track.id),
+            None
+        )
 
 
 ######################################################################
@@ -358,10 +374,10 @@ class PlaylistBuffer(Buffer):
 
     ITEM_FORMAT = '{artist} - {album} - {title}{suffix}'
 
-    def __init__(self, conf, session):
+    def __init__(self, conf, async_runner):
         self.conf = conf
         self.model = PlaylistModel([])
-        self.controller = PlaylistController(self.model, conf, session)
+        self.controller = PlaylistController(self.model, conf, async_runner)
         self.view = PlaylistView(self.model, self.controller, conf)
 
         self.current_track = None
