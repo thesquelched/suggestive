@@ -24,6 +24,7 @@ class PlaylistModel(Model):
         super(PlaylistModel, self).__init__()
         self._tracks = []
         self._mpd_playlist = []
+        self._playlist_tracks = {}
 
     def __repr__(self):
         return '<PlaylistModel>'
@@ -38,6 +39,7 @@ class PlaylistModel(Model):
             return
 
         self._tracks = newtracks
+        self.update_playlist_tracks()
         self.update()
 
     @property
@@ -47,9 +49,20 @@ class PlaylistModel(Model):
     @mpd_playlist.setter
     def mpd_playlist(self, tracks):
         self._mpd_playlist = tracks
+        self.update_playlist_tracks()
 
     def track_ids(self, tracks):
         return [track.db_track.id for track in tracks]
+
+    def update_playlist_tracks(self):
+        self._playlist_tracks = {
+            item['id']: track
+            for item, track in zip(self.mpd_playlist, self.tracks)
+        }
+
+    @property
+    def playlist_tracks(self):
+        return self._playlist_tracks
 
 
 ######################################################################
@@ -143,21 +156,53 @@ class PlaylistController(Controller):
         else:
             return None
 
-    def playlist_tracks(self, playlist):
+    def playlist_tracks(self, playlist, positions):
+        logger.debug('Playlist: {}'.format(playlist))
         models = []
-        for position, track in enumerate(playlist):
+        for position, track in zip(positions, playlist):
             db_track = mstat.database_track_from_mpd(self.conf, track)
-            models.append(TrackModel(db_track, position))
+            model = TrackModel(db_track, position)
+            models.append(model)
 
         return models
+
+    def track_models(self, playlist, current_tracks):
+        """
+        Construct a list of TrackModels from the current playlist and the
+        current list of track models
+        """
+        new_tracks = [None] * len(playlist)
+        missing = []
+        for position, item in enumerate(playlist):
+            if item['id'] in current_tracks:
+                track = TrackModel(
+                    current_tracks[item['id']].db_track,
+                    position)
+                new_tracks[position] = track
+            else:
+                missing.append((position, item))
+
+        if missing:
+            positions, missing_playlist = zip(*missing)
+            for track in self.playlist_tracks(missing_playlist, positions):
+                new_tracks[track.number] = track
+
+        assert None not in new_tracks
+
+        return new_tracks
 
     def update_model(self):
         playlist = self.mpd_playlist()
         if playlist == self.model.mpd_playlist:
             return
 
+        current_tracks = self.model.playlist_tracks
+
+        # Update the playlist immediately so that extraneous attempts to update
+        # the playlist will be ignored
         self.model.mpd_playlist = playlist
-        self.model.tracks = self.playlist_tracks(playlist)
+
+        self.model.tracks = self.track_models(playlist, current_tracks)
 
     def track_model_for(self, db_track):
         return next(
