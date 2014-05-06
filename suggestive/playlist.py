@@ -40,7 +40,7 @@ class PlaylistModel(Model):
         self.update()
 
     def track_ids(self, tracks):
-        return set(track.db_track.id for track in tracks)
+        return [track.db_track.id for track in tracks]
 
 
 ######################################################################
@@ -70,14 +70,9 @@ class PlaylistController(Controller):
         logger.info('Play playlist track: {}'.format(view.canonical_text))
         self._mpd.play(view.model.number)
 
-    # Signal handler
-
-    def delete_track(self, view):
-        logger.debug('Delete async')
-        self.run_async(lambda: self._delete_track(view))
-
+    @Controller.asynchronous
     @mstat.mpd_retry
-    def _delete_track(self, view):
+    def delete_track(self, view):
         logger.info('Delete playlist track: {}'.format(view.canonical_text))
         self._mpd.delete(view.model.number)
         self.update_model()

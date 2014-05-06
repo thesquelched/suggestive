@@ -104,6 +104,14 @@ class Controller(object):
     def run_async(self, func):
         self._async_runner.run_async(func)
 
+    def asynchronous(func):
+        """
+        Make the decorated function asynchronous
+        """
+        def wrapper(self, *args, **kwArgs):
+            self.run_async(lambda: func(self, *args, **kwArgs))
+        return wrapper
+
 
 ######################################################################
 # Common models
