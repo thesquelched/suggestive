@@ -42,7 +42,7 @@ class Album(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    artist_id = Column(Integer, ForeignKey('artist.id'))
+    artist_id = Column(Integer, ForeignKey('artist.id'), index=True)
 
     artist = relationship('Artist', backref=backref('albums', order_by=id))
 
@@ -62,7 +62,7 @@ class LastfmTrackInfo(Base):
     loved = Column(Boolean, default=False)
     banned = Column(Boolean, default=False)
 
-    track_id = Column(Integer, ForeignKey('track.id'))
+    track_id = Column(Integer, ForeignKey('track.id'), index=True)
 
 
 class Track(Base):
@@ -74,8 +74,8 @@ class Track(Base):
     is_duplicate = Column(Boolean, default=False)
     lastfm_info = relationship(
         "LastfmTrackInfo", uselist=False, backref="track")
-    album_id = Column(Integer, ForeignKey('album.id'))
-    artist_id = Column(Integer, ForeignKey('artist.id'))
+    album_id = Column(Integer, ForeignKey('album.id'), index=True)
+    artist_id = Column(Integer, ForeignKey('artist.id'), index=True)
 
     album = relationship('Album', backref=backref('tracks', order_by=id))
     artist = relationship('Artist', backref=backref('tracks', order_by=id))
@@ -128,8 +128,9 @@ class Scrobble(Base):
     id = Column(Integer, primary_key=True)
     time = Column(DateTime())
     loved = Column(Boolean, default=False)
-    track_id = Column(Integer, ForeignKey('track.id'))
-    scrobble_info_id = Column(Integer, ForeignKey('scrobble_info.id'))
+    track_id = Column(Integer, ForeignKey('track.id'), index=True)
+    scrobble_info_id = Column(Integer, ForeignKey('scrobble_info.id'),
+                              index=True)
 
     track = relationship('Track', backref=backref('scrobbles', order_by=id))
     scrobble_info = relationship(
