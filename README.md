@@ -199,6 +199,6 @@ database.  To generate database migrations:
    migrate to the latest database version
 2. Copy `alembic.ini.template` to `alembic.ini`
 3. Replace `<INSERT SUGGESTIVE DB PATH HERE>` with the path to your
-   `suggestive` database, e.g. `/home/myuser/.suggsetive/music.db`.
+   `suggestive` database, e.g. `/home/myuser/.suggestive/music.db`.
 4. Make changes to the database model
 5. Create a new migration file: `alembic revision --autogenerate -m '<COMMIT MESSAGE>'`
