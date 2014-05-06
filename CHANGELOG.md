@@ -1,3 +1,18 @@
+Development
+===========
+
+Improvements
+------------
+- Greatly improved responsiveness for playlist commands, e.g. enqueue, delete,
+  play
+- Added database indexes to generally speed up database lookups
+- Various logging improvements
+
+Bug Fixes
+---------
+- Fixed some database locking issues that would occur during updates
+
+
 Version 0.3.0
 =============
 

@@ -530,7 +530,7 @@ def initialize_logging(conf):
     logging.getLogger('requests').setLevel(logging.ERROR)
 
     # SQLAlchemy query logging
-    if conf.log_level() == logging.DEBUG:
+    if conf.log_sql_queries():
         logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 

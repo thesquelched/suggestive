@@ -32,6 +32,7 @@ class Config(object):
             orientation='horizontal',
             log='%(conf_dir)s/log.txt',
             verbose=False,
+            log_sql_queries=False,
             session_file='%(conf_dir)s/session',
             update_on_startup=False,
         ),
@@ -279,6 +280,9 @@ class Config(object):
             return logging.DEBUG
         else:
             return logging.INFO
+
+    def log_sql_queries(self):
+        return self.parser.getboolean('general', 'log_sql_queries')
 
     def default_orderers(self):
         """Return the default orderers"""

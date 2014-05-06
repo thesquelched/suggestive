@@ -5,6 +5,7 @@
 #database = %(conf_dir)s/music.db
 #log = %(conf_dir)s/log.txt
 #verbose = false
+#log_sql_queries = false
 #highcolor = true
 #
 # Default buffer orientation
