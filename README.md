@@ -65,19 +65,6 @@ api_secret = 141iojhu789uihy78uiho9uih89080
 A [sample configuration file](suggestive.conf.example) is available.
 
 
-Known Issues
-============
-
-Although I am using `suggestive` as my full-time MPD client, it's still
-somewhat early in development, and you might encounter some problems while
-using it.
-
-Sometimes, you can resolve an issue by deleting/renaming the `suggestive`
-database file (`$HOME/.suggestive/music.db` by default), and then re-running
-suggestive, which will rebuild the database.  If this does not resolve the
-problem, please open up a GitHub issue.
-
-
 Bindings
 ========
 
@@ -184,6 +171,19 @@ mycommand = unorder; loved max=0; playcount
 
 `mycommand` will then be accessible from command mode in the library buffer,
 just like any other orderer.
+
+
+Known Issues
+============
+
+Although I am using `suggestive` as my full-time MPD client, it's still
+somewhat early in development, and you might encounter some problems while
+using it.
+
+Sometimes, you can resolve an issue by deleting/renaming the `suggestive`
+database file (`$HOME/.suggestive/music.db` by default), and then re-running
+suggestive, which will rebuild the database.  If this does not resolve the
+problem, please open up a GitHub issue.
 
 
 Development Notes
