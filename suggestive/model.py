@@ -70,7 +70,7 @@ class Track(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    filename = Column(String, nullable=False, unique=True)
+    filename = Column(String, nullable=False, unique=True, index=True)
     is_duplicate = Column(Boolean, default=False)
     lastfm_info = relationship(
         "LastfmTrackInfo", uselist=False, backref="track")
