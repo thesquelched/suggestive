@@ -125,7 +125,7 @@ def database_tracks_from_mpd(conf, tracks_info):
     """
     with session_scope(conf, commit=False) as session:
         filenames = [info['file'] for info in tracks_info]
-        return session.query(Track).\
+        db_tracks = session.query(Track).\
             options(
                 subqueryload(Track.album),
                 subqueryload(Track.artist),
@@ -133,6 +133,9 @@ def database_tracks_from_mpd(conf, tracks_info):
             ).\
             filter(Track.filename.in_(filenames)).\
             all()
+
+        tracks_by_filename = {t.filename: t for t in db_tracks}
+        return [tracks_by_filename[info['file']] for info in tracks_info]
 
 
 def get_scrobbles(session, limit, offset=None):
@@ -369,6 +372,21 @@ class MpdLoader(object):
         for info in info_to_delete:
             session.delete(info)
 
+    def delete_empty_albums(self, session):
+        empty = session.query(Album).\
+            outerjoin(Track).\
+            group_by(Album.id).\
+            having(func.count(Track.id) == 0).\
+            all()
+
+        logger.info('Found {} albums with no tracks; deleting'.format(
+            len(empty)))
+
+        for album in empty:
+            session.delete(album)
+
+        logger.debug('Deleted {} empty albums'.format(len(empty)))
+
     def check_duplicates(self, session):
         """
         Check for albums with duplicate tracks
@@ -443,6 +461,7 @@ class MpdLoader(object):
             self.load_by_artist_album(session, by_artist_album)
 
         self.check_duplicates(session)
+        self.delete_empty_albums(session)
 
 
 class TrackInfoLoader(object):
@@ -469,9 +488,6 @@ class TrackInfoLoader(object):
             db_track_info = LastfmTrackInfo()
             db_track.lastfm_info = db_track_info
             session.add(db_track_info)
-        else:
-            logger.debug('Already had: {} {}'.format(
-                db_track_info.loved, db_track_info.banned))
 
         db_track_info.loved = loved
         db_track_info.banned = banned
@@ -801,7 +817,7 @@ def set_track_loved(conf, lastfm, track, loved=True):
         'successful' if success else 'failed'))
 
     if not success:
-        raise ValueError('Could not togle track loved')
+        raise ValueError('Could not toggle track loved')
 
     with session_scope(conf, commit=True) as session:
         db_track = session.query(Track).get(track.id)

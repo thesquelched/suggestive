@@ -223,10 +223,9 @@ class ScrobbleBuffer(Buffer):
         if songid != self.current_song_id:
             try:
                 info = mpd.playlistid(songid)[0]
-                with self.session(commit=False) as session:
-                    db_track = mstat.database_track_from_mpd(
-                        session,
-                        info)
+                db_track = mstat.database_track_from_mpd(
+                    self.conf,
+                    info)
                 self.plays.insert(0, db_track)
                 logger.debug('Plays: {}'.format(self.plays))
             except (MpdCommandError, IndexError):

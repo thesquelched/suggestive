@@ -160,11 +160,13 @@ class LibraryController(Controller):
 
     # Signal handler
     def love_track(self, view):
-        logger.info('Toggle loved for playlist track: {}'.format(
-            view.canonical_text))
-
         db_track = view.model.db_track
+        logger.info('Toggle loved for playlist track: {}'.format(
+            db_track.name))
+
         loved = db_track.lastfm_info.loved if db_track.lastfm_info else False
+
+        # TODO: Handle failure
         mstat.set_track_loved(
             self.conf,
             self._lastfm,

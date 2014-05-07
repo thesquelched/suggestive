@@ -25,6 +25,7 @@ class PlaylistModel(Model):
         self._tracks = []
         self._mpd_playlist = []
         self._playlist_tracks = {}
+        self._now_playing = None
 
     def __repr__(self):
         return '<PlaylistModel>'
@@ -35,12 +36,17 @@ class PlaylistModel(Model):
 
     @tracks.setter
     def tracks(self, newtracks):
-        if self.track_ids(self._tracks) == self.track_ids(newtracks):
-            return
-
         self._tracks = newtracks
         self.update_playlist_tracks()
         self.update()
+
+    @property
+    def now_playing(self):
+        return self._now_playing
+
+    @now_playing.setter
+    def now_playing(self, value):
+        self._now_playing = value
 
     @property
     def mpd_playlist(self):
@@ -184,27 +190,35 @@ class PlaylistController(Controller):
 
         if missing:
             positions, missing_playlist = zip(*missing)
-            for track in self.playlist_tracks(missing_playlist, positions):
-                new_tracks[track.number] = track
+            logger.debug('Positions: {}'.format(positions))
+            missing_tracks = self.playlist_tracks(missing_playlist, positions)
+            for position, track in zip(positions, missing_tracks):
+                new_tracks[position] = track
 
         assert None not in new_tracks
+
+        logger.debug('Track models: {}'.format([t.name for t in new_tracks]))
 
         return new_tracks
 
     def update_model(self):
         logger.debug('Begin playlist model update')
         playlist = self.mpd_playlist()
-        if playlist == self.model.mpd_playlist:
+        now_playing = self.now_playing()
+        if (playlist == self.model.mpd_playlist and
+                now_playing == self.model.now_playing):
             logger.debug('No playlist changes; aborting')
             return
 
         logger.debug('Get current tracks')
         current_tracks = self.model.playlist_tracks
 
+        logger.debug('Set model playlist')
+
         # Update the playlist immediately so that extraneous attempts to update
         # the playlist will be ignored
-        logger.debug('Set model playlist')
         self.model.mpd_playlist = playlist
+        self.model.now_playing = now_playing
 
         logger.debug('Get track models')
         models = self.track_models(playlist, current_tracks)
