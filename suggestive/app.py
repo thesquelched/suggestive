@@ -362,6 +362,7 @@ class Application(Commandable):
             'score': self.toggle_show_score,
             'save': self.top.playlist.save_playlist,
             'load': self.top.playlist.load_playlist,
+            'seek': self.top.playlist.seek,
         }
 
     def clear_playlist(self):

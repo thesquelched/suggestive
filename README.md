@@ -131,6 +131,13 @@ General commands
 - `score <show=bool>` - Toggle or set whether or not to show the ordering score
   in the library
 
+Playback
+--------
+
+- `seek <seconds>` - Seek the currently playing track to the given position.
+  If `seconds` begins with `+` or `-`, then seek to the given time relative to
+  the present.
+
 
 Library
 -------

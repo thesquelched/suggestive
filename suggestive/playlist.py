@@ -190,10 +190,8 @@ class PlaylistController(Controller):
 
         if missing:
             positions, missing_playlist = zip(*missing)
-            logger.debug('Positions: {}'.format(positions))
-            missing_tracks = self.playlist_tracks(missing_playlist, positions)
-            for position, track in zip(positions, missing_tracks):
-                new_tracks[position] = track
+            for track in self.playlist_tracks(missing_playlist, positions):
+                new_tracks[track.number] = track
 
         assert None not in new_tracks
 
@@ -233,6 +231,13 @@ class PlaylistController(Controller):
              track.db_track.id == db_track.id),
             None
         )
+
+    @mstat.mpd_retry
+    def seek(self, position):
+        try:
+            self._mpd.seekcur(str(position))
+        except MpdCommandError as ex:
+            logger.error('Could not seek to {}; {}'.format(position, ex))
 
 
 ######################################################################
@@ -614,3 +619,9 @@ class PlaylistBuffer(Buffer):
             logger.debug(ex)
             raise CommandError("Unable to save playlist '{}'".format(
                 name))
+
+    def seek(self, position=None):
+        if position is None:
+            return
+
+        self.controller.seek(position)
