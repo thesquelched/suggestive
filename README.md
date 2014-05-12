@@ -116,6 +116,8 @@ Playlist
 - `d` - Remove track
 - `enter` - Play track
 - `m` - Enter move mode
+- `>` - Next track
+- `<` - Previous track
 
 
 Command mode

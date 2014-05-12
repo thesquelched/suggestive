@@ -10,6 +10,8 @@ ENQUEUE = 'enqueue'
 PLAY = 'play'
 DELETE = 'delete'
 MOVE = 'move'
+NEXT_TRACK = 'next_track'
+PREVIOUS_TRACK = 'previous_track'
 
 
 ######################################################################

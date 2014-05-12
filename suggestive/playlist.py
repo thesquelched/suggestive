@@ -239,6 +239,14 @@ class PlaylistController(Controller):
         except MpdCommandError as ex:
             logger.error('Could not seek to {}; {}'.format(position, ex))
 
+    @mstat.mpd_retry
+    def next_track(self, view):
+        self._mpd.next()
+
+    @mstat.mpd_retry
+    def previous_track(self, view):
+        self._mpd.previous()
+
 
 ######################################################################
 # Views
@@ -248,7 +256,7 @@ class PlaylistController(Controller):
     'd': signals.DELETE,
     'enter': signals.PLAY,
     'm': signals.MOVE,
-    'L': signals.LOVE
+    'L': signals.LOVE,
 })
 class TrackView(urwid.WidgetWrap, View, widget.Searchable):
     __metaclass__ = urwid.signals.MetaSignals
@@ -336,7 +344,14 @@ class TrackView(urwid.WidgetWrap, View, widget.Searchable):
         self._w.original_widget.set_text(self.text)
 
 
+@widget.signal_map({
+    '>': signals.NEXT_TRACK,
+    '<': signals.PREVIOUS_TRACK,
+})
 class PlaylistView(widget.SuggestiveListBox, View):
+    __metaclass__ = urwid.signals.MetaSignals
+    signals = [signals.NEXT_TRACK, signals.PREVIOUS_TRACK]
+
     def __init__(self, model, controller, conf):
         View.__init__(self, model)
 
@@ -459,6 +474,11 @@ class PlaylistBuffer(Buffer):
         self.model = PlaylistModel()
         self.controller = PlaylistController(self.model, conf, async_runner)
         self.view = PlaylistView(self.model, self.controller, conf)
+
+        urwid.connect_signal(self.view, signals.NEXT_TRACK,
+                             self.controller.next_track)
+        urwid.connect_signal(self.view, signals.PREVIOUS_TRACK,
+                             self.controller.previous_track)
 
         self.current_track = None
         self.status_format = conf.playlist_status_format()
