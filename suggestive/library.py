@@ -227,10 +227,10 @@ class LibraryController(Controller):
 ######################################################################
 
 @widget.signal_map({
-    'z': 'expand',
-    'enter': 'play',
-    ' ': 'enqueue',
-    'L': 'love'
+    'z': signals.EXPAND,
+    'enter': signals.PLAY,
+    ' ': signals.ENQUEUE,
+    'L': signals.LOVE,
 })
 class TrackView(urwid.WidgetWrap, View, widget.Searchable):
     __metaclass__ = urwid.signals.MetaSignals
@@ -280,9 +280,9 @@ class TrackView(urwid.WidgetWrap, View, widget.Searchable):
 
 
 @widget.signal_map({
-    'z': 'expand',
-    'enter': 'play',
-    ' ': 'enqueue',
+    'z': signals.EXPAND,
+    'enter': signals.PLAY,
+    ' ': signals.ENQUEUE,
 })
 class AlbumView(urwid.WidgetWrap, View, widget.Searchable):
     __metaclass__ = urwid.signals.MetaSignals

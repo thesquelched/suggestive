@@ -245,10 +245,10 @@ class PlaylistController(Controller):
 ######################################################################
 
 @widget.signal_map({
-    'd': 'delete',
-    'enter': 'play',
-    'm': 'move',
-    'L': 'love'
+    'd': signals.DELETE,
+    'enter': signals.PLAY,
+    'm': signals.MOVE,
+    'L': signals.LOVE
 })
 class TrackView(urwid.WidgetWrap, View, widget.Searchable):
     __metaclass__ = urwid.signals.MetaSignals
