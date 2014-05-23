@@ -215,7 +215,7 @@ class FractionLovedOrder(OrderDecorator):
             group_by(Album.id).\
             all()
 
-        neworder = {album: 1.0 for album in albums}
+        neworder = defaultdict(lambda: 1.0, albums.items())
 
         for album, n_tracks, n_loved in results:
             if album not in neworder or n_tracks == 0:
