@@ -1,5 +1,6 @@
 import logging
 import re
+import itertools
 
 
 logger = logging.getLogger(__name__)
@@ -34,3 +35,14 @@ def track_num(trackno):
 
     simplified = re.sub(r'(\d+)/\d+', r'\1', str(trackno))
     return int(simplified)
+
+
+def partition(coll, size):
+    """Partition a collection into chunks"""
+    coll = iter(coll)
+    while True:
+        chunk = list(itertools.islice(coll, size))
+        if not chunk:
+            break
+
+        yield chunk

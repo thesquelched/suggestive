@@ -2,6 +2,7 @@ from suggestive.lastfm import LastFM, LastfmError
 from suggestive.model import (
     Artist, ArtistCorrection, Album, Scrobble, Session, Base, Track,
     ScrobbleInfo, LastfmTrackInfo)
+from suggestive.util import partition
 
 import logging
 from mpd import MPDClient
@@ -356,12 +357,13 @@ class MpdLoader(object):
         if deleted:
             logger.info('Deleting {} files from DB that do not exist in '
                         'MPD library'.format(len(deleted)))
-            tracks_to_delete = session.query(Track).\
-                filter(Track.filename.in_(deleted)).\
-                all()
+            for tracks in partition(deleted, 100):
+                tracks_to_delete = session.query(Track).\
+                    filter(Track.filename.in_(tracks)).\
+                    all()
 
-            for track in tracks_to_delete:
-                session.delete(track)
+                for track in tracks_to_delete:
+                    session.delete(track)
 
         info_to_delete = session.query(LastfmTrackInfo).\
             filter(LastfmTrackInfo.track == None).\
