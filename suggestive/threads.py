@@ -229,4 +229,8 @@ class ScrobbleInitializeThread(AppThread):
                 with mstat.session_scope(conf) as session:
                     mstat.load_scrobble_batch(session, lastfm, conf, batch)
 
+        with db_lock:
+            with mstat.session_scope(conf) as session:
+                mstat.ScrobbleLoader.delete_duplicates(session)
+
         logger.info('Finished initializing scrobbles')

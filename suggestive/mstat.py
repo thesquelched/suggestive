@@ -183,6 +183,38 @@ class ScrobbleLoader(object):
         self.user = config.lastfm_user()
         self.retention = config.scrobble_retention()
 
+    @classmethod
+    def check_duplicates(cls, session):
+        logger.debug('Checking for duplicate scrobbles')
+
+        return session.query(Scrobble).\
+            group_by(Scrobble.time, Scrobble.scrobble_info_id).\
+            having(func.min(Scrobble.id) != func.max(Scrobble.id)).\
+            count()
+
+    @classmethod
+    def delete_duplicates(cls, session):
+        n_duplicates = cls.check_duplicates(session)
+        if not n_duplicates:
+            return
+
+        ids = session.query(func.min(Scrobble.id).label('scrobble_id')).\
+            group_by(Scrobble.time, Scrobble.scrobble_info_id).\
+            subquery('ids')
+
+        duplicates = session.query(Scrobble).\
+            outerjoin(ids, ids.c.scrobble_id == Scrobble.id).\
+            filter(ids.c.scrobble_id.is_(None)).\
+            all()
+
+        # The two duplicate check queries should match
+        assert len(duplicates) == n_duplicates
+
+        logger.info('Deleting {} duplicate scrobbles'.format(n_duplicates))
+
+        for item in duplicates:
+            session.delete(item)
+
     def scrobble_info(self, session, artist, album, track):
         """
         Return for scrobble information for the given track. If none is found,
@@ -206,6 +238,13 @@ class ScrobbleLoader(object):
 
         return db_scrobble_info
 
+    def db_scrobble(self, session, when, db_scrobble_info):
+        return session.query(Scrobble).\
+            filter(
+                Scrobble.time == when,
+                Scrobble.scrobble_info == db_scrobble_info).\
+            first()
+
     def load_scrobble(self, session, item):
         """
         Load a raw scrobble item from the LastFM API
@@ -219,12 +258,16 @@ class ScrobbleLoader(object):
         track = item['name']
 
         db_scrobble_info = self.scrobble_info(session, artist, album, track)
-
         when = datetime.fromtimestamp(int(item['date']['uts']))
-        scrobble = Scrobble(time=when)
 
-        db_scrobble_info.scrobbles.append(scrobble)
-        session.add(scrobble)
+        scrobble = self.db_scrobble(session, when, db_scrobble_info)
+        if scrobble is None:
+            scrobble = Scrobble(time=when)
+            db_scrobble_info.scrobbles.append(scrobble)
+            session.add(scrobble)
+
+        if scrobble.track:
+            return
 
         db_track = session.query(Track).\
             join(Track.artist).\
@@ -259,6 +302,9 @@ class ScrobbleLoader(object):
         for item in self.lastfm.scrobbles(self.user, start=start, end=end):
             self.load_scrobble(session, item)
             n_scrobbles += 1
+
+        logger.debug('Checking for duplicate scrobbles')
+        self.delete_duplicates(session)
 
         return n_scrobbles
 
@@ -366,7 +412,7 @@ class MpdLoader(object):
                     session.delete(track)
 
         info_to_delete = session.query(LastfmTrackInfo).\
-            filter(LastfmTrackInfo.track == None).\
+            filter(LastfmTrackInfo.track_id.is_(None)).\
             all()
         logger.debug('Found {} orphaned LastfmTrackInfo objects'.format(
             len(info_to_delete)))
