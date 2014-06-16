@@ -12,8 +12,9 @@ import suggestive.migrate as migrate
 from suggestive.search import LazySearcher
 from suggestive.error import CommandError
 from suggestive.buffer import (
-    VerticalBufferList, HorizontalBufferList, ScrobbleBuffer,
+    VerticalBufferList, HorizontalBufferList,
 )
+from suggestive.scrobbles import ScrobbleBuffer
 from suggestive.library import LibraryBuffer
 from suggestive.playlist import PlaylistBuffer
 import suggestive.signals as signals

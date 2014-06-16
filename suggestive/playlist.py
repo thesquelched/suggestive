@@ -3,7 +3,8 @@ import suggestive.mstat as mstat
 import suggestive.signals as signals
 from suggestive.error import CommandError
 from suggestive.mvc import View, Model, Controller, TrackModel
-from suggestive.buffer import Buffer, MpdCommandError
+from suggestive.buffer import Buffer
+from mpd import CommandError as MpdCommandError
 
 import urwid
 from math import floor, log10
