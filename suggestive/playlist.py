@@ -11,7 +11,7 @@ from math import floor, log10
 import logging
 
 
-logger = logging.getLogger('suggestive')
+logger = logging.getLogger('suggestive.playlist')
 logger.addHandler(logging.NullHandler())
 
 
