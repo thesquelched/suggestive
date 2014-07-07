@@ -310,7 +310,7 @@ class Application(Commandable):
 
     def update_playlist_event(self):
         self.event_loop.set_alarm_in(0, self.top.playlist.update)
-        #self.event_loop.set_alarm_in(0, self.top.scrobbles.update)
+        self.event_loop.set_alarm_in(0, self.top.scrobbles.update)
 
     def dispatch(self, key):
         if key in self.bindings:

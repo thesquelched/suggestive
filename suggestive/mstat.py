@@ -139,21 +139,26 @@ def database_tracks_from_mpd(conf, tracks_info):
         return [tracks_by_filename[info['file']] for info in tracks_info]
 
 
-def get_scrobbles(session, limit, offset=None):
+def get_scrobbles(conf, limit, offset=None):
     """
     Get the specified number of scrobbles with an optional offset
     """
     if not limit:
         return []
 
-    query = session.query(Scrobble).\
-        order_by(Scrobble.time.desc()).\
-        limit(limit)
+    with session_scope(conf, commit=False) as session:
+        query = session.query(Scrobble).\
+            join(Track).\
+            options(
+                subqueryload('track').subqueryload('*'),
+            ).\
+            order_by(Scrobble.time.desc()).\
+            limit(limit)
 
-    if offset is not None:
-        query = query.offset(offset)
+        if offset is not None:
+            query = query.offset(offset)
 
-    return query.all()
+        return query.all()
 
 
 def get_album_tracks(conf, album):
