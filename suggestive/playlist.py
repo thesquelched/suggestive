@@ -5,6 +5,7 @@ from suggestive.error import CommandError
 from suggestive.mvc import View, Model, Controller, TrackModel
 from suggestive.buffer import Buffer
 from mpd import CommandError as MpdCommandError
+from suggestive.threads import lastfm_love_track
 
 import urwid
 from math import floor, log10
@@ -84,7 +85,6 @@ class PlaylistController(Controller):
 
         # Connections
         self._mpd = mstat.initialize_mpd(conf)
-        self._lastfm = mstat.initialize_lastfm(conf)
 
         # Initialize
         self.update_model()
@@ -114,11 +114,8 @@ class PlaylistController(Controller):
         db_track = view.model.db_track
         loved = db_track.lastfm_info.loved if db_track.lastfm_info else False
 
-        mstat.set_track_loved(
-            self.conf,
-            self._lastfm,
-            db_track,
-            loved=not loved)
+        lastfm_love_track(self.conf, db_track, loved=not loved)
+        mstat.db_track_love(self.conf, db_track, loved=not loved)
 
         new_track = mstat.get_db_track(self.conf, db_track.id)
         view.model.db_track = new_track
