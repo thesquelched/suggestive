@@ -95,6 +95,10 @@ class Controller(object):
     def conf(self):
         return self._conf
 
+    @property
+    def async_runner(self):
+        return self._async_runner
+
     def session(self, **kwArgs):
         return mstat.session_scope(self.conf, **kwArgs)
 

@@ -4,6 +4,7 @@ import suggestive.util as util
 import suggestive.analytics as analytics
 import suggestive.signals as signals
 from suggestive.buffer import Buffer
+from suggestive.threads import lastfm_love_track
 
 from suggestive.mvc import View, Model, Controller, TrackModel
 
@@ -83,8 +84,6 @@ class LibraryController(Controller):
 
         # Connections
         self._mpd = mstat.initialize_mpd(conf)
-        self._lastfm = mstat.initialize_lastfm(conf)
-
         self._anl = analytics.Analytics(conf)
 
         self._orderers = None
@@ -166,12 +165,8 @@ class LibraryController(Controller):
 
         loved = db_track.lastfm_info.loved if db_track.lastfm_info else False
 
-        # TODO: Handle failure
-        mstat.set_track_loved(
-            self.conf,
-            self._lastfm,
-            db_track,
-            loved=not loved)
+        lastfm_love_track(self.conf, db_track, loved=not loved)
+        mstat.db_track_love(self.conf, db_track, loved=not loved)
 
         new_track = mstat.get_db_track(self.conf, db_track.id)
         view.model.db_track = new_track

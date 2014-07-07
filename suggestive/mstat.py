@@ -851,11 +851,7 @@ def get_db_track(conf, track_id):
             get(track_id)
 
 
-def set_track_loved(conf, lastfm, track, loved=True):
-    """
-    Mark the track loved (or unloved), then synchronize with LastFM
-    """
-    # Mark loved in LastFM
+def lastfm_love(lastfm, track, loved):
     method = lastfm.love_track if loved else lastfm.unlove_track
     success = method(track.artist.name, track.name)
     logger.info("Marking '{} - {}' {}... {}".format(
@@ -865,8 +861,14 @@ def set_track_loved(conf, lastfm, track, loved=True):
         'successful' if success else 'failed'))
 
     if not success:
-        raise ValueError('Could not toggle track loved')
+        logger.warning('Unable to mark track {}'.format(
+            'loved' if loved else 'unloved'))
 
+
+def db_track_love(conf, track, loved=True):
+    """
+    Mark the track loved (or unloved), then synchronize with LastFM
+    """
     with session_scope(conf, commit=True) as session:
         db_track = session.query(Track).get(track.id)
 
@@ -878,10 +880,3 @@ def set_track_loved(conf, lastfm, track, loved=True):
 
         # Mark loved in DB
         db_track_info.loved = bool(loved)
-
-
-def set_track_unloved(session, lastfm, track):
-    """
-    Mark the track unloved, then synchronize with LastFM
-    """
-    set_track_loved(session, lastfm, track, loved=False)
