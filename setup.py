@@ -28,7 +28,7 @@ setup(
         'urwid>=1.1.1',
         'python-mpd2>=0.5.1',
         'requests>=1.2.3',
-        'SQLAlchemy>=0.8.1',
+        'SQLAlchemy>=0.9.6',
         'alembic>=0.6.0',
     ],
 )
