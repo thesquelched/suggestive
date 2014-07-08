@@ -149,6 +149,14 @@ class ScrobbleListController(Controller):
         if models:
             self.model.scrobbles += models
 
+    def reload(self):
+        """Re-fetch the list of scrobbles from the database"""
+        logger.debug('Reload scrobbles')
+        scrobbles = mstat.get_scrobbles(
+            self.conf, len(self.model.scrobbles), 0)
+        models = [ScrobbleModel(scrobble) for scrobble in scrobbles]
+        self.model.scrobbles = models
+
     def insert_new_song_played(self):
         mpd = mstat.initialize_mpd(self.conf)
         status = mpd.status()
@@ -374,6 +382,9 @@ class ScrobbleBuffer(Buffer):
         # invalidating the cached canvas for the body, then setting focus on it
         self.body._invalidate()
         self.set_focus('body')
+
+    def reload(self, *args):
+        self.controller.reload()
 
     def search(self, searcher):
         #self.scrobble_list.search(searcher)

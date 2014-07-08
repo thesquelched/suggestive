@@ -295,7 +295,7 @@ class Application(Commandable):
 
     def start_scrobble_initialize(self):
         scrobble_thread = ScrobbleInitializeThread(
-            self.conf, self.quit_event)
+            self.conf, self.update_library_event, self.quit_event)
         scrobble_thread.daemon = False
         scrobble_thread.start()
 
@@ -305,7 +305,7 @@ class Application(Commandable):
         self.event_loop.set_alarm_in(
             0,
             lambda *args: self.top.library.controller.update_model())
-        self.event_loop.set_alarm_in(0, self.top.scrobbles.update)
+        self.event_loop.set_alarm_in(0, self.top.scrobbles.reload)
         self.update_library_status('Library')
 
     def update_playlist_event(self):

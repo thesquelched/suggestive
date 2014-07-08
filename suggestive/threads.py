@@ -197,9 +197,10 @@ class ScrobbleInitializeThread(AppThread):
 
     """Load scrobbles from all time"""
 
-    def __init__(self, conf, *args, **kwArgs):
+    def __init__(self, conf, callback, *args, **kwArgs):
         super(ScrobbleInitializeThread, self).__init__(*args, **kwArgs)
         self.conf = conf
+        self.callback = callback
 
     def run(self):
         conf = self.conf
@@ -234,6 +235,7 @@ class ScrobbleInitializeThread(AppThread):
                 mstat.ScrobbleLoader.delete_duplicates(session)
 
         logger.info('Finished initializing scrobbles')
+        (self.callback)()
 
 
 @log_errors
