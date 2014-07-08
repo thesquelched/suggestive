@@ -137,7 +137,6 @@ class ScrobbleListController(Controller):
 
     def __init__(self, model, conf, async_runner):
         super(ScrobbleListController, self).__init__(model, conf, async_runner)
-
         self.current_song_id = None
 
     def load_more_scrobbles(self, position):
@@ -146,7 +145,9 @@ class ScrobbleListController(Controller):
 
         # TODO: Convert using just conf
         scrobbles = mstat.get_scrobbles(self.conf, n_load, n_items)
-        return [ScrobbleModel(scrobble) for scrobble in scrobbles]
+        models = [ScrobbleModel(scrobble) for scrobble in scrobbles]
+        if models:
+            self.model.scrobbles += models
 
     def insert_new_song_played(self):
         mpd = mstat.initialize_mpd(self.conf)
@@ -232,24 +233,16 @@ class ScrobbleView(urwid.WidgetWrap, View, widget.Searchable):
 
 class ScrobbleListWalker(urwid.ListWalker):
 
-    def __init__(self, model, controller, conf, initial_load=None, plays=None):
+    def __init__(self, model, controller, conf):
         # I think plays are local plays, not scrobbles
         self._model = model
         self._controller = controller
         self._conf = conf
 
         self.focus = 0
-
-        self.views = []
-        self.views.extend(self._generate_plays(plays))
+        self.views = self._generate_plays()
 
         # TODO: Hook in conf.initial_scrobbles()
-        if initial_load:
-            self._load_more(initial_load)
-        #if isinstance(previous, ScrobbleListWalker):
-        #    self._load_more(previous.size())
-        #else:
-        #    self._load_more(conf.initial_scrobbles())
 
     @property
     def controller(self):
@@ -268,22 +261,21 @@ class ScrobbleListWalker(urwid.ListWalker):
     def __len__(self):
         return len(self.views)
 
-    def _generate_plays(self, tracks):
-        if not tracks:
+    def _generate_plays(self):
+        if not self.model.plays:
             return []
 
-        plays = [ScrobbleView(scrobble) for scrobble in self.model.scrobbles]
+        plays = [ScrobbleView(model, self.controller)
+                 for model in self.model.plays]
         header = urwid.AttrMap(urwid.Text('Plays'), 'scrobble date')
 
         return [header] + plays
 
     def _generate_views(self, models):
-        for model in self.model.plays:
-            yield ScrobbleView(model, self.controller)
-
-        last_date = next(
-            (v.model.date for v in self.views if isinstance(v, DayView)),
-            None)
+        last_date = None
+        #last_date = next(
+        #    (v.model.date for v in self.views if isinstance(v, DayView)),
+        #    None)
 
         for date, group in groupby(models, lambda model: model.date):
             group = list(group)
@@ -295,9 +287,12 @@ class ScrobbleListWalker(urwid.ListWalker):
                 yield ScrobbleView(model, self.controller)
 
     def _load_more(self, position):
-        models = self.controller.load_more_scrobbles(position)
-        views = self._generate_views(models)
-        self.views.extend(list(views))
+        self.controller.load_more_scrobbles(position)
+
+    def update_views(self):
+        views = self._generate_plays()
+        views.extend(self._generate_views(self.model.scrobbles))
+        self.views = views
 
     # ListWalker Overrides
     def __getitem__(self, idx):
@@ -321,6 +316,7 @@ class ScrobbleListWalker(urwid.ListWalker):
             return None, None
 
         if pos >= len(self.views):
+            logger.debug('Position {} >= {}'.format(pos, len(self.views)))
             self._load_more(pos)
 
         if pos >= len(self.views):
@@ -349,13 +345,14 @@ class ScrobbleListView(widget.SuggestiveListBox, View):
             self._conf)
 
     def update(self):
-        self.body = self.create_walker()
+        self.body.update_views()
 
 
 class ScrobbleBuffer(Buffer):
 
     def __init__(self, conf, async_runner):
         self.conf = conf
+
         self.model = ScrobbleListModel()
         self.controller = ScrobbleListController(
             self.model, conf, async_runner)
@@ -364,6 +361,7 @@ class ScrobbleBuffer(Buffer):
         super(ScrobbleBuffer, self).__init__(self.view)
 
         self.update_status('Scrobbles')
+        self.controller.load_more_scrobbles(conf.initial_scrobbles())
 
     @property
     def body(self):
