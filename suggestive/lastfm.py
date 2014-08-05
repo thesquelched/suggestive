@@ -129,7 +129,7 @@ Press Enter to continue...""".format(self.key, self.token)
         yield resp
 
         # Pages count from 1
-        for pageno in range(n_pages):
+        for pageno in range(1, n_pages):
             kwArgs.update({'page': pageno + 1})
             yield self.query(method, **kwArgs)
 
