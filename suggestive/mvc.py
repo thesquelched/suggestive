@@ -80,7 +80,6 @@ class Controller(object):
                             "names must end with 'Controller'".format(name))
 
         controller_name = name[:-len('Controller')].lower()
-
         self._registry[controller_name] = self
 
     @property
