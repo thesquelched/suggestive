@@ -77,7 +77,8 @@ class PlaylistMovePrompt(Prompt):
     signals = Prompt.signals + [signals.UPDATE_INDEX]
 
     def __init__(self, original_position):
-        super(PlaylistMovePrompt, self).__init__('Move item to: ')
+        super(PlaylistMovePrompt, self).__init__('Move item to: ',
+                                                 original_position)
         self.input_buffer = ''
         self.original_position = original_position
         self.current_position = original_position

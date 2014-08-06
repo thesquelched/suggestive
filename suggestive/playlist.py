@@ -520,7 +520,7 @@ class PlaylistBuffer(Buffer):
         self.update_footer(urwid.AttrMap(self.move_prompt, 'footer'))
         self.update_focus('footer')
 
-    def complete_move(self, value):
+    def complete_move(self, value, current_position):
         urwid.disconnect_signal(
             self,
             self.move_prompt,
@@ -537,10 +537,11 @@ class PlaylistBuffer(Buffer):
         try:
             new_index = int(value)
             logger.debug('Moving playlist track from {} to {}'.format(
-                self.view.focus_position, new_index))
+                current_position, new_index))
 
             mpd = mstat.initialize_mpd(self.conf)
-            mpd.move(self.view.focus_position, new_index)
+            mpd.move(current_position, new_index)
+            self.view.focus_position = new_index
         except (TypeError, ValueError):
             logger.error('Invalid move index: {}'.format(value))
 
