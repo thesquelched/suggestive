@@ -1,10 +1,8 @@
 import suggestive.bindings as bindings
-import suggestive.mstat as mstat
 import suggestive.signals as signals
 
 import urwid
 import logging
-from itertools import groupby
 
 logger = logging.getLogger('suggestive')
 logger.addHandler(logging.NullHandler())
@@ -76,7 +74,7 @@ class Prompt(urwid.Edit):
 
 class PlaylistMovePrompt(Prompt):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = [signals.UPDATE_INDEX]
+    signals = Prompt.signals + [signals.UPDATE_INDEX]
 
     def __init__(self, original_position):
         super(PlaylistMovePrompt, self).__init__('Move item to: ')

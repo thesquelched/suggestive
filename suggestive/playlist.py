@@ -544,6 +544,7 @@ class PlaylistBuffer(Buffer):
         except (TypeError, ValueError):
             logger.error('Invalid move index: {}'.format(value))
 
+        self.view.update()
         self.update()
 
     def now_playing_index(self, mpd):
