@@ -175,10 +175,16 @@ Press Enter to continue...""".format(self.key, self.token)
             if not resp.ok:
                 logger.debug(resp.content)
                 raise ValueError('Response was invalid')
-            return json.loads(resp.text)
         except (ValueError, requests.exceptions.RequestException) as error:
             logger.error('Query resulted in an error: {}'.format(error))
             raise LastfmError("Query '{}' failed".format(method))
+
+        try:
+            return json.loads(resp.text)
+        except ValueError as ex:
+            logger.exception('Unable to parse json response: {}'.format(ex))
+            logger.debug('Response: {}'.format(resp.text))
+            raise
 
     def scrobbles(self, user, start=None, end=None):
         """Get user scrobbles in the given date range"""
