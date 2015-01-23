@@ -50,19 +50,19 @@ class LastFM(object):
     Helper class for communicating with Last.FM servers
     """
 
-    URL = 'http://ws.audioscrobbler.com/2.0/'
     _NO_SIGN = set(['format', 'api_sig'])
 
-    def __init__(self, api_key, session_file, api_secret=None,
-                 log_responses=False):
-        self.log_responses = bool(log_responses)
-        self.key = api_key
-        self.secret = api_secret
-        self.session_file = session_file
+    def __init__(self, config):
+        self.key = config.lastfm_apikey
+        self.secret = config.lastfm_secret_key
+        self.session_file = config.lastfm_session_file
+        self.log_responses = config.lastfm_log_responses
+        self.url = config.lastfm_url
+
         self.session_key = None
         self.token = None
 
-        if api_secret is not None:
+        if self.secret is not None:
             self.session_key = self._load_session()
             if self.session_key is None:
                 self.token = self._get_token()
@@ -171,7 +171,7 @@ Press Enter to continue...""".format(self.key, self.token)
         params = self._query_params(method, sign=sign, **kwArgs)
 
         try:
-            resp = self._post(self.URL, params=params)
+            resp = self._post(self.url, params=params)
             if not resp.ok:
                 logger.debug(resp.content)
                 raise ValueError('Response was invalid')

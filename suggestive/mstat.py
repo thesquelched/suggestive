@@ -185,7 +185,7 @@ class ScrobbleLoader(object):
 
     def __init__(self, lastfm, config):
         self.lastfm = lastfm
-        self.user = config.lastfm_user()
+        self.user = config.lastfm_user
         self.retention = config.scrobble_retention()
 
     @classmethod
@@ -525,7 +525,7 @@ class TrackInfoLoader(object):
 
     def __init__(self, lastfm, config):
         self.lastfm = lastfm
-        self.user = config.lastfm_user()
+        self.user = config.lastfm_user
 
     def update_track_info(self, session, db_track, loved, banned):
         """
@@ -729,12 +729,7 @@ def initialize_lastfm(config):
     """
     Return a LastFM client connection
     """
-    return LastFM(
-        config.lastfm_apikey(),
-        config.lastfm_session_file(),
-        api_secret=config.lastfm_secret_key(),
-        log_responses=config.lastfm_log_responses(),
-    )
+    return LastFM(config)
 
 
 def correct_artist(name, lastfm):

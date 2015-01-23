@@ -114,10 +114,10 @@ class Config(object):
 
     def check_config(self):
         conf_url = 'https://github.com/thesquelched/suggestive#configuration'
-        if not self.lastfm_apikey():
+        if not self.lastfm_apikey:
             return 'Could not determine LastFM API key; see {}'.format(
                 conf_url)
-        if not self.lastfm_user():
+        if not self.lastfm_user:
             return 'Could not determine LastFM user; see {}'.format(
                 conf_url)
 
@@ -138,22 +138,27 @@ class Config(object):
             mpd.getint('port'),
         )
 
+    @property
     def lastfm_user(self):
         """Return LastFM user name"""
         return self.parser['lastfm']['user']
 
+    @property
     def lastfm_apikey(self):
         """Return LastFM API key"""
         return self.parser['lastfm']['api_key']
 
+    @property
     def lastfm_secret_key(self):
         """Return LastFM secret key"""
         return self.parser['lastfm'].get('api_secret', None)
 
+    @property
     def lastfm_session_file(self):
         """Return LastFM session file"""
         return expand(self.parser['general']['session_file'])
 
+    @property
     def lastfm_log_responses(self):
         """Return True if responses from LastFM should be logged"""
         return self.parser['lastfm'].getboolean('log_responses')
@@ -199,7 +204,6 @@ class Config(object):
         if self.use_256_colors():
             return (name, '', '', '', fg, bg)
         else:
-            #return (name, fg, bg)
             return (name, 'default', 'default')
 
     def palette(self):

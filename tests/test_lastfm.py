@@ -11,6 +11,14 @@ import json
 KEY = 'abcdefg1234567'
 SESSION_FILE = 'test.session'
 
+CONF = MagicMock(
+    lastfm_apikey=KEY,
+    lastfm_session_file=SESSION_FILE,
+    lastfm_secret_key=None,
+    lastfm_url='http://ws.audioscrobbler.com/2.0',
+    lastfm_log_responses=False,
+)
+
 
 class TestSession(TestCase):
 
@@ -21,7 +29,7 @@ class TestSession(TestCase):
             pass
 
     def test_session(self):
-        fm = LastFM(KEY, SESSION_FILE)
+        fm = LastFM(CONF)
         fm.session_key = 'sessionkey'
 
         fm._save_session()
@@ -29,7 +37,7 @@ class TestSession(TestCase):
         self.assertEqual('sessionkey', fm._load_session())
 
     def test_missing_session(self):
-        fm = LastFM(KEY, SESSION_FILE)
+        fm = LastFM(CONF)
         self.assertIsNone(fm._load_session())
 
 
@@ -88,7 +96,7 @@ class TestScrobbles(TestCase):
             }
         }
 
-        fm = LastFM(KEY, SESSION_FILE)
+        fm = LastFM(CONF)
         fm._post = HttpPostMock(data)
 
         scrobbles = list(fm.scrobbles('myuser'))
@@ -113,7 +121,7 @@ class TestScrobbles(TestCase):
             }
         }
 
-        fm = LastFM(KEY, SESSION_FILE)
+        fm = LastFM(CONF)
         fm._post = HttpPostMock(data)
 
         scrobbles = list(fm.scrobbles('myuser'))
@@ -192,7 +200,7 @@ class TestScrobbles(TestCase):
             },
         ]
 
-        fm = LastFM(KEY, SESSION_FILE)
+        fm = LastFM(CONF)
         fm._post = HttpPostMock(data)
 
         scrobbles = list(fm.scrobbles('myuser'))
@@ -208,7 +216,7 @@ class TestScrobbles(TestCase):
             self.assertEqual('artist_url', s['artist']['url'])
 
     def test_query_error(self):
-        fm = LastFM(KEY, SESSION_FILE)
+        fm = LastFM(CONF)
         fm._post = MagicMock(side_effect=RequestException())
 
         def get_scrobbles():

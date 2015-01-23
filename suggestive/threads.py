@@ -212,7 +212,7 @@ class ScrobbleInitializeThread(AppThread):
             earliest = mstat.earliest_scrobble(session)
 
         try:
-            batches = lastfm.scrobble_batches(conf.lastfm_user(), end=earliest)
+            batches = lastfm.scrobble_batches(conf.lastfm_user, end=earliest)
         except LastfmError as err:
             logger.error('Could not contact LastFM server')
             logger.debug(err)

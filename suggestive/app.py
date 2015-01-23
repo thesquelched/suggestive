@@ -554,8 +554,8 @@ def run(args):
     migrate.migrate(conf)
 
     # Request API write access from user
-    session_file = conf.lastfm_session_file()
-    if conf.lastfm_secret_key() and not os.path.exists(session_file):
+    session_file = conf.lastfm_session_file
+    if conf.lastfm_secret_key and not os.path.exists(session_file):
         fm = mstat.initialize_lastfm(conf)
         assert(fm.session_key is not None)
 
