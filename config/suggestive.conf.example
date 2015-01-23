@@ -42,6 +42,7 @@
 #user = my_lastfm_user
 #api_key = 0123456789abcdefghijklmnopqrstuv
 #api_secret = 345678iugcfdr6789iojhg78uiujhg
+#url = http://ws.audioscrobbler.com/2.0
 
 
 [appearance]

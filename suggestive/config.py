@@ -46,6 +46,7 @@ class Config(object):
             api_key='',
             api_secret='',
             log_responses=False,
+            url='http://ws.audioscrobbler.com/2.0',
         ),
         appearance=dict(
             album_fg='#000',
@@ -156,6 +157,13 @@ class Config(object):
     def lastfm_log_responses(self):
         """Return True if responses from LastFM should be logged"""
         return self.parser['lastfm'].getboolean('log_responses')
+
+    @property
+    def lastfm_url(self):
+        url = self.parser['lastfm']['url']
+
+        # Ensure only one trailing slash
+        return url.rstrip('/') + '/'
 
     def scrobble_retention(self):
         """Return seconds to keep LastFM scrobbles"""
