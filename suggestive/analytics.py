@@ -8,7 +8,6 @@ from sqlalchemy import func, Integer, distinct
 from sqlalchemy.orm import subqueryload
 from itertools import repeat
 from collections import defaultdict
-from operator import itemgetter
 from datetime import datetime
 
 
@@ -325,9 +324,10 @@ class Analytics(object):
             for album_orderer in orderers:
                 ordered = album_orderer.order(ordered, session, mpd)
 
+        # Order by score, then by artist name, then by album name
         sorted_order = sorted(
             ordered.items(),
             reverse=True,
-            key=itemgetter(1))
+            key=lambda item: (item[1], item[0]))
 
         return [Suggestion(album, order) for album, order in sorted_order]

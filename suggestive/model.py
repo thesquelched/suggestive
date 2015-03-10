@@ -3,6 +3,7 @@ from sqlalchemy import (func, Column, Integer, String,
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, backref
 from sqlalchemy.ext.hybrid import hybrid_property, Comparator
+from functools import total_ordering
 
 Base = declarative_base()
 Session = sessionmaker()
@@ -37,6 +38,7 @@ class Artist(Base):
         return CaseInsensitiveComparator(cls.name)
 
 
+@total_ordering
 class Album(Base):
     __tablename__ = 'album'
 
@@ -45,6 +47,10 @@ class Album(Base):
     artist_id = Column(Integer, ForeignKey('artist.id'), index=True)
 
     artist = relationship('Artist', backref=backref('albums', order_by=id))
+
+    def __lt__(self, other):
+        """Reverse ordering of albums"""
+        return (other.artist.name, other.name) < (self.artist.name, self.name)
 
     @hybrid_property
     def name_insensitive(self):
