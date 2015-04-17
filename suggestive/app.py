@@ -214,7 +214,7 @@ class Application(Commandable):
     """
 
     def __init__(self, args, conf):
-        self.conf = conf
+        self._conf = conf
 
         self._mpd = mstat.initialize_mpd(conf)
         self.quit_event = threading.Event()
@@ -232,6 +232,10 @@ class Application(Commandable):
 
         if not args.no_update and (args.update or conf.update_on_startup()):
             self.start_mpd_update()
+
+    @property
+    def conf(self):
+        return self._conf
 
     def update_library_status(self, *args, **kwArgs):
         """

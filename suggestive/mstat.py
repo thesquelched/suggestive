@@ -34,7 +34,7 @@ def mpd_retry(func):
         except (MPDError, OSError) as ex:
             logger.warning('Detect MPD connection error; reconnecting...')
             logger.debug(ex)
-            self._mpd = initialize_mpd(self._conf)
+            self._mpd = initialize_mpd(self.conf)
             return func(self, *args, **kwArgs)
     return wrapper
 
