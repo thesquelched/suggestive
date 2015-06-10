@@ -256,8 +256,8 @@ class ScrobbleLoader(object):
         """
         Load a raw scrobble from the LastFM API
         """
-        if not (track.artist_name and track.album_name and track.name
-                and track.date):
+        if not (track.artist_name and track.album_name and track.name and
+                track.date):
             logger.debug('Invalid scrobble: %s - %s - %s @ %s',
                          track.artist_name, track.album_name, track.name,
                          track.date)

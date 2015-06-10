@@ -281,9 +281,9 @@ class ScrobbleListWalker(urwid.ListWalker):
 
     def _generate_views(self, models):
         last_date = None
-        #last_date = next(
-        #    (v.model.date for v in self.views if isinstance(v, DayView)),
-        #    None)
+        # last_date = next(
+        #     (v.model.date for v in self.views if isinstance(v, DayView)),
+        #     None)
 
         for date, group in groupby(models, lambda model: model.date):
             group = list(group)
@@ -387,9 +387,9 @@ class ScrobbleBuffer(Buffer):
         self.controller.reload()
 
     def search(self, searcher):
-        #self.scrobble_list.search(searcher)
+        # self.scrobble_list.search(searcher)
         pass
 
     def next_search(self):
-        #self.scrobble_list.next_search_item()
+        # self.scrobble_list.next_search_item()
         pass

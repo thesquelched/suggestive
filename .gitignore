@@ -2,7 +2,6 @@ testing
 __pycache__
 *.db
 test.py
-*.txt
 .ropeproject
 *.csv
 !albums.csv
@@ -13,3 +12,6 @@ installtest
 alembic.ini
 *.pyc
 venv
+.tox
+.coverage
+.cache

@@ -141,19 +141,19 @@ class LibraryController(Controller):
     def set_current_order_as_default(self):
         self._default_orderers = self._orderers.copy()
 
-    #signal_handler
+    # signal_handler
     def enqueue_album(self, view):
         self.enqueue_tracks(self.album_tracks(view.db_album))
 
-    #signal_handler
+    # signal_handler
     def enqueue_track(self, view):
         self.enqueue_tracks([view.db_track])
 
-    #signal_handler
+    # signal_handler
     def play_album(self, view):
         self.play_tracks(self.album_tracks(view.db_album))
 
-    #signal_handler
+    # signal_handler
     def play_track(self, view):
         self.play_tracks([view.db_track])
 
@@ -171,8 +171,6 @@ class LibraryController(Controller):
         new_track = mstat.get_db_track(self.conf, db_track.id)
         view.model.db_track = new_track
 
-        # Update playlist, just in case the track we loved is in the playlist
-        #self.controller_for('playlist').model.update()
         model = self.controller_for('playlist').track_model_for(new_track)
         if model:
             model.db_track = new_track

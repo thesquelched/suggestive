@@ -1,34 +1,32 @@
 from suggestive.threads import PriorityEventQueue
 
-from unittest import TestCase
+
+def test_unique_different_priorities():
+    queue = PriorityEventQueue()
+    queue.put((0, 'player'))
+    queue.put((1, 'player'))
+
+    assert queue.qsize() == 1
+    assert queue.get() == (0, 'player')
+    assert queue.empty(), 'Queue is not empty'
 
 
-class TestQueue(TestCase):
+def test_unique_same_priority():
+    queue = PriorityEventQueue()
+    queue.put((0, 'player'))
+    queue.put((0, 'player'))
 
-    def test_unique_different_priorities(self):
-        queue = PriorityEventQueue()
-        queue.put((0, 'player'))
-        queue.put((1, 'player'))
+    assert queue.qsize() == 1
+    assert queue.get() == (0, 'player')
+    assert queue.empty(), 'Queue is not empty'
 
-        self.assertEqual(queue.qsize(), 1)
-        self.assertEqual(queue.get(), (0, 'player'))
-        self.assertTrue(queue.empty())
 
-    def test_unique_same_priority(self):
-        queue = PriorityEventQueue()
-        queue.put((0, 'player'))
-        queue.put((0, 'player'))
+def test_nonunique():
+    queue = PriorityEventQueue()
+    queue.put((1, 'myevent'))
+    queue.put((0, 'myevent'))
 
-        self.assertEqual(queue.qsize(), 1)
-        self.assertEqual(queue.get(), (0, 'player'))
-        self.assertTrue(queue.empty())
-
-    def test_nonunique(self):
-        queue = PriorityEventQueue()
-        queue.put((1, 'myevent'))
-        queue.put((0, 'myevent'))
-
-        self.assertEqual(queue.qsize(), 2)
-        self.assertEqual(queue.get(), (0, 'myevent'))
-        self.assertEqual(queue.get(), (1, 'myevent'))
-        self.assertTrue(queue.empty())
+    assert queue.qsize() == 2
+    assert queue.get() == (0, 'myevent')
+    assert queue.get() == (1, 'myevent')
+    assert queue.empty(), 'Queue is not empty'
