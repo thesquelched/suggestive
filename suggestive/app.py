@@ -560,8 +560,7 @@ def run(args):
     # Request API write access from user
     session_file = conf.lastfm_session_file
     if conf.lastfm_secret_key and not os.path.exists(session_file):
-        fm = mstat.initialize_lastfm(conf)
-        assert(fm.session_key is not None)
+        mstat.initialize_lastfm(conf)
 
     try:
         logger.debug('Starting event loop')
@@ -586,3 +585,7 @@ def main():
                         action='store_true')
 
     run(parser.parse_args())
+
+
+if __name__ == '__main__':
+    main()

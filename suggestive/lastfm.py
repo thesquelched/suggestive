@@ -1,24 +1,15 @@
-from suggestive.util import retry
+from suggestive.util import retry_function, retry
+from suggestive.error import RetryError
 
-import requests
-import json
+import six
 import logging
 from collections import defaultdict
-from time import mktime
-from hashlib import md5
+import webbrowser
+import pylastfm
 
-APIKEY = 'd9d0efb24aec53426d0f8d144c74caa7'
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
-
-
-class LastfmError(Exception):
-    pass
-
-
-class AuthenticationError(LastfmError):
-    pass
 
 
 def get(data, keys, default=None):
@@ -35,216 +26,97 @@ def get(data, keys, default=None):
     return get(data[key], rest, default=default)
 
 
-def log_response(func):
-    def wrapper(self, method, *args, **kwArgs):
-        resp = func(self, method, *args, **kwArgs)
-        if self.log_responses:
-            logger.debug('POST {}: {}'.format(method, resp))
-        return resp
-    return wrapper
-
-
 class LastFM(object):
 
     """
     Helper class for communicating with Last.FM servers
     """
 
-    _NO_SIGN = set(['format', 'api_sig'])
-
     def __init__(self, config):
-        self.key = config.lastfm_apikey
-        self.secret = config.lastfm_secret_key
-        self.session_file = config.lastfm_session_file
-        self.log_responses = config.lastfm_log_responses
-        self.url = config.lastfm_url
+        self.config = config
+        self.client = self._initialize_client()
 
-        self.session_key = None
-        self.token = None
+    def _get_user_permission(self, token):
+        """Attempt to open up authorization URL in browser.  If this fails, simply
+        display a message in the console asking user to manually open URL"""
 
-        if self.secret is not None:
-            self.session_key = self._load_session()
-            if self.session_key is None:
-                self.token = self._get_token()
-                self._get_user_permission()
-                self.session_key = self._get_session_key()
-                self._save_session()
+        url = 'http://www.last.fm/api/auth/?api_key={0}&token={1}'.format(
+            self.config.lastfm_apikey, token)
 
-    def _get_user_permission(self):
+        try:
+            webbrowser.open_new_tab(url)
+        except Exception:
+            pass
+
         message = """\
-No LastFM session found; to authorize suggestive, visit this URL and click
-'Yes, allow access', then return to this window:
+    No LastFM session found; to authorize suggestive, visit this URL and click
+    'Yes, allow access', then return to this window:
 
-    http://www.last.fm/api/auth/?api_key={}&token={}
+    {url}
 
-Press Enter to continue...""".format(self.key, self.token)
-        input(message)
+    Press Enter to continue...""".format(url=url)
 
-    def _load_session(self):
-        try:
-            with open(self.session_file) as handle:
-                return handle.read().strip()
-        except IOError:
-            logger.warning('Could not LastFM session key from file')
-            return None
+        six.moves.input(message)
 
-    def _save_session(self):
+    def _save_session(self, session_key):
+        """Save session key (in plaintext) to a file"""
         logger.info('Saving session key to file')
-        if self.session_key is None:
-            raise IOError("Can't save session key; no session_key found")
-        with open(self.session_file, 'w') as handle:
-            handle.write(self.session_key)
+        with open(self.config.lastfm_session_file, 'w') as handle:
+            handle.write(session_key)
 
-    def _get_session_key(self):
-        logger.info('Acquiring new LastFM session')
-
-        resp = self.query('auth.getSession', token=self.token, sign=True)
-        if 'error' in resp:
-            raise AuthenticationError(resp.get('message', 'Unknown Error'))
-
-        return resp['session']['key']
-
-    def _get_token(self):
-        logger.info('Acquiring new LastFM API token')
-        resp = self.query('auth.getToken', sign=True)
-        return resp['token']
-
-    def query_all(self, method, *keys, **kwArgs):
-        """Query a paginated method, yielding the data from each page"""
-        resp = self.query(method, **kwArgs)
-
-        data = resp
-        for key in keys:
-            if key in data:
-                data = data[key]
-            else:
-                break
-
-        attrs = data.get('@attr', {})
-        n_pages = int(attrs.get('totalPages', 1))
-
-        logger.debug('Query pages: {}'.format(n_pages))
-
-        # Start to yield responses
-        yield resp
-
-        for pageno in range(1, n_pages):
-            # Pages count from 1, so we have to increment the page number
-            kwArgs.update({'page': pageno + 1})
-            yield self.query(method, **kwArgs)
-
-    def _sign(self, **params):
-        if self.session_key is not None:
-            params.update(sk=self.session_key)
-
-        key_str = ''.join('{}{}'.format(key, params[key])
-                          for key in sorted(params)
-                          if key not in self._NO_SIGN)
-        with_secret = '{}{}'.format(key_str, self.secret)
-        return md5(with_secret.encode('UTF-8')).hexdigest()
-
-    def _query_params(self, method, sign=False, format='json', **kwArgs):
-        params = dict(
-            method=method,
-            api_key=self.key,
-        )
-        if format is not None:
-            params.update(format=format)
-        params.update(kwArgs)
-
-        if sign:
-            params.update(api_sig=self._sign(**params), sk=self.session_key)
-
-        return params
-
-    def _post(self, *args, **kwArgs):
-        return requests.post(*args, **kwArgs)
-
-    @retry()
-    @log_response
-    def query(self, method, sign=False, **kwArgs):
-        """
-        Send a Last.FM query for the given method, returing the parsed JSON
-        response
-        """
-
-        params = self._query_params(method, sign=sign, **kwArgs)
+    def _authorize_application(self, client):
+        """Go through the LastFM desktop application authorization process, saving
+        a session key to a file for future use"""
+        token = retry_function(client.auth.get_token)
+        self._get_user_permission(token)
 
         try:
-            resp = self._post(self.url, params=params)
-            if not resp.ok:
-                logger.debug(resp.content)
-                raise ValueError('Response was invalid')
-        except (ValueError, requests.exceptions.RequestException) as error:
-            logger.error('Query resulted in an error: {}'.format(error))
-            raise LastfmError("Query '{}' failed".format(method))
+            session_key = retry_function(client.auth.get_session, token)
+        except pylastfm.AuthenticationError as exc:
+            logger.debug('Unable to get authenticated LastFM session',
+                         exc_info=exc)
+            raise
+
+        self._save_session(session_key)
+
+    @retry(exceptions=RetryError)
+    def _initialize_client(self):
+        config = self.config
+
+        client = pylastfm.LastFM(config.lastfm_apikey,
+                                 config.lastfm_secret_key,
+                                 username=config.lastfm_user,
+                                 url=config.lastfm_url,
+                                 auth_method='session_key_file',
+                                 session_key=config.lastfm_session_file)
 
         try:
-            return json.loads(resp.text)
-        except ValueError as ex:
-            logger.exception('Unable to parse json response: {}'.format(ex))
-            logger.debug('Response: {}'.format(resp.text))
+            client.authenticate()
+            return client
+        except pylastfm.FileError:
+            logger.info('Authenticating suggestive with LastFM')
+            self._authorize_application(client)
+            raise RetryError
+        except pylastfm.AuthenticationError as exc:
+            logger.debug('Failed to authenticate', exc_info=exc)
+            raise
+        except pylastfm.LastfmError as exc:
+            logger.error(
+                'Unable to authenticate to LastFM due to unknown error',
+                exc_info=exc)
             raise
 
     def scrobbles(self, user, start=None, end=None):
         """Get user scrobbles in the given date range"""
-
-        for batch in self.scrobble_batches(user, start=start, end=end):
-            for scrobble in batch:
-                yield scrobble
-
-    def scrobble_batches(self, user, start=None, end=None):
-        args = {
-            'limit': 200,
-            'user': user,
-            'extended': 1
-        }
-
-        if start:
-            args['from'] = int(mktime(start.timetuple()))
-        if end:
-            args['to'] = int(mktime(end.timetuple()))
-
-        for resp in self.query_all('user.getRecentTracks', 'recenttracks',
-                                   **args):
-            if 'recenttracks' not in resp:
-                continue
-
-            recent = resp['recenttracks']
-            if 'track' not in recent or not isinstance(recent['track'], list):
-                continue
-
-            yield recent['track']
+        return self.client.user.get_recent_tracks(user, start=start, end=end)
 
     def loved_tracks(self, user):
         """Get all of the user's loved tracks"""
-
-        for resp in self.query_all('user.getLovedTracks', 'lovedtracks',
-                                   user=user):
-            if 'lovedtracks' not in resp:
-                continue
-
-            loved = resp['lovedtracks']
-            if 'track' not in loved or not isinstance(loved['track'], list):
-                continue
-
-            for track in loved['track']:
-                yield track
+        return self.client.user.get_loved_tracks(user)
 
     def banned_tracks(self, user):
         """Get all of the user's banned tracks"""
-
-        for resp in self.query_all('user.getBannedTracks', 'bannedtracks',
-                                   user=user):
-            if 'bannedtracks' not in resp:
-                continue
-
-            banned = resp['bannedtracks']
-            if 'track' not in banned or not isinstance(banned['track'], list):
-                continue
-
-            for track in banned['track']:
-                yield track
+        return self.client.user.get_banned_tracks(user)
 
     def artist_correction(self, artist):
         """Get corrections for the given artist"""
@@ -288,23 +160,18 @@ Press Enter to continue...""".format(self.key, self.token)
 
     def love_track(self, artist, track):
         """Mark the given track loved"""
-
-        resp = self.query('track.love', artist=artist, track=track, sign=True)
-        if resp.get('status') == 'ok':
+        try:
+            self.client.track.love(artist, track)
             return True
-        else:
-            logger.error('Unable to love track: {}'.format(
-                resp.get('message', 'Unknown Error')))
+        except pylastfm.ApiError as exc:
+            logger.error('Unable to love track', exc_info=exc)
             return False
 
     def unlove_track(self, artist, track):
         """Set the track as not loved"""
-
-        resp = self.query('track.unlove', artist=artist, track=track,
-                          sign=True)
-        if resp.get('status') == 'ok':
+        try:
+            self.client.track.unlove(artist, track)
             return True
-        else:
-            logger.error('Unable to unlove track: {}'.format(
-                resp.get('message', 'Unknown Error')))
+        except pylastfm.ApiError as exc:
+            logger.error('Unable to unlove track', exc_info=exc)
             return False

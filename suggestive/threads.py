@@ -1,5 +1,7 @@
 import suggestive.mstat as mstat
-from suggestive.lastfm import LastfmError
+from suggestive.util import partition
+
+from pylastfm import LastfmError
 import threading
 import logging
 import traceback
@@ -212,10 +214,11 @@ class ScrobbleInitializeThread(AppThread):
             earliest = mstat.earliest_scrobble(session)
 
         try:
-            batches = lastfm.scrobble_batches(conf.lastfm_user, end=earliest)
-        except LastfmError as err:
-            logger.error('Could not contact LastFM server')
-            logger.debug(err)
+            batches = partition(
+                lastfm.scrobbles(conf.lastfm_user, end=earliest),
+                200)
+        except LastfmError as exc:
+            logger.error('Could not contact LastFM server', exc_info=exc)
             batches = []
 
         for batch in batches:

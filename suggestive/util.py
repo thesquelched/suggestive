@@ -1,6 +1,7 @@
 import logging
 import re
 import itertools
+import six
 
 
 logger = logging.getLogger(__name__)
@@ -11,21 +12,41 @@ def album_text(album):
     return '{} - {}'.format(album.artist.name, album.name)
 
 
-def retry(attempts=2):
+def retry(attempts=None, exceptions=None):
     """Function retry decorator"""
+    if attempts is None:
+        attempts = 2
 
-    def retry_dec(func):
-        def wrapper(self, *args, **kwArgs):
-            last_error = ValueError('No attempts made')
-            for attempt in range(attempts):
+    assert attempts > 0, 'Must make at least one attempt'
+
+    if exceptions is None:
+        exceptions = (Exception,)
+    elif issubclass(exceptions, Exception):
+        exceptions = (exceptions,)
+
+    def retry_dec(func, exceptions=exceptions):
+        def wrapper(*args, **kwArgs):
+            for attempt in six.moves.range(attempts):
                 try:
-                    return func(self, *args, **kwArgs)
-                except Exception as error:
-                    last_error = error
+                    return func(*args, **kwArgs)
+                except exceptions as exc:
+                    logger.debug('Attempt %d failed for function %s',
+                                 attempt, func.__name__, exc_info=exc)
+                    if attempt == attempts - 1:
+                        raise
 
-            raise last_error
         return wrapper
     return retry_dec
+
+
+def retry_function(func, *args, **kwargs):
+    """Retry a function call directly, instead of having to make a wrapper
+    function with the @retry decorator"""
+    exceptions = kwargs.pop('exceptions', None)
+    attempts = kwargs.pop('attempts', None)
+
+    decorator = retry(attempts=attempts, exceptions=exceptions)
+    return decorator(lambda: func(*args, **kwargs))()
 
 
 def track_num(trackno):
