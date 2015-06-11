@@ -3,7 +3,6 @@ from suggestive.error import RetryError
 
 import six
 import logging
-from collections import defaultdict
 import webbrowser
 import pylastfm
 
@@ -117,46 +116,6 @@ class LastFM(object):
     def banned_tracks(self, user):
         """Get all of the user's banned tracks"""
         return self.client.user.get_banned_tracks(user)
-
-    def artist_correction(self, artist):
-        """Get corrections for the given artist"""
-
-        resp = self.query('artist.getCorrection', artist=artist)
-
-        if 'error' in resp or 'corrections' not in resp:
-            return None
-
-        corrections = resp['corrections']
-
-        if not isinstance(corrections, dict):
-            return None
-
-        return get(corrections, ['correction', 'artist', 'name'])
-
-    def album_corrections(self, album, artist):
-        """Get corrections for the given album"""
-
-        resp = self.query('album.search', album=album)
-
-        try:
-            albums = get(resp, ['results', 'albummatches', 'album'])
-        except TypeError:
-            return []
-
-        if not isinstance(albums, list):
-            return []
-
-        albums_by_artist = defaultdict(list)
-        for item in albums:
-            if isinstance(item, dict):
-                albums_by_artist[item['artist']].append(item['name'])
-
-        if artist.name in albums_by_artist:
-            return albums_by_artist[artist.name]
-        elif artist.correction:
-            return albums_by_artist[artist.correction.name]
-        else:
-            return []
 
     def love_track(self, artist, track):
         """Mark the given track loved"""
