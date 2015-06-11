@@ -1,5 +1,4 @@
 tox
-mock
 pytest>=2.6.4
 pytest-flakes>=0.2
 pytest-pep8>=1.0.6

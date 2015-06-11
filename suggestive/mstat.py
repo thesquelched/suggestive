@@ -6,7 +6,6 @@ from suggestive.util import partition
 
 from pylastfm import LastfmError
 import logging
-import six
 from mpd import MPDClient
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import subqueryload
@@ -320,7 +319,7 @@ class ScrobbleLoader(object):
         if not len(scrobbles):
             return 0
 
-        first = six.next(scrobbles)
+        first = next(scrobbles)
         self.load_scrobble(session, first)
 
         track = None  # Necessary if there was only one scrobble total

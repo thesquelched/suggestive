@@ -1,7 +1,6 @@
 import logging
 import re
 import itertools
-import six
 
 
 logger = logging.getLogger(__name__)
@@ -26,7 +25,7 @@ def retry(attempts=None, exceptions=None):
 
     def retry_dec(func, exceptions=exceptions):
         def wrapper(*args, **kwArgs):
-            for attempt in six.moves.range(attempts):
+            for attempt in range(attempts):
                 try:
                     return func(*args, **kwArgs)
                 except exceptions as exc:

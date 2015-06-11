@@ -1,7 +1,6 @@
 from suggestive.util import retry_function, retry
 from suggestive.error import RetryError
 
-import six
 import logging
 import webbrowser
 import pylastfm
@@ -55,7 +54,7 @@ class LastFM(object):
 
     Press Enter to continue...""".format(url=url)
 
-        six.moves.input(message)
+        input(message)
 
     def _save_session(self, session_key):
         """Save session key (in plaintext) to a file"""

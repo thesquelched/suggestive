@@ -1,11 +1,7 @@
 import suggestive.library as library
 
 import pytest
-
-try:
-    from unittest.mock import Mock
-except ImportError:
-    from mock import Mock
+from unittest.mock import Mock
 
 
 @pytest.fixture
