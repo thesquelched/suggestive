@@ -158,10 +158,5 @@ class TrackModel(Model):
         return info and info.loved
 
     @property
-    def banned(self):
-        info = self.db_track.lastfm_info
-        return info and info.banned
-
-    @property
     def number(self):
         return self._number

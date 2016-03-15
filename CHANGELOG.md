@@ -1,5 +1,5 @@
-Development
-===========
+Version 0.4.0
+=============
 
 Improvements
 ------------
@@ -7,6 +7,9 @@ Improvements
   play
 - Added database indexes to generally speed up database lookups
 - Various logging improvements
+- Depend on latest version of pylastfm to support recent LastFM API cleanup
+  (version your API, damnit!)
+- Stop tracking banned tracks, since LastFM removed that ability
 
 Bug Fixes
 ---------

@@ -313,8 +313,6 @@ class TrackView(urwid.WidgetWrap, View, widget.Searchable):
         model = self.model
         if model.loved:
             suffix = ' [L]'
-        elif model.banned:
-            suffix = ' [B]'
         else:
             suffix = ''
 

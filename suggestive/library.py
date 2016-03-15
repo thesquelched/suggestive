@@ -249,8 +249,6 @@ class TrackView(urwid.WidgetWrap, View, widget.Searchable):
         model = self.model
         if model.loved:
             suffix = ' [L]'
-        elif model.banned:
-            suffix = ' [B]'
         else:
             suffix = ''
 
@@ -508,7 +506,6 @@ class LibraryBuffer(Buffer):
                 'ignore_artist_the': self.conf.ignore_artist_the()
             }),
             ('loved', 'lo'): (analytics.FractionLovedOrder, None),
-            ('banned', 'bn'): (analytics.BannedOrder, None),
             ('pc', 'playcount'): (analytics.PlaycountOrder, None),
             ('mod', 'modified'): (analytics.ModifiedOrder, None),
         }

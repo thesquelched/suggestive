@@ -522,21 +522,20 @@ class MpdLoader(object):
 class TrackInfoLoader(object):
 
     """
-    Synchronizes database with LastFM track information, e.g. loved and banned
+    Synchronizes database with LastFM track information, e.g. loved
     """
 
     def __init__(self, lastfm, config):
         self.lastfm = lastfm
         self.user = config.lastfm_user
 
-    def update_track_info(self, session, db_track, loved, banned):
+    def update_track_info(self, session, db_track, loved):
         """
-        Attempt to update the loved/banned status of a track. If the track does
+        Attempt to update the loved status of a track. If the track does
         not have a corresponding LastFM info record, insert that record into
         the database
         """
-        logger.debug('update_track_info: {}, {}, {}'.format(
-            db_track.name, loved, banned))
+        logger.debug('update_track_info: {}, {}'.format(db_track.name, loved))
         db_track_info = db_track.lastfm_info
         if not db_track_info:
             logger.debug('New track info')
@@ -545,7 +544,6 @@ class TrackInfoLoader(object):
             session.add(db_track_info)
 
         db_track_info.loved = loved
-        db_track_info.banned = banned
 
     def find_track(self, session, artist, track):
         """
@@ -625,14 +623,13 @@ class TrackInfoLoader(object):
                 if db_track:
                     return db_track
 
-    def load_track_info(self, session, artist, loved_tracks, banned_tracks):
+    def load_track_info(self, session, artist, loved_tracks):
         """
-        Load loved/banned tracks into the database
+        Load loved tracks into the database
         """
         artist_names = [a.name for a in session.query(Artist).all()]
-        all_tracks = loved_tracks.union(banned_tracks)
 
-        for track in all_tracks:
+        for track in loved_tracks:
             db_track = self.db_track_from_lastfm(
                 session, artist_names, artist, track)
 
@@ -641,7 +638,6 @@ class TrackInfoLoader(object):
                     session,
                     db_track,
                     track in loved_tracks,
-                    track in banned_tracks
                 )
             else:
                 logger.error('Could not find database entry for LastFM item: '
@@ -662,36 +658,17 @@ class TrackInfoLoader(object):
 
         return loved_tracks
 
-    def get_banned_tracks(self):
-        """
-        Query LastFM for a list of banned tracks
-        """
-        banned_tracks = defaultdict(set)
-
-        for track in self.lastfm.banned_tracks(self.user):
-            if not (track.name and track.artist_name):
-                logger.error('Malformed LastFM banned info: %s - %s',
-                             track.artist_name, track.name)
-                continue
-            banned_tracks[track.artist_name].add(track.name)
-
-        return banned_tracks
-
     def load(self, session):
         """
         Synchronize LastFM track information with suggestive database
         """
         loved_tracks = self.get_loved_tracks()
-        banned_tracks = self.get_banned_tracks()
 
-        all_artists = set(loved_tracks.keys()).union(set(banned_tracks.keys()))
-
-        for artist in all_artists:
+        for artist, tracks in loved_tracks.items():
             self.load_track_info(
                 session,
                 artist,
-                loved_tracks[artist],
-                banned_tracks[artist]
+                tracks,
             )
 
 
