@@ -158,7 +158,6 @@ Library
 - `:playcount <min=0.0> <max=None> <reverse=false>` - (Alias: `pc`) Display
   albums in order of fractional playcount (i.e. number of scrobbles / number of
   tracks).  Note that this number can be greater than 1
-- `:banned <remove_banned=true>` - Penalize (or remove) albums with banned
   tracks from the library
 - `:sort <reverse=false>` - Sort albums using the string 'artist - album'
 - `:reset` - Reset library order to default

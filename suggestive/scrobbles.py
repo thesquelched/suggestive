@@ -51,11 +51,6 @@ class PlayModel(Model):
         info = self._db_track.lastfm_info
         return info and info.loved
 
-    @property
-    def banned(self):
-        info = self._db_track.lastfm_info
-        return info and info.banned
-
 
 class ScrobbleModel(Model):
 
@@ -92,11 +87,6 @@ class ScrobbleModel(Model):
     def loved(self):
         info = self.db_track.lastfm_info
         return info and info.loved
-
-    @property
-    def banned(self):
-        info = self.db_track.lastfm_info
-        return info and info.banned
 
 
 class ScrobbleListModel(Model):
@@ -218,8 +208,6 @@ class ScrobbleView(urwid.WidgetWrap, View, widget.Searchable):
         model = self.model
         if model.loved:
             suffix = ' [L]'
-        elif model.banned:
-            suffix = ' [B]'
         else:
             suffix = ''
 

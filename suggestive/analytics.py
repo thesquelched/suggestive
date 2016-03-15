@@ -132,41 +132,6 @@ class ModifiedOrder(OrderDecorator):
         return {album: i for i, album in enumerate(sorted_albums, 1)}
 
 
-class BannedOrder(OrderDecorator):
-    """Remove or demote albums with banned tracks"""
-
-    def __init__(self, remove_banned=True):
-        self.remove = remove_banned in self.TRUTHY
-
-    def __repr__(self):
-        return '<BannedOrder({})>'.format(self.remove)
-
-    def _query_albums(self, session):
-        return session.query(Album).\
-            join(Track).\
-            outerjoin(LastfmTrackInfo).\
-            add_columns(func.count(Track.id),
-                        func.sum(LastfmTrackInfo.banned, type_=Integer)).\
-            group_by(Album.id).\
-            all()
-
-    def order(self, albums, session, mpd):
-        results = self._query_albums(session)
-        neworder = defaultdict(lambda: 1.0, albums.items())
-
-        for album, n_tracks, n_banned in results:
-            if album not in neworder or n_tracks == 0:
-                continue
-
-            if n_banned and self.remove:
-                del neworder[album]
-            elif n_banned:
-                # Banned albums are equally worthless
-                neworder[album] *= 0.0
-
-        return neworder
-
-
 class FractionLovedOrder(OrderDecorator):
     """Order by fraction of tracks loved"""
 

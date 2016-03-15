@@ -90,7 +90,7 @@ class Config(object):
         ),
         library=dict(
             ignore_artist_the=True,
-            default_order='loved; playcount; banned remove_banned=true',
+            default_order='loved; playcount',
             show_score=False,
             esc_resets_orderers=True,
         ),

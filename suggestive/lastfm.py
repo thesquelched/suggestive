@@ -112,10 +112,6 @@ class LastFM(object):
         """Get all of the user's loved tracks"""
         return self.client.user.get_loved_tracks(user)
 
-    def banned_tracks(self, user):
-        """Get all of the user's banned tracks"""
-        return self.client.user.get_banned_tracks(user)
-
     def love_track(self, artist, track):
         """Mark the given track loved"""
         try:
