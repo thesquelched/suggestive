@@ -25,8 +25,7 @@ import urwid
 import logging
 from logging.handlers import RotatingFileHandler
 import threading
-import os.path
-from os import remove
+import os
 import sys
 import gzip
 
@@ -509,7 +508,12 @@ def initialize_logging(conf):
                 for line in sf:
                     df.write(line)
 
-        remove(source)
+        os.remove(source)
+
+    try:
+        os.makedirs(os.path.dirname(conf.log_file()))
+    except IOError:
+        pass
 
     handler = RotatingFileHandler(
         conf.log_file(),
