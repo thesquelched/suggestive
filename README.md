@@ -153,6 +153,8 @@ Library
 - `:loved <min=0.0> <max=1.0> <reverse=false>` - (Alias: `lo`) Display albums
   in order of fraction of tracks loved. You may optional specify the minimum or
   maximum fraction of loved tracks for an album to be displayed
+- `:modified <reverse=false>` - (Alias: `mod`) Sort by file modification time,
+  which can be useful for finding recently-downloaded albums
 - `:playcount <min=0.0> <max=None> <reverse=false>` - (Alias: `pc`) Display
   albums in order of fractional playcount (i.e. number of scrobbles / number of
   tracks).  Note that this number can be greater than 1
@@ -160,6 +162,20 @@ Library
 - `:sort <reverse=false>` - Sort albums using the string 'artist - album'
 - `:reset` - Reset library order to default
 - `:unorder` - Remove all orderings (Alias: `unordered`)
+
+Orderers
+--------
+
+`suggestive` provides the capability of sorting your library with one or more filters or "orderers".  It assigns a simple ranking to albums according to the orderers you have specified, with higher ranked albums at the top.  The default ordering gives higher weight to albums with more loved tracks, as well as those with a higher fractional playcount.  These orderers work in concert, so an album with many loved tracks might be ranked similarly to one that has been played many times, but lower to one that has both.  The available orderer commands are `album`, `artist`, `loved`, `playcount`, `sort`, and `modified`.  See the library commands section for more information.
+
+Either hitting `esc` or using the `:reset` command will reset the orderers back to the default, which is `loved; playcount`.  You can change the default in your config file using the `library.default_order` option.  The format is just a semicolor-separated list of orderer commands, without the preceding colon.  For example, this sets the default ordering to modification date in reverse order:
+
+```
+[library]
+default_order = modified reverse=true
+```
+
+If you wish to work from scratch with no ordering, use the `:unorder` command.
 
 ### Custom order commands
 
