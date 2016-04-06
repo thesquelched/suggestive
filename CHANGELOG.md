@@ -1,3 +1,11 @@
+Version 0.4.1
+=============
+
+Bug Fixes
+---------
+- Add mpd connection retries to MPD loader
+- Fix error when log directory doesn't exist
+
 Version 0.4.0
 =============
 

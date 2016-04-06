@@ -125,19 +125,22 @@ def database_tracks_from_mpd(conf, tracks_info):
     """
     Return the database Track object corresponding to track info from MPD
     """
-    with session_scope(conf, commit=False) as session:
-        filenames = [info['file'] for info in tracks_info]
-        db_tracks = session.query(Track).\
-            options(
-                subqueryload(Track.album),
-                subqueryload(Track.artist),
-                subqueryload(Track.lastfm_info)
-            ).\
-            filter(Track.filename.in_(filenames)).\
-            all()
+    track_filenames = [info['file'] for info in tracks_info]
 
-        tracks_by_filename = {t.filename: t for t in db_tracks}
-        return [tracks_by_filename[info['file']] for info in tracks_info]
+    with session_scope(conf, commit=False) as session:
+        tracks_by_filename = {}
+
+        for chunk in partition(track_filenames, 128):
+            db_tracks = (session.query(Track).
+                         options(subqueryload(Track.album),
+                                 subqueryload(Track.artist),
+                                 subqueryload(Track.lastfm_info)).
+                         filter(Track.filename.in_(chunk)).
+                         all())
+
+            tracks_by_filename.update({t.filename: t for t in db_tracks})
+
+        return [tracks_by_filename[filename] for filename in track_filenames]
 
 
 def get_scrobbles(conf, limit, offset=None):
@@ -319,11 +322,11 @@ class ScrobbleLoader(object):
         if not len(scrobbles):
             return 0
 
-        first = next(scrobbles)
+        first = scrobbles[0]
         self.load_scrobble(session, first)
 
         track = None  # Necessary if there was only one scrobble total
-        for track in scrobbles:
+        for track in scrobbles[1:]:
             self.load_scrobble(session, track)
 
         last = track or first
@@ -339,8 +342,17 @@ class MpdLoader(object):
     Synchronizes the MPD and suggestive databases
     """
 
-    def __init__(self, mpd):
-        self.mpd = mpd
+    def __init__(self, conf):
+        self._conf = conf
+        self._mpd = initialize_mpd(conf)
+
+    @property
+    def mpd(self):
+        return self._mpd
+
+    @property
+    def conf(self):
+        return self._conf
 
     def load_track(self, session, db_artist, db_album, info):
         """
@@ -442,6 +454,7 @@ class MpdLoader(object):
 
         logger.debug('Deleted {} empty albums'.format(len(empty)))
 
+    @mpd_retry
     def check_duplicates(self, session):
         """
         Check for albums with duplicate tracks
@@ -492,11 +505,19 @@ class MpdLoader(object):
 
         return by_artist_album
 
+    @mpd_retry
+    def _list_mpd_files(self):
+        return self.mpd.list('file')
+
+    @mpd_retry
+    def _mpd_info(self, path):
+        return self.mpd.listallinfo(path)
+
     def load(self, session):
         """
         Synchronize MPD and suggestive databases
         """
-        files_in_mpd = set(self.mpd.list('file'))
+        files_in_mpd = set(self._list_mpd_files())
         files_in_db = set(item.filename for item in session.query(
             Track.filename).all())
 
@@ -509,8 +530,7 @@ class MpdLoader(object):
             logger.debug('Missing files:\n  {}'.format(
                 '\n  '.join(missing)))
             missing_info = list(
-                chain.from_iterable(self.mpd.listallinfo(path)
-                                    for path in missing))
+                chain.from_iterable(self._mpd_info(path) for path in missing))
 
             by_artist_album = self.segregate_track_info(missing_info)
             self.load_by_artist_album(session, by_artist_album)
@@ -750,8 +770,7 @@ def update_mpd(config):
         albums_start = session.query(Album).count()
         tracks_start = session.query(Track).count()
 
-        mpdclient = initialize_mpd(config)
-        mpd_loader = MpdLoader(mpdclient)
+        mpd_loader = MpdLoader(config)
         mpd_loader.load(session)
 
         session.commit()
