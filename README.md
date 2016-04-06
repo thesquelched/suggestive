@@ -57,8 +57,6 @@ Here is a minimal `suggestive` configuration file:
 [lastfm]
 user = my_lastfm_user
 api_key = 0123456789abcdefghijklmnopqrstuv
-
-# For LastFM write access (optional)
 api_secret = 141iojhu789uihy78uiho9uih89080
 ```
 
