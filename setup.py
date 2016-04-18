@@ -56,5 +56,6 @@ if __name__ == '__main__':
             'requests>=1.2.3',
             'SQLAlchemy>=0.9.6',
             'urwid>=1.1.1',
+            'unidecode',
         ],
     )

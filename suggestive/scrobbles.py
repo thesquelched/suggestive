@@ -1,12 +1,13 @@
+import logging
 import urwid
+from itertools import groupby
+from mpd import CommandError as MpdCommandError
+
 import suggestive.signals as signals
-from suggestive.mvc import View, Model, Controller
 import suggestive.mstat as mstat
 import suggestive.widget as widget
+from suggestive.mvc import View, Model, Controller
 from suggestive.buffer import Buffer
-import logging
-from mpd import CommandError as MpdCommandError
-from itertools import groupby
 
 
 logger = logging.getLogger('suggestive.scrobbles')
@@ -225,6 +226,10 @@ class ScrobbleView(urwid.WidgetWrap, View, widget.Searchable):
             album=model.db_album.name,
             title=model.name,
             suffix='')
+
+    @property
+    def searchable_text(self):
+        return self.canonical_text
 
 
 class ScrobbleListWalker(urwid.ListWalker):

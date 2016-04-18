@@ -265,6 +265,10 @@ class TrackView(urwid.WidgetWrap, View, widget.Searchable):
             name=model.name,
             suffix='')
 
+    @property
+    def searchable_text(self):
+        return self.model.name
+
     def update(self):
         logger.debug('Updated {}'.format(self))
         self._w.original_widget.set_text(self.text)
@@ -307,6 +311,10 @@ class AlbumView(urwid.WidgetWrap, View, widget.Searchable):
     def canonical_text(self):
         album = self.db_album
         return '{} - {}'.format(album.artist.name, album.name)
+
+    @property
+    def searchable_text(self):
+        return self.canonical_text
 
     @property
     def text(self):

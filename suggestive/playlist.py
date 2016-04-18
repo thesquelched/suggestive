@@ -336,6 +336,10 @@ class TrackView(urwid.WidgetWrap, View, widget.Searchable):
             title=model.name,
             suffix='')
 
+    @property
+    def searchable_text(self):
+        return self.canonical_text
+
     def update(self):
         self._w.original_widget.set_text(self.text)
 

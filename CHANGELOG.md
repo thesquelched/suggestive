@@ -1,6 +1,11 @@
 Version 0.4.1
 =============
 
+Improvements
+------------
+- Filters and search (`/`) will now attempt to match unicode strings to their
+  closest ASCII values
+
 Bug Fixes
 ---------
 - Add mpd connection retries to MPD loader

@@ -1,6 +1,7 @@
 import suggestive.bindings as bindings
 import suggestive.signals as signals
 
+from unidecode import unidecode
 import urwid
 import logging
 
@@ -195,9 +196,9 @@ class SuggestiveListBox(urwid.ListBox):
 
 class Searchable(object):
 
-    @property
-    def search_text(self):
-        return self.canonical_text
+    def search_text(self, fuzzy_unicode=False):
+        text = self.searchable_text
+        return unidecode(text) if fuzzy_unicode else text
 
 
 class SelectableScrobble(urwid.WidgetWrap):

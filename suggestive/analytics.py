@@ -4,6 +4,7 @@ from suggestive.model import Album, Track, Scrobble, LastfmTrackInfo
 import logging
 import re
 import sys
+from unidecode import unidecode
 from sqlalchemy import func, Integer, distinct
 from sqlalchemy.orm import subqueryload
 from itertools import repeat
@@ -64,7 +65,8 @@ class AlbumFilter(OrderDecorator):
     def order(self, albums, session, mpd):
         return {
             album: order for album, order in albums.items()
-            if re.search(self.name_rgx, album.name) is not None
+            if re.search(self.name_rgx, album.name)
+            or re.search(self.name_rgx, unidecode(album.name))
         }
 
 
@@ -82,7 +84,8 @@ class ArtistFilter(OrderDecorator):
     def order(self, albums, session, mpd):
         return {
             album: order for album, order in albums.items()
-            if re.search(self.name_rgx, album.artist.name) is not None
+            if re.search(self.name_rgx, album.artist.name)
+            or re.search(self.name_rgx, unidecode(album.artist.name))
         }
 
 

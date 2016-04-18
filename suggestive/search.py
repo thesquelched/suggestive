@@ -22,13 +22,14 @@ class LazySearcher(object):
         if not isinstance(view, Searchable):
             return False
 
-        logger.debug('Search for pattern {} in {}'.format(
-            self.pattern, view.canonical_text))
+        for fuzzy_unicode in (False, True):
+            value = view.search_text(fuzzy_unicode)
 
-        match = re.search(
-            self.pattern, view.canonical_text, re.I)
+            logger.debug('Search for pattern %s in %s', self.pattern, value)
+            if re.search(self.pattern, value, re.I):
+                return True
 
-        return match is not None
+        return False
 
     def next_item(self, views, position, backward=False):
         enumerated = list(enumerate(views))
