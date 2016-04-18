@@ -65,8 +65,8 @@ class AlbumFilter(OrderDecorator):
     def order(self, albums, session, mpd):
         return {
             album: order for album, order in albums.items()
-            if re.search(self.name_rgx, album.name)
-            or re.search(self.name_rgx, unidecode(album.name))
+            if re.search(self.name_rgx, album.name) or
+            re.search(self.name_rgx, unidecode(album.name))
         }
 
 
@@ -84,8 +84,8 @@ class ArtistFilter(OrderDecorator):
     def order(self, albums, session, mpd):
         return {
             album: order for album, order in albums.items()
-            if re.search(self.name_rgx, album.artist.name)
-            or re.search(self.name_rgx, unidecode(album.artist.name))
+            if re.search(self.name_rgx, album.artist.name) or
+            re.search(self.name_rgx, unidecode(album.artist.name))
         }
 
 
