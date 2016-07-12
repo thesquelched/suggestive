@@ -117,7 +117,7 @@ class LastFM(object):
         try:
             self.client.track.love(artist, track)
             return True
-        except pylastfm.ApiError as exc:
+        except pylastfm.APIError as exc:
             logger.error('Unable to love track', exc_info=exc)
             return False
 
@@ -126,6 +126,6 @@ class LastFM(object):
         try:
             self.client.track.unlove(artist, track)
             return True
-        except pylastfm.ApiError as exc:
+        except pylastfm.APIError as exc:
             logger.error('Unable to unlove track', exc_info=exc)
             return False

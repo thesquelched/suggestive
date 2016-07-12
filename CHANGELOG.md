@@ -1,3 +1,10 @@
+Version 0.4.2
+=============
+
+Bug Fixes
+---------
+- Fix pylastfm APIError typo
+
 Version 0.4.1
 =============
 
