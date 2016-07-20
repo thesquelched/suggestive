@@ -112,6 +112,10 @@ class PlaylistController(Controller):
             view.canonical_text))
 
         db_track = view.model.db_track
+        if not db_track.id:
+            logger.error('Can not mark invalid track loved')
+            return
+
         loved = db_track.lastfm_info.loved if db_track.lastfm_info else False
 
         lastfm_love_track(self.conf, db_track, loved=not loved)

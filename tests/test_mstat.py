@@ -1,5 +1,45 @@
+import os.path
+from contextlib import contextmanager
 from unittest.mock import patch, MagicMock
+
 from suggestive import mstat
+from suggestive.model import Track
+
+
+@patch('suggestive.mstat.MpdLoader')
+def test_playlist_tracks_missing(mpd_loader, mock_config):
+    """Test that, if the mpd playlist has tracks that don't exist in the
+    playlist, we attempt to load them into the databse, and if that fails, a
+    placeholder is returned"""
+
+    track1_info = {'file': '/path/to/track1.mp3', 'title': 'test track one'}
+    track2_info = {'file': '/path/to/track2.mp3'}
+
+    track1 = Track(name=track1_info['title'], filename=track1_info['file'])
+
+    session = MagicMock()
+    (session.query.return_value.options.return_value.filter.return_value
+     .all.side_effect) = (
+        [track1],
+        [],
+    )
+
+    @contextmanager
+    def make_session(*args, **kwargs):
+        yield session
+
+    with patch('suggestive.mstat.session_scope', make_session):
+        tracks = mstat.database_tracks_from_mpd(
+            mock_config, [track1_info, track2_info])
+        assert len(tracks) == 2
+        assert tracks[0] == track1
+
+        track2 = tracks[1]
+        assert track2.name == os.path.basename(track2_info['file'])
+        assert track2.filename == track2_info['file']
+
+    mpd_loader.return_value.load_mpd_tracks.assert_called_with(
+        session, [track2_info['file']])
 
 
 class TestMpdLoader:

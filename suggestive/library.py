@@ -160,6 +160,10 @@ class LibraryController(Controller):
     # Signal handler
     def love_track(self, view):
         db_track = view.model.db_track
+        if not db_track.id:
+            logger.error('Can not mark invalid track loved')
+            return
+
         logger.info('Toggle loved for playlist track: {}'.format(
             db_track.name))
 

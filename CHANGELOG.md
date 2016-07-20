@@ -1,3 +1,11 @@
+Version 0.4.3
+=============
+
+Bug Fixes
+---------
+- Fix KeyError caused by MPD playlist containing items that are not yet in the
+  suggestive database
+
 Version 0.4.2
 =============
 

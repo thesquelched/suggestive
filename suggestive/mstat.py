@@ -10,7 +10,7 @@ from mpd import MPDClient
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import subqueryload
 from datetime import datetime, timedelta
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from itertools import chain
 from os.path import basename, dirname
 from contextlib import contextmanager
@@ -121,26 +121,63 @@ def database_track_from_mpd(conf, track_info):
     return tracks[0] if tracks else None
 
 
+def get_unknown_track(info):
+    """Create a mock Track for a MPD track not in the database"""
+    filename = info['file']
+    title = info.get('title', basename(filename))
+
+    artist = Artist(name='Unknown')
+    return Track(
+        name=title,
+        filename=filename,
+        album=Album(name='Unknown', artist=artist),
+        artist=artist,
+    )
+
+
 def database_tracks_from_mpd(conf, tracks_info):
     """
     Return the database Track object corresponding to track info from MPD
     """
-    track_filenames = [info['file'] for info in tracks_info]
+    info_by_filename = OrderedDict((info['file'], info)
+                                   for info in tracks_info)
+
+    def _get_db_tracks(session, chunk):
+        return (session.query(Track).
+                options(subqueryload(Track.album),
+                        subqueryload(Track.artist),
+                        subqueryload(Track.lastfm_info)).
+                filter(Track.filename.in_(chunk)).
+                all())
 
     with session_scope(conf, commit=False) as session:
         tracks_by_filename = {}
+        missing = []
 
-        for chunk in partition(track_filenames, 128):
-            db_tracks = (session.query(Track).
-                         options(subqueryload(Track.album),
-                                 subqueryload(Track.artist),
-                                 subqueryload(Track.lastfm_info)).
-                         filter(Track.filename.in_(chunk)).
-                         all())
+        chunk_size = 128
+        for chunk in partition(info_by_filename.keys(), chunk_size):
+            db_tracks = _get_db_tracks(session, chunk)
+            by_filename = {t.filename: t for t in db_tracks}
 
-            tracks_by_filename.update({t.filename: t for t in db_tracks})
+            if len(db_tracks) != chunk_size:
+                missing.extend((filename for filename in chunk
+                                if filename not in by_filename))
 
-        return [tracks_by_filename[filename] for filename in track_filenames]
+            tracks_by_filename.update(by_filename)
+
+        if missing:
+            logger.info(
+                'Updating database with %d missing track%s in playlist',
+                len(missing), 's' if len(missing) > 1 else '')
+
+            MpdLoader(conf).load_mpd_tracks(session, missing)
+            for chunk in partition(missing, chunk_size):
+                db_tracks = _get_db_tracks(session, chunk)
+                by_filename = {t.filename: t for t in db_tracks}
+                tracks_by_filename.update(by_filename)
+
+        return [tracks_by_filename.get(filename, get_unknown_track(info))
+                for filename, info in info_by_filename.items()]
 
 
 def get_scrobbles(conf, limit, offset=None):
@@ -513,6 +550,16 @@ class MpdLoader(object):
     def _mpd_info(self, path):
         return self.mpd.listallinfo(path)
 
+    def load_mpd_tracks(self, session, filenames):
+        if not filenames:
+            return
+
+        missing_info = list(
+            chain.from_iterable(self._mpd_info(path) for path in filenames))
+
+        by_artist_album = self.segregate_track_info(missing_info)
+        self.load_by_artist_album(session, by_artist_album)
+
     def load(self, session):
         """
         Synchronize MPD and suggestive databases
@@ -529,11 +576,7 @@ class MpdLoader(object):
                         'from suggestive database'.format(len(missing)))
             logger.debug('Missing files:\n  {}'.format(
                 '\n  '.join(missing)))
-            missing_info = list(
-                chain.from_iterable(self._mpd_info(path) for path in missing))
-
-            by_artist_album = self.segregate_track_info(missing_info)
-            self.load_by_artist_album(session, by_artist_album)
+            self.load_mpd_tracks(missing)
 
         self.check_duplicates(session)
         self.delete_empty_albums(session)
