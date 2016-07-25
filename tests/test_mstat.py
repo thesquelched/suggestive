@@ -42,6 +42,30 @@ def test_playlist_tracks_missing(mpd_loader, mock_config):
         session, [track2_info['file']])
 
 
+def test_duplicate_filenames(mock_config):
+    """Test that the cardinality of the database tracks returned is the same
+    as the input list of MPD track information"""
+    track1_info = {'file': 'filename1', 'title': 'track one'}
+    track2_info = {'file': 'filename2', 'title': 'track two'}
+
+    track1, track2 = (Track(name=info['title'], filename=info['file'])
+                      for info in (track1_info, track2_info))
+
+    session = MagicMock()
+    (session.query.return_value.options.return_value.filter.return_value
+     .all.return_value) = [track1, track2]
+
+    @contextmanager
+    def make_session(*args, **kwargs):
+        yield session
+
+    with patch('suggestive.mstat.session_scope', make_session):
+        tracks = mstat.database_tracks_from_mpd(
+            mock_config, [track1_info, track2_info, track1_info])
+
+        assert len(tracks) == 3
+
+
 class TestMpdLoader:
 
     @patch('suggestive.mstat.initialize_mpd')

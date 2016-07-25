@@ -139,6 +139,7 @@ def database_tracks_from_mpd(conf, tracks_info):
     """
     Return the database Track object corresponding to track info from MPD
     """
+    track_filenames = [info['file'] for info in tracks_info]
     info_by_filename = OrderedDict((info['file'], info)
                                    for info in tracks_info)
 
@@ -176,8 +177,10 @@ def database_tracks_from_mpd(conf, tracks_info):
                 by_filename = {t.filename: t for t in db_tracks}
                 tracks_by_filename.update(by_filename)
 
+        filename_and_info = ((filename, info_by_filename[filename])
+                             for filename in track_filenames)
         return [tracks_by_filename.get(filename, get_unknown_track(info))
-                for filename, info in info_by_filename.items()]
+                for filename, info in filename_and_info]
 
 
 def get_scrobbles(conf, limit, offset=None):
