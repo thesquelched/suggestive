@@ -45,10 +45,10 @@ class MainView(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
     signals = [signals.SET_FOOTER, signals.SET_FOCUS]
 
-    def __init__(self, conf):
+    def __init__(self, conf, loop):
         self._conf = conf
 
-        self._buffers = self.initialize_buffers()
+        self._buffers = self.initialize_buffers(loop)
         self._buffer_list = self.create_buffer_list()
 
         super(MainView, self).__init__(
@@ -82,38 +82,41 @@ class MainView(urwid.Frame):
     def __iter__(self):
         return iter(self._buffer_list)
 
-    def initialize_buffers(self):
+    def initialize_buffers(self, loop):
         default = set(self.conf.default_buffers())
         logger.debug('Default buffers: {}'.format(default))
 
         buffers = {
-            'library': self.create_library_buffer('library' in default),
-            'playlist': self.create_playlist_buffer('playlist' in default),
-            'scrobbles': self.create_scrobbles_buffer('scrobbles' in default),
+            'library': self.create_library_buffer(
+                loop, 'library' in default),
+            'playlist': self.create_playlist_buffer(
+                loop, 'playlist' in default),
+            'scrobbles': self.create_scrobbles_buffer(
+                loop, 'scrobbles' in default),
         }
 
         logger.debug('Controller registry: {}'.format(Controller._registry))
 
         return buffers
 
-    def create_library_buffer(self, active=False):
-        buf = LibraryBuffer(self.conf)
+    def create_library_buffer(self, loop, active=False):
+        buf = LibraryBuffer(self.conf, loop)
         buf.active = active
         urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
         urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
 
         return buf
 
-    def create_playlist_buffer(self, active=False):
-        buf = PlaylistBuffer(self.conf)
+    def create_playlist_buffer(self, loop, active=False):
+        buf = PlaylistBuffer(self.conf, loop)
         buf.active = active
         urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
         urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
 
         return buf
 
-    def create_scrobbles_buffer(self, active=False):
-        buf = ScrobbleBuffer(self.conf)
+    def create_scrobbles_buffer(self, loop, active=False):
+        buf = ScrobbleBuffer(self.conf, loop)
         buf.active = active
         urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
         urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
@@ -197,7 +200,7 @@ class Application(Commandable):
         self.quit_event = threading.Event()
 
         self.loop = asyncio.get_event_loop()
-        self.top = MainView(conf)
+        self.top = MainView(conf, self.loop)
         self.urwid_loop = self.main_loop()
 
         self.bindings = self.setup_bindings()

@@ -126,8 +126,8 @@ class ScrobbleListModel(Model):
 
 class ScrobbleListController(Controller):
 
-    def __init__(self, model, conf):
-        super(ScrobbleListController, self).__init__(model, conf)
+    def __init__(self, model, conf, loop):
+        super(ScrobbleListController, self).__init__(model, conf, loop)
         self.current_song_id = None
 
     def load_more_scrobbles(self, position):
@@ -351,11 +351,11 @@ class ScrobbleListView(widget.SuggestiveListBox, View):
 
 class ScrobbleBuffer(Buffer):
 
-    def __init__(self, conf):
+    def __init__(self, conf, loop):
         self.conf = conf
 
         self.model = ScrobbleListModel()
-        self.controller = ScrobbleListController(self.model, conf)
+        self.controller = ScrobbleListController(self.model, conf, loop)
         self.view = ScrobbleListView(self.model, self.controller, conf)
 
         super(ScrobbleBuffer, self).__init__(self.view)

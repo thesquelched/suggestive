@@ -4,7 +4,7 @@ import suggestive.util as util
 import suggestive.analytics as analytics
 import suggestive.signals as signals
 from suggestive.buffer import Buffer
-from suggestive.threads import lastfm_love_track
+from suggestive.action import lastfm_love_track
 
 from suggestive.mvc.base import View, Model, Controller, TrackModel
 
@@ -77,8 +77,8 @@ class LibraryModel(Model):
 
 class LibraryController(Controller):
 
-    def __init__(self, model, conf):
-        super(LibraryController, self).__init__(model, conf)
+    def __init__(self, model, conf, loop):
+        super(LibraryController, self).__init__(model, conf, loop)
 
         self._default_orderers = [analytics.BaseOrder()]
 
@@ -169,7 +169,7 @@ class LibraryController(Controller):
 
         loved = db_track.lastfm_info.loved if db_track.lastfm_info else False
 
-        lastfm_love_track(self.conf, db_track, loved=not loved)
+        self.async_run(lastfm_love_track, self.conf, db_track, not loved)
         mstat.db_track_love(self.conf, db_track, loved=not loved)
 
         new_track = mstat.get_db_track(self.conf, db_track.id)
@@ -459,10 +459,10 @@ class LibraryView(widget.SuggestiveListBox, View):
 
 class LibraryBuffer(Buffer):
 
-    def __init__(self, conf):
+    def __init__(self, conf, loop):
         self.conf = conf
         self.model = LibraryModel([])
-        self.controller = LibraryController(self.model, conf)
+        self.controller = LibraryController(self.model, conf, loop)
         self.view = LibraryView(self.model, self.controller, conf)
 
         super(LibraryBuffer, self).__init__(self.view)

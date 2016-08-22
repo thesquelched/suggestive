@@ -5,7 +5,7 @@ from suggestive.error import CommandError
 from suggestive.mvc.base import View, Model, Controller, TrackModel
 from suggestive.buffer import Buffer
 from mpd import CommandError as MpdCommandError
-from suggestive.threads import lastfm_love_track
+from suggestive.action import lastfm_love_track
 
 import urwid
 from math import floor, log10
@@ -79,8 +79,8 @@ class PlaylistModel(Model):
 
 class PlaylistController(Controller):
 
-    def __init__(self, model, conf):
-        super(PlaylistController, self).__init__(model, conf)
+    def __init__(self, model, conf, loop):
+        super(PlaylistController, self).__init__(model, conf, loop)
         self._conf = conf
 
         # Connections
@@ -117,7 +117,7 @@ class PlaylistController(Controller):
 
         loved = db_track.lastfm_info.loved if db_track.lastfm_info else False
 
-        lastfm_love_track(self.conf, db_track, loved=not loved)
+        self.async_run(lastfm_love_track, self.conf, db_track, not loved)
         mstat.db_track_love(self.conf, db_track, loved=not loved)
 
         new_track = mstat.get_db_track(self.conf, db_track.id)
@@ -472,10 +472,10 @@ class PlaylistBuffer(Buffer):
 
     ITEM_FORMAT = '{artist} - {album} - {title}{suffix}'
 
-    def __init__(self, conf):
+    def __init__(self, conf, loop):
         self.conf = conf
         self.model = PlaylistModel()
-        self.controller = PlaylistController(self.model, conf)
+        self.controller = PlaylistController(self.model, conf, loop)
         self.view = PlaylistView(self.model, self.controller, conf)
 
         urwid.connect_signal(self.view, signals.NEXT_TRACK,

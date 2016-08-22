@@ -240,25 +240,3 @@ class ScrobbleInitializeThread(AppThread):
 
         logger.info('Finished initializing scrobbles')
         (self.callback)()
-
-
-@log_errors
-class LastfmTrackLoveThread(AppThread):
-
-    """Mark track loved"""
-
-    def __init__(self, conf, track, loved, *args, **kwArgs):
-        super(LastfmTrackLoveThread, self).__init__(None, *args, **kwArgs)
-        self.conf = conf
-        self.track = track
-        self.loved = loved
-
-    def run(self):
-        lastfm = mstat.initialize_lastfm(self.conf)
-        mstat.lastfm_love(lastfm, self.track, self.loved)
-
-
-def lastfm_love_track(conf, track, loved):
-    """Asynchronously mark tracked (un)loved in LastFM"""
-    t = LastfmTrackLoveThread(conf, track, loved)
-    t.start()

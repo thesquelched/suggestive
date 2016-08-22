@@ -64,9 +64,10 @@ class Controller(object):
 
     _registry = {}
 
-    def __init__(self, model, conf):
+    def __init__(self, model, conf, loop):
         self._model = model
         self._conf = conf
+        self.loop = loop
 
         # The registered name (for the purpose of using 'controller_for') is
         # the lowercase class name without the 'Controller' suffix.  For
@@ -93,6 +94,9 @@ class Controller(object):
 
     def controller_for(self, name):
         return self._registry[name.lower()]
+
+    def async_run(self, func, *args):
+        self.loop.run_in_executor(None, func, *args)
 
 
 ######################################################################

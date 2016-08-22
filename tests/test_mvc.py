@@ -32,16 +32,16 @@ def test_controller_registration():
     class FooController(mvc.Controller):
         pass
 
-    foo1 = FooController(None, None)
+    foo1 = FooController(None, None, None)
     assert foo1.controller_for('foo') == foo1
 
-    foo2 = FooController(None, None)
+    foo2 = FooController(None, None, None)
     assert foo2.controller_for('foo') == foo2
 
     class BarController(mvc.Controller):
         pass
 
-    bar = BarController(None, None)
+    bar = BarController(None, None, None)
     assert foo2.controller_for('bar') == bar
     assert foo2.controller_for('foo') == foo2
     assert bar.controller_for('bar') == bar
@@ -52,10 +52,10 @@ def test_invalid_controller():
     class NotCtrl(mvc.Controller):
         pass
 
-    pytest.raises(TypeError, NotCtrl, None, None)
+    pytest.raises(TypeError, NotCtrl, None, None, None)
 
     try:
-        NotCtrl(None, None)
+        NotCtrl(None, None, None)
     except TypeError as ex:
         assert ex.args[0].startswith('Invalid controller name: NotCtrl'), \
             'Incorrect error thrown'
