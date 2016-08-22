@@ -45,9 +45,8 @@ class MainView(urwid.Frame):
     __metaclass__ = urwid.signals.MetaSignals
     signals = [signals.SET_FOOTER, signals.SET_FOCUS]
 
-    def __init__(self, conf, async_runner):
+    def __init__(self, conf):
         self._conf = conf
-        self._async_runner = async_runner
 
         self._buffers = self.initialize_buffers()
         self._buffer_list = self.create_buffer_list()
@@ -102,7 +101,7 @@ class MainView(urwid.Frame):
         return buffers
 
     def create_library_buffer(self, active=False):
-        buf = LibraryBuffer(self.conf, self._async_runner)
+        buf = LibraryBuffer(self.conf)
         buf.active = active
         urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
         urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
@@ -110,7 +109,7 @@ class MainView(urwid.Frame):
         return buf
 
     def create_playlist_buffer(self, active=False):
-        buf = PlaylistBuffer(self.conf, self._async_runner)
+        buf = PlaylistBuffer(self.conf)
         buf.active = active
         urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
         urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
@@ -118,7 +117,7 @@ class MainView(urwid.Frame):
         return buf
 
     def create_scrobbles_buffer(self, active=False):
-        buf = ScrobbleBuffer(self.conf, self._async_runner)
+        buf = ScrobbleBuffer(self.conf)
         buf.active = active
         urwid.connect_signal(buf, signals.SET_FOCUS, self.update_focus)
         urwid.connect_signal(buf, signals.SET_FOOTER, self.update_footer)
@@ -187,26 +186,6 @@ class MainView(urwid.Frame):
         self.set_focus(to_focus)
 
 
-class AsyncRunner(object):
-
-    def __init__(self):
-        self._event_loop = None
-
-    @property
-    def event_loop(self):
-        return self._event_loop
-
-    @event_loop.setter
-    def event_loop(self, loop):
-        self._event_loop = loop
-
-    def run_async(self, func):
-        if self.event_loop is None:
-            raise TypeError('Event loop is not initialized')
-
-        self.event_loop.set_alarm_in(0, lambda *args: func())
-
-
 class Application(Commandable):
     """
     Application class for urwid interface
@@ -218,10 +197,9 @@ class Application(Commandable):
         self._mpd = mstat.initialize_mpd(conf)
         self.quit_event = threading.Event()
 
-        async_runner = AsyncRunner()
-        self.top = MainView(conf, async_runner)
+        self.top = MainView(conf)
 
-        self.event_loop = async_runner.event_loop = self.main_loop()
+        self.event_loop = self.main_loop()
 
         self.bindings = self.setup_bindings()
         self.commands = self.setup_commands()
@@ -490,6 +468,7 @@ class Application(Commandable):
             palette=self.setup_palette(),
             unhandled_input=self.dispatch,
             handle_mouse=False,
+            event_loop=urwid.AsyncioEventLoop(),
         )
 
         self.setup_term(mainloop.screen)

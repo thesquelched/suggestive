@@ -79,8 +79,8 @@ class PlaylistModel(Model):
 
 class PlaylistController(Controller):
 
-    def __init__(self, model, conf, async_runner):
-        super(PlaylistController, self).__init__(model, conf, async_runner)
+    def __init__(self, model, conf):
+        super(PlaylistController, self).__init__(model, conf)
         self._conf = conf
 
         # Connections
@@ -99,7 +99,6 @@ class PlaylistController(Controller):
         logger.info('Play playlist track: {}'.format(view.canonical_text))
         self._mpd.play(view.model.number)
 
-    @Controller.asynchronous
     @mstat.mpd_retry
     def delete_track(self, view):
         logger.info('Delete playlist track: {}'.format(view.canonical_text))
@@ -473,10 +472,10 @@ class PlaylistBuffer(Buffer):
 
     ITEM_FORMAT = '{artist} - {album} - {title}{suffix}'
 
-    def __init__(self, conf, async_runner):
+    def __init__(self, conf):
         self.conf = conf
         self.model = PlaylistModel()
-        self.controller = PlaylistController(self.model, conf, async_runner)
+        self.controller = PlaylistController(self.model, conf)
         self.view = PlaylistView(self.model, self.controller, conf)
 
         urwid.connect_signal(self.view, signals.NEXT_TRACK,

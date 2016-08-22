@@ -579,7 +579,7 @@ class MpdLoader(object):
                         'from suggestive database'.format(len(missing)))
             logger.debug('Missing files:\n  {}'.format(
                 '\n  '.join(missing)))
-            self.load_mpd_tracks(missing)
+            self.load_mpd_tracks(session, missing)
 
         self.check_duplicates(session)
         self.delete_empty_albums(session)
