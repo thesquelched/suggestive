@@ -6,7 +6,7 @@ from mpd import CommandError as MpdCommandError
 import suggestive.signals as signals
 import suggestive.mstat as mstat
 import suggestive.widget as widget
-from suggestive.mvc import View, Model, Controller
+from suggestive.mvc.base import View, Model, Controller
 from suggestive.buffer import Buffer
 
 

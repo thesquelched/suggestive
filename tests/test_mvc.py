@@ -1,4 +1,4 @@
-from suggestive import mvc
+import suggestive.mvc.base as mvc
 
 import pytest
 

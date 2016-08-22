@@ -1,4 +1,4 @@
-import suggestive.library as library
+from suggestive.mvc import library
 
 import pytest
 from unittest.mock import Mock

@@ -2,24 +2,6 @@
 Main application/UI
 """
 
-from suggestive.threads import (
-    MpdObserver, EventDispatcher, DatabaseUpdater, ScrobbleInitializeThread)
-from suggestive.config import Config
-from suggestive.command import CommanderEdit, Commandable, typed
-import suggestive.widget as widget
-import suggestive.mstat as mstat
-import suggestive.migrate as migrate
-from suggestive.search import LazySearcher
-from suggestive.error import CommandError
-from suggestive.buffer import (
-    VerticalBufferList, HorizontalBufferList,
-)
-from suggestive.scrobbles import ScrobbleBuffer
-from suggestive.library import LibraryBuffer
-from suggestive.playlist import PlaylistBuffer
-import suggestive.signals as signals
-from suggestive.mvc import Controller
-
 import argparse
 import urwid
 import logging
@@ -28,6 +10,22 @@ import threading
 import os
 import sys
 import gzip
+
+import suggestive.widget as widget
+import suggestive.signals as signals
+import suggestive.mstat as mstat
+import suggestive.migrate as migrate
+from suggestive.threads import (
+    MpdObserver, EventDispatcher, DatabaseUpdater, ScrobbleInitializeThread)
+from suggestive.config import Config
+from suggestive.command import CommanderEdit, Commandable, typed
+from suggestive.search import LazySearcher
+from suggestive.error import CommandError
+from suggestive.buffer import VerticalBufferList, HorizontalBufferList
+from suggestive.mvc.scrobbles import ScrobbleBuffer
+from suggestive.mvc.library import LibraryBuffer
+from suggestive.mvc.playlist import PlaylistBuffer
+from suggestive.mvc.base import Controller
 
 
 logger = logging.getLogger('suggestive')

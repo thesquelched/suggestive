@@ -2,7 +2,7 @@ import suggestive.widget as widget
 import suggestive.mstat as mstat
 import suggestive.signals as signals
 from suggestive.error import CommandError
-from suggestive.mvc import View, Model, Controller, TrackModel
+from suggestive.mvc.base import View, Model, Controller, TrackModel
 from suggestive.buffer import Buffer
 from mpd import CommandError as MpdCommandError
 from suggestive.threads import lastfm_love_track

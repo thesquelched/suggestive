@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import os.path
 
 
@@ -35,7 +35,9 @@ if __name__ == '__main__':
         keywords='suggestive mpd lastfm music',
         download_url=download_url(),
 
-        packages=['suggestive'],
+        packages=find_packages(
+            exclude='tests',
+        ),
         entry_points={
             'console_scripts': [
                 'suggestive = suggestive.app:main',

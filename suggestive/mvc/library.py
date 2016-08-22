@@ -6,7 +6,7 @@ import suggestive.signals as signals
 from suggestive.buffer import Buffer
 from suggestive.threads import lastfm_love_track
 
-from suggestive.mvc import View, Model, Controller, TrackModel
+from suggestive.mvc.base import View, Model, Controller, TrackModel
 
 import urwid
 import logging
