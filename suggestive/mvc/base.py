@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 
@@ -96,7 +97,7 @@ class Controller(object):
         return self._registry[name.lower()]
 
     def async_run(self, func, *args):
-        self.loop.run_in_executor(None, func, *args)
+        asyncio.ensure_future(self.loop.run_in_executor(None, func, *args))
 
 
 ######################################################################
