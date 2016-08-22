@@ -77,8 +77,8 @@ class LibraryModel(Model):
 
 class LibraryController(Controller):
 
-    def __init__(self, model, conf, async_runner):
-        super(LibraryController, self).__init__(model, conf, async_runner)
+    def __init__(self, model, conf):
+        super(LibraryController, self).__init__(model, conf)
 
         self._default_orderers = [analytics.BaseOrder()]
 
@@ -459,10 +459,10 @@ class LibraryView(widget.SuggestiveListBox, View):
 
 class LibraryBuffer(Buffer):
 
-    def __init__(self, conf, async_runner):
+    def __init__(self, conf):
         self.conf = conf
         self.model = LibraryModel([])
-        self.controller = LibraryController(self.model, conf, async_runner)
+        self.controller = LibraryController(self.model, conf)
         self.view = LibraryView(self.model, self.controller, conf)
 
         super(LibraryBuffer, self).__init__(self.view)

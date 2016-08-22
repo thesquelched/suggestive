@@ -66,10 +66,9 @@ class Controller(object):
 
     _registry = {}
 
-    def __init__(self, model, conf, async_runner):
+    def __init__(self, model, conf):
         self._model = model
         self._conf = conf
-        self._async_runner = async_runner
 
         # The registered name (for the purpose of using 'controller_for') is
         # the lowercase class name without the 'Controller' suffix.  For
@@ -94,26 +93,11 @@ class Controller(object):
     def conf(self):
         return self._conf
 
-    @property
-    def async_runner(self):
-        return self._async_runner
-
     def session(self, **kwArgs):
         return mstat.session_scope(self.conf, **kwArgs)
 
     def controller_for(self, name):
         return self._registry[name.lower()]
-
-    def run_async(self, func):
-        self._async_runner.run_async(func)
-
-    def asynchronous(func):
-        """
-        Make the decorated function asynchronous
-        """
-        def wrapper(self, *args, **kwArgs):
-            self.run_async(lambda: func(self, *args, **kwArgs))
-        return wrapper
 
 
 ######################################################################
