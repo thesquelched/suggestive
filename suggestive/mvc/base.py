@@ -1,5 +1,3 @@
-import suggestive.mstat as mstat
-
 import logging
 
 
@@ -92,9 +90,6 @@ class Controller(object):
     @property
     def conf(self):
         return self._conf
-
-    def session(self, **kwArgs):
-        return mstat.session_scope(self.conf, **kwArgs)
 
     def controller_for(self, name):
         return self._registry[name.lower()]

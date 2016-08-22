@@ -1,12 +1,11 @@
 from sqlalchemy import (func, Column, Integer, String,
                         ForeignKey, DateTime, Boolean)
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship, backref
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.hybrid import hybrid_property, Comparator
 from functools import total_ordering
 
 Base = declarative_base()
-Session = sessionmaker()
 
 
 class CaseInsensitiveComparator(Comparator):

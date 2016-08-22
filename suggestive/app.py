@@ -2,6 +2,7 @@
 Main application/UI
 """
 
+import asyncio
 import argparse
 import urwid
 import logging
@@ -11,6 +12,7 @@ import os
 import sys
 import gzip
 
+from suggestive.db.session import initialize as initialize_session
 import suggestive.widget as widget
 import suggestive.signals as signals
 import suggestive.mstat as mstat
@@ -56,10 +58,6 @@ class MainView(urwid.Frame):
         # Signals
         urwid.connect_signal(self, signals.SET_FOOTER, self.update_footer)
         urwid.connect_signal(self, signals.SET_FOCUS, self.update_focus)
-
-    @property
-    def session(self):
-        return mstat.initialize_session(self.conf)
 
     @property
     def conf(self):
@@ -192,12 +190,15 @@ class Application(Commandable):
     def __init__(self, args, conf):
         self._conf = conf
 
+        # Initialize db
+        initialize_session(conf)
+
         self._mpd = mstat.initialize_mpd(conf)
         self.quit_event = threading.Event()
 
+        self.loop = asyncio.get_event_loop()
         self.top = MainView(conf)
-
-        self.event_loop = self.main_loop()
+        self.urwid_loop = self.main_loop()
 
         self.bindings = self.setup_bindings()
         self.commands = self.setup_commands()
@@ -280,15 +281,15 @@ class Application(Commandable):
 
     def update_library_event(self):
         logger.info('Updating library')
-        self.event_loop.set_alarm_in(
+        self.urwid_loop.set_alarm_in(
             0,
             lambda *args: self.top.library.controller.update_model())
-        self.event_loop.set_alarm_in(0, self.top.scrobbles.reload)
+        self.urwid_loop.set_alarm_in(0, self.top.scrobbles.reload)
         self.update_library_status('Library')
 
     def update_playlist_event(self):
-        self.event_loop.set_alarm_in(0, self.top.playlist.update)
-        self.event_loop.set_alarm_in(0, self.top.scrobbles.update)
+        self.urwid_loop.set_alarm_in(0, self.top.playlist.update)
+        self.urwid_loop.set_alarm_in(0, self.top.scrobbles.update)
 
     def dispatch(self, key):
         if key in self.bindings:
@@ -456,7 +457,7 @@ class Application(Commandable):
     def continuously_update_playlist_status(self, *args):
         text = self.top.playlist.status_text()
         self.top.playlist.update_status(text)
-        self.event_loop.set_alarm_in(
+        self.urwid_loop.set_alarm_in(
             1,
             self.continuously_update_playlist_status)
 
@@ -466,7 +467,7 @@ class Application(Commandable):
             palette=self.setup_palette(),
             unhandled_input=self.dispatch,
             handle_mouse=False,
-            event_loop=urwid.AsyncioEventLoop(),
+            event_loop=urwid.AsyncioEventLoop(loop=self.loop),
         )
 
         self.setup_term(mainloop.screen)
@@ -545,7 +546,7 @@ def run(args):
     try:
         logger.debug('Starting event loop')
         app = Application(args, conf)
-        app.event_loop.run()
+        app.urwid_loop.run()
     except KeyboardInterrupt:
         logger.error("Exited via keyboard interrupt; next time, use 'q'")
     except Exception as err:

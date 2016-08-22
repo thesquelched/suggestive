@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from unittest.mock import patch, MagicMock
 
 from suggestive import mstat
-from suggestive.model import Track
+from suggestive.db.model import Track
 
 
 @patch('suggestive.mstat.MpdLoader')

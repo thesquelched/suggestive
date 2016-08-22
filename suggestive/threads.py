@@ -1,5 +1,6 @@
 import suggestive.mstat as mstat
 from suggestive.util import partition
+from suggestive.db.session import session_scope
 
 from pylastfm import LastfmError
 import threading
@@ -210,7 +211,7 @@ class ScrobbleInitializeThread(AppThread):
         logger.info('Start initializing scrobbles')
 
         lastfm = mstat.initialize_lastfm(conf)
-        with mstat.session_scope(conf) as session:
+        with session_scope(conf) as session:
             earliest = mstat.earliest_scrobble(session)
 
         try:
@@ -230,11 +231,11 @@ class ScrobbleInitializeThread(AppThread):
             with db_lock:
                 logger.debug('ScrobbleInitializeThread: Acquired lock')
 
-                with mstat.session_scope(conf) as session:
+                with session_scope(conf) as session:
                     mstat.load_scrobble_batch(session, lastfm, conf, batch)
 
         with db_lock:
-            with mstat.session_scope(conf) as session:
+            with session_scope(conf) as session:
                 mstat.ScrobbleLoader.delete_duplicates(session)
 
         logger.info('Finished initializing scrobbles')

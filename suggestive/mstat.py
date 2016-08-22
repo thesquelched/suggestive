@@ -1,21 +1,22 @@
+import logging
+from collections import defaultdict, OrderedDict
+from datetime import datetime, timedelta
+from difflib import get_close_matches
+from itertools import chain
+from mpd import MPDClient
+from mpd import MPDError
+from os.path import basename, dirname
+from pylastfm import LastfmError
+from sqlalchemy import func
+from sqlalchemy.orm import subqueryload
+
 from suggestive.lastfm import LastFM
-from suggestive.model import (
-    Artist, ArtistCorrection, Album, Scrobble, Session, Base, Track,
+from suggestive.db.session import session_scope
+from suggestive.db.model import (
+    Artist, ArtistCorrection, Album, Scrobble, Track,
     ScrobbleInfo, LastfmTrackInfo)
 from suggestive.util import partition
 
-from pylastfm import LastfmError
-import logging
-from mpd import MPDClient
-from sqlalchemy import create_engine, func
-from sqlalchemy.orm import subqueryload
-from datetime import datetime, timedelta
-from collections import defaultdict, OrderedDict
-from itertools import chain
-from os.path import basename, dirname
-from contextlib import contextmanager
-from difflib import get_close_matches
-from mpd import MPDError
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -40,25 +41,6 @@ def mpd_retry(func):
     return wrapper
 
 
-@contextmanager
-def session_scope(conf, commit=True):
-    """
-    Context manager that yields an SQLAlchemy session object that automatically
-    commits/rolls back upon completion, depending on whether or not an
-    exception was encountered
-    """
-    session = initialize_sqlalchemy(conf)
-    try:
-        yield session
-        if commit:
-            session.commit()
-    except:
-        session.rollback()
-        raise
-    finally:
-        session.close()
-
-
 def get(data, keys, default=None):
     """
     For a nested hash, return the result of evaluating
@@ -80,13 +62,6 @@ def get(data, keys, default=None):
 def last_updated(session):
     """Return the timestamp of the last loaded scrobble"""
     return session.query(func.max(Scrobble.time)).scalar()
-
-
-def sqlalchemy_url(config):
-    """
-    Return the SQLAlchemy query string corresponding to the suggestive database
-    """
-    return 'sqlite:///{}'.format(config.database())
 
 
 def earliest_scrobble(session):
@@ -741,20 +716,6 @@ class TrackInfoLoader(object):
 ######################################################################
 # Initialization functions
 ######################################################################
-
-def initialize_sqlalchemy(config, echo=False):
-    """
-    Return a SQLAlchemy session object. Also create database if it doesn't
-    already exist
-    """
-    path = sqlalchemy_url(config)
-    engine = create_engine(path, echo=bool(echo))
-    Session.configure(bind=engine)
-
-    Base.metadata.create_all(engine)
-
-    return Session()
-
 
 def initialize_mpd(config):
     """

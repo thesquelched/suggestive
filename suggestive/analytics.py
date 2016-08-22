@@ -1,6 +1,3 @@
-import suggestive.mstat as mstat
-from suggestive.model import Album, Track, Scrobble, LastfmTrackInfo
-
 import logging
 import re
 import sys
@@ -10,6 +7,10 @@ from sqlalchemy.orm import subqueryload
 from itertools import repeat
 from collections import defaultdict
 from datetime import datetime
+
+import suggestive.mstat as mstat
+from suggestive.db.session import session_scope
+from suggestive.db.model import Album, Track, Scrobble, LastfmTrackInfo
 
 
 logger = logging.getLogger(__name__)
@@ -288,7 +289,7 @@ class Analytics(object):
             orderers = [BaseOrder()]
 
         ordered = {}
-        with mstat.session_scope(self.conf, commit=False) as session:
+        with session_scope(self.conf, commit=False) as session:
             for album_orderer in orderers:
                 ordered = album_orderer.order(ordered, session, mpd)
 
