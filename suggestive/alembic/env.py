@@ -3,6 +3,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 # from logging.config import fileConfig
 from suggestive.db.model import Base
+from suggestive.config import Config
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -52,7 +53,8 @@ def run_migrations_online():
 
     """
     aconf = config.get_section(config.config_ini_section)
-    aconf['sqlalchemy.url'] = aconf.get('url')
+    sconf = Config()
+    aconf['sqlalchemy.url'] = 'sqlite:///' + sconf.database()
 
     connectable = engine_from_config(
         aconf,

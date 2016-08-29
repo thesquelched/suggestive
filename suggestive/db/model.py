@@ -44,6 +44,7 @@ class Album(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     artist_id = Column(Integer, ForeignKey('artist.id'), index=True)
+    ignored = Column(Boolean, default=False)
 
     artist = relationship('Artist', backref=backref('albums', order_by=id))
 

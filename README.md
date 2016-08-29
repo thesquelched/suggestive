@@ -106,6 +106,8 @@ Library
 - `space` - Enqueue album/track
 - `enter` - Play album/track
 - `z` - Toggle tracks fold (i.e. toggle album tracks display)
+- `i` - Toggle ignored (ignored tracks always appear at the bottom of the
+        library)
 
 Playlist
 ------
