@@ -4,7 +4,6 @@ import sys
 from unidecode import unidecode
 from sqlalchemy import func, Integer, distinct
 from sqlalchemy.orm import subqueryload
-from itertools import repeat
 from collections import defaultdict
 from datetime import datetime
 
@@ -46,10 +45,10 @@ class BaseOrder(OrderDecorator):
             ).\
             all()
 
-        return defaultdict(
-            lambda: 1.0,
-            zip(db_albums, repeat(1.0))
-        )
+        ordered = defaultdict(lambda: 1.0)
+        ordered.update({db_album: 0 if db_album.ignored else 1.0
+                        for db_album in db_albums})
+        return ordered
 
 
 class AlbumFilter(OrderDecorator):

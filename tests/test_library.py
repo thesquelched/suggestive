@@ -9,7 +9,7 @@ def model():
     artist = Mock()
     artist.name = 'Test Artist'
 
-    album = Mock(artist=artist)
+    album = Mock(ignored=False, artist=artist)
     album.name = 'Test Album'
 
     return library.AlbumModel(album, 1.0)
@@ -30,4 +30,14 @@ def test_without_score(model):
     v = library.AlbumView(model, conf)
 
     assert v.text == 'Test Artist - Test Album'
+    assert v.score == 1.0
+
+
+def test_ignored(model):
+    model.db_album.ignored = True
+    conf = Mock(show_score=Mock(return_value=False))
+
+    v = library.AlbumView(model, conf)
+
+    assert v.text == 'Test Artist - Test Album [I]'
     assert v.score == 1.0

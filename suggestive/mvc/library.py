@@ -179,6 +179,21 @@ class LibraryController(Controller):
         if model:
             model.db_track = new_track
 
+    # Signal handler
+    def ignore_album(self, view):
+        db_album = view.model.db_album
+        if not db_album.id:
+            logger.error('Can not (un)ignore invalid album')
+            return
+
+        logger.info('Toggle ignored for playlist album: %s, ignore=%s',
+                    db_album.name, not db_album.ignored)
+
+        mstat.db_album_ignore(self.conf, db_album,
+                              ignore=not db_album.ignored)
+
+        self.update_model()
+
     @mstat.mpd_retry
     def mpd_tracks(self, tracks):
         return list(chain.from_iterable(
@@ -282,10 +297,11 @@ class TrackView(urwid.WidgetWrap, View, widget.Searchable):
     'z': signals.EXPAND,
     'enter': signals.PLAY,
     ' ': signals.ENQUEUE,
+    'i': signals.IGNORE,
 })
 class AlbumView(urwid.WidgetWrap, View, widget.Searchable):
     __metaclass__ = urwid.signals.MetaSignals
-    signals = [signals.EXPAND, signals.PLAY, signals.ENQUEUE]
+    signals = [signals.EXPAND, signals.PLAY, signals.ENQUEUE, signals.IGNORE]
 
     def __init__(self, model, conf):
         View.__init__(self, model)
@@ -322,10 +338,13 @@ class AlbumView(urwid.WidgetWrap, View, widget.Searchable):
 
     @property
     def text(self):
+        if self.db_album.ignored:
+            return '{} [I]'.format(self.canonical_text)
+
         if self.show_score:
             return '{} ({:.4g})'.format(self.canonical_text, self.score)
-        else:
-            return self.canonical_text
+
+        return self.canonical_text
 
     @property
     def expanded(self):
@@ -376,6 +395,10 @@ class LibraryView(widget.SuggestiveListBox, View):
                 view,
                 signals.EXPAND,
                 self.toggle_expand)
+            urwid.connect_signal(
+                view,
+                signals.IGNORE,
+                self.controller.ignore_album)
 
             # TODO: AttrMap here or inside of view?
             body.append(view)

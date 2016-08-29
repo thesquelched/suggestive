@@ -883,3 +883,9 @@ def db_track_love(conf, track, loved=True):
 
         # Mark loved in DB
         db_track_info.loved = bool(loved)
+
+
+def db_album_ignore(conf, album, ignore=True):
+    with session_scope(conf, commit=True) as session:
+        db_album = session.query(Album).get(album.id)
+        db_album.ignored = ignore
