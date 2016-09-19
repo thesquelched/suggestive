@@ -13,7 +13,7 @@ def alembic_conf(conf):
 
 def initialize_database(conf):
     a_conf = alembic_conf(conf)
-    initialize()
+    initialize(conf)
     with session_scope(conf) as session:
         session.commit()
 
