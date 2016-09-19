@@ -1,3 +1,9 @@
+Version 0.5.1
+=============
+- Require python3.5 and asyncio
+- Add ability to ignore tracks
+- Fix various bugs
+
 Version 0.4.3
 =============
 
