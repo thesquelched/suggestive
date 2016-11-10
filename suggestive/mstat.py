@@ -206,6 +206,7 @@ class ScrobbleLoader(object):
         self.lastfm = lastfm
         self.user = config.lastfm_user
         self.retention = config.scrobble_retention()
+        self._track_mapping = {}
 
     @classmethod
     def check_duplicates(cls, session):
@@ -245,14 +246,16 @@ class ScrobbleLoader(object):
         insert and return a new scrobble record
         """
 
-        db_scrobble_info = session.query(ScrobbleInfo).\
-            filter(
-                ScrobbleInfo.title_insensitive == track,
-                ScrobbleInfo.artist_insensitive == artist,
-                ScrobbleInfo.album_insensitive == album).\
-            first()
+        db_scrobble_info = (session.query(ScrobbleInfo)
+                            .filter(ScrobbleInfo.title_insensitive == track,
+                                    ScrobbleInfo.artist_insensitive == artist,
+                                    ScrobbleInfo.album_insensitive == album)
+                            .first())
 
         if not db_scrobble_info:
+            logger.debug('Creating scrobble info for %s - %s - %s',
+                         artist, album, track)
+
             db_scrobble_info = ScrobbleInfo(
                 title=track,
                 artist=artist,
@@ -263,45 +266,100 @@ class ScrobbleLoader(object):
         return db_scrobble_info
 
     def db_scrobble(self, session, when, db_scrobble_info):
-        return session.query(Scrobble).\
-            filter(
-                Scrobble.time == when,
-                Scrobble.scrobble_info == db_scrobble_info).\
-            first()
+        scrobble = (session.query(Scrobble)
+                    .filter(Scrobble.time == when, Scrobble.scrobble_info == db_scrobble_info)
+                    .first())
+        if not scrobble:
+            logger.debug('Creating scrobble: %s - %s - %s @ %s',
+                         db_scrobble_info.artist, db_scrobble_info.album, db_scrobble_info.title,
+                         when)
 
-    def load_scrobble(self, session, track):
-        """
-        Load a raw scrobble from the LastFM API
-        """
-        if not (track.artist_name and track.album_name and track.name and
-                track.date):
-            logger.debug('Invalid scrobble: %s - %s - %s @ %s',
-                         track.artist_name, track.album_name, track.name,
-                         track.date)
-            return
-
-        db_scrobble_info = self.scrobble_info(session, track.artist_name,
-                                              track.album_name, track.name)
-        scrobble = self.db_scrobble(session, track.date, db_scrobble_info)
-        if scrobble is None:
-            scrobble = Scrobble(time=track.date)
+            scrobble = Scrobble(time=when)
             db_scrobble_info.scrobbles.append(scrobble)
             session.add(scrobble)
 
+        return scrobble
+
+    def load_scrobble(self, session, fm_track):
+        """
+        Load a raw scrobble from the LastFM API
+        """
+        if not (fm_track.artist_name and fm_track.album_name and fm_track.name and
+                fm_track.date):
+            logger.debug('Invalid scrobble: %s - %s - %s @ %s',
+                         fm_track.artist_name, fm_track.album_name, fm_track.name,
+                         fm_track.date)
+            return
+
+        closest_track = self.find_closest_track(session, fm_track)
+        if closest_track:
+            artist_name = closest_track.artist.name
+            album_name = closest_track.album.name
+            track_name = closest_track.name
+        else:
+            artist_name = fm_track.artist_name
+            album_name = fm_track.album_name
+            track_name = fm_track.name
+
+        db_scrobble_info = self.scrobble_info(session, artist_name, album_name, track_name)
+        scrobble = self.db_scrobble(session, fm_track.date, db_scrobble_info)
+        if scrobble is None:
+            logger.debug('Creating scrobble: %s - %s - %s @ %s',
+                         artist_name, album_name, track_name, fm_track.date)
+
+            scrobble = Scrobble(time=fm_track.date)
+            db_scrobble_info.scrobbles.append(scrobble)
+            session.add(scrobble)
+
+        # If this scrobble is already assigned to a track in the database, we know it's already
+        # been loaded and can therefore ignore it
         if scrobble.track:
             return
 
-        db_track = session.query(Track).\
-            join(Track.artist).\
-            join(Track.album).\
-            filter(
-                Artist.name_insensitive == track.artist_name,
-                Album.name_insensitive == track.album_name,
-                Track.name_insensitive == track.name).\
-            first()
+        if closest_track:
+            closest_track.scrobbles.append(scrobble)
 
-        if db_track:
-            db_track.scrobbles.append(scrobble)
+    def track_mapping(self, session):
+        """
+        Return dict in which the values are Track object and the keys are strings in the form of
+        'artist\x01album\x01track'.  The result is cached.
+        """
+        if not self._track_mapping:
+            result = (session.query(Track, Artist.name, Album.name, Track.name)
+                      .filter(Artist.id == Track.artist_id, Album.id == Track.album_id)
+                      .all())
+            self._track_mapping = OrderedDict(
+                ('\x01'.join(pieces[1:]), pieces[0]) for pieces in result
+                if not any(piece is None for piece in pieces))
+
+        return self._track_mapping
+
+    def find_closest_track(self, session, track):
+        exact_match = (session.query(Track)
+                       .join(Track.artist)
+                       .join(Track.album)
+                       .filter(
+                           Artist.name_insensitive == track.artist_name,
+                           Album.name_insensitive == track.album_name,
+                           Track.name_insensitive == track.name)
+                       .first())
+        if exact_match:
+            return exact_match
+
+        mapping = self.track_mapping(session)
+        track_string = '\x01'.join((track.artist_name, track.album_name, track.name))
+
+        closest_matches = get_close_matches(track_string, mapping.keys(), n=20, cutoff=0.8)
+        if not closest_matches:
+            return None
+
+        closest_track_mapping = OrderedDict((mapping[match].name, mapping[match])
+                                            for match in closest_matches)
+        closest_track_name = get_close_matches(track.name, closest_track_mapping.keys(), n=1)
+        if not closest_track_name:
+            return None
+
+        return closest_track_mapping[closest_track_name[0]]
 
     def load_recent_scrobbles(self, session):
         """
@@ -334,8 +392,10 @@ class ScrobbleLoader(object):
         """
         Load scrobbles from a list generated by the LastFM API
         """
-        if not len(scrobbles):
+        if not scrobbles:
             return 0
+
+        n_scrobbles = len(scrobbles)
 
         first = scrobbles[0]
         self.load_scrobble(session, first)
@@ -345,10 +405,9 @@ class ScrobbleLoader(object):
             self.load_scrobble(session, track)
 
         last = track or first
-        logger.info('Loaded %d scrobbles from %s to %s'.format(
-            len(scrobbles), first.date, last.date))
+        logger.info('Loaded %d scrobbles from %s to %s', n_scrobbles, first.date, last.date)
 
-        return len(scrobbles)
+        return n_scrobbles
 
 
 class MpdLoader(object):
@@ -394,8 +453,8 @@ class MpdLoader(object):
             if not album:
                 continue
 
-            logger.debug("Loading {} tracks from '{} - {}'".format(
-                len(info_list), db_artist.name, album))
+            logger.debug("Loading %d tracks from '%s - %s'",
+                         len(info_list), db_artist.name, album)
 
             db_album = session.query(Album).\
                 filter(Album.name_insensitive == album).\
@@ -419,8 +478,7 @@ class MpdLoader(object):
                 logger.error('No artist found')
                 continue
 
-            logger.debug("Loading {} albums from artist '{}'".format(
-                len(albums), artist))
+            logger.debug("Loading %d albums from artist 's'", len(albums), artist)
 
             db_artist = session.query(Artist).filter_by(
                 name_insensitive=artist).first()
@@ -435,8 +493,7 @@ class MpdLoader(object):
         Deleted any tracks that are in the suggestive database, but not in MPD
         """
         if deleted:
-            logger.info('Deleting {} files from DB that do not exist in '
-                        'MPD library'.format(len(deleted)))
+            logger.info('Deleting %d files from DB that do not exist in MPD library', len(deleted))
             for tracks in partition(deleted, 100):
                 tracks_to_delete = session.query(Track).\
                     filter(Track.filename.in_(tracks)).\
@@ -448,8 +505,7 @@ class MpdLoader(object):
         info_to_delete = session.query(LastfmTrackInfo).\
             filter(LastfmTrackInfo.track_id.is_(None)).\
             all()
-        logger.debug('Found {} orphaned LastfmTrackInfo objects'.format(
-            len(info_to_delete)))
+        logger.debug('Found %d orphaned LastfmTrackInfo objects', len(info_to_delete))
 
         for info in info_to_delete:
             session.delete(info)
@@ -461,13 +517,12 @@ class MpdLoader(object):
             having(func.count(Track.id) == 0).\
             all()
 
-        logger.info('Found {} albums with no tracks; deleting'.format(
-            len(empty)))
+        logger.info('Found %d albums with no tracks; deleting', len(empty))
 
         for album in empty:
             session.delete(album)
 
-        logger.debug('Deleted {} empty albums'.format(len(empty)))
+        logger.debug('Deleted %d empty albums', len(empty))
 
     @mpd_retry
     def check_duplicates(self, session):
@@ -480,18 +535,15 @@ class MpdLoader(object):
             having(func.count(Track.id) > 1).\
             all()
 
-        logger.info('Found {} albums with duplicate tracks'.format(
-            len(albums_with_dups)))
+        logger.info('Found %d albums with duplicate tracks', len(albums_with_dups))
 
         for album in albums_with_dups:
             mpd_info = self.mpd.find('album', album.name)
             dirs = set(dirname(info['file']) for info in mpd_info)
 
             if len(dirs) > 1:
-                logger.warn(
-                    "Album '{} - {}' contains tracks in multiple "
-                    "directories: {}".format(
-                        album.artist.name, album.name, ', '.join(dirs)))
+                logger.warn("Album '%s - %s' contains tracks in multiple directories: %s",
+                            album.artist.name, album.name, ', '.join(dirs))
 
     def segregate_track_info(self, missing_info):
         """
@@ -515,8 +567,7 @@ class MpdLoader(object):
             for album, tracks in by_album.items():
                 track_txt = 'Tracks:\n  {}'.format(
                     '\n  '.join(info['file'] for info in tracks))
-                logger.debug('Tracks for {} - {}:\n  '.format(
-                    artist, album, track_txt))
+                logger.debug('Tracks for %s - %s:\n  ', artist, album, track_txt)
 
         return by_artist_album
 
@@ -550,10 +601,9 @@ class MpdLoader(object):
 
         missing = files_in_mpd - files_in_db
         if missing:
-            logger.info('Found {} files in mpd library that are missing '
-                        'from suggestive database'.format(len(missing)))
-            logger.debug('Missing files:\n  {}'.format(
-                '\n  '.join(missing)))
+            logger.info('Found %d files in mpd library that are missing from suggestive database',
+                        len(missing))
+            logger.debug('Missing files:\n  %s', '\n  '.join(missing))
             self.load_mpd_tracks(session, missing)
 
         self.check_duplicates(session)
@@ -576,7 +626,7 @@ class TrackInfoLoader(object):
         not have a corresponding LastFM info record, insert that record into
         the database
         """
-        logger.debug('update_track_info: {}, {}'.format(db_track.name, loved))
+        logger.debug('update_track_info: %s, %s', db_track.name, loved)
         db_track_info = db_track.lastfm_info
         if not db_track_info:
             logger.debug('New track info')
@@ -610,20 +660,18 @@ class TrackInfoLoader(object):
         If a track has no exact duplicate in the database, look for the one
         that most likely matches
         """
-        logger.debug('Looking for closest track for artist {}'.format(
-            db_artist.name))
+        logger.debug('Looking for closest track for artist %s', db_artist.name)
         matches = get_close_matches(
             track, [t.name for t in db_artist.tracks])
         if matches:
-            logger.debug('Track {} matches: {}'.format(
-                track, matches))
+            logger.debug('Track %s matches: %s', track, matches)
             for match in matches:
                 db_track = self.find_track(
                     session, db_artist.name, match)
                 if db_track:
                     return db_track
         else:
-            logger.debug('Track {} had no matches'.format(track))
+            logger.debug('Track %s had no matches', track)
 
     def db_artists_from_lastfm(self, session, artist_names, artist):
         """
@@ -637,8 +685,7 @@ class TrackInfoLoader(object):
 
         artist_matches = get_close_matches(artist, artist_names)
         if artist_matches:
-            logger.debug("Artist '{}' matches: {}".format(
-                artist, artist_matches))
+            logger.debug("Artist '%s' matches: %s", artist, artist_matches)
             for match in artist_matches:
                 db_artist = self.find_artist(
                     session, match)
@@ -681,8 +728,8 @@ class TrackInfoLoader(object):
                     track in loved_tracks,
                 )
             else:
-                logger.error('Could not find database entry for LastFM item: '
-                             '{} - {}'.format(artist, track))
+                logger.error('Could not find database entry for LastFM item: %s - %s',
+                             artist, track)
 
     def get_loved_tracks(self):
         """
@@ -742,7 +789,7 @@ def correct_artist(name, lastfm):
 
     Use the LastFM corrections database to attempt to correct an artist name
     """
-    logger.info('Attempting to find a correction for {}'.format(name))
+    logger.info('Attempting to find a correction for %s', name)
 
     resp = lastfm.query('artist.getCorrection', artist=name)
     if 'corrections' in resp and isinstance(resp['corrections'], dict):
@@ -755,7 +802,7 @@ def correct_artist(name, lastfm):
             )
             corrected = ArtistCorrection(name=name)
 
-            logger.info("Corrected '{}' to '{}'".format(name, artist.name))
+            logger.info("Corrected '%s' to '%s'", name, artist.name)
             return (artist, corrected)
 
     artist = Artist(name=name)
@@ -786,9 +833,24 @@ def update_mpd(config):
         new_albums = session.query(Album).count() - albums_start
         new_tracks = session.query(Track).count() - tracks_start
 
-        logger.info('Inserted {} artists'.format(new_artists))
-        logger.info('Inserted {} albums'.format(new_albums))
-        logger.info('Inserted {} tracks'.format(new_tracks))
+        logger.info('Inserted %d artists', new_artists)
+        logger.info('Inserted %d albums', new_albums)
+        logger.info('Inserted %d tracks', new_tracks)
+
+
+def _update_lastfm(config, session):
+    scrobbles_start = session.query(Scrobble).count()
+
+    lastfm = initialize_lastfm(config)
+    scrobble_loader = ScrobbleLoader(lastfm, config)
+    scrobble_loader.load_recent_scrobbles(session)
+
+    new_scrobbles = session.query(Scrobble).count() - scrobbles_start
+
+    logger.info('Inserted %d scrobbles', new_scrobbles)
+
+    info_loader = TrackInfoLoader(lastfm, config)
+    info_loader.load(session)
 
 
 def update_lastfm(config):
@@ -798,19 +860,7 @@ def update_lastfm(config):
     logger.info('Update database from last.fm')
 
     with session_scope(config) as session:
-        scrobbles_start = session.query(Scrobble).count()
-
-        lastfm = initialize_lastfm(config)
-        scrobble_loader = ScrobbleLoader(lastfm, config)
-        scrobble_loader.load_recent_scrobbles(session)
-
-        new_scrobbles = session.query(Scrobble).count() - scrobbles_start
-
-        logger.info('Inserted {} scrobbles'.format(new_scrobbles))
-
-        info_loader = TrackInfoLoader(lastfm, config)
-        info_loader.load(session)
-
+        _update_lastfm(config, session)
         session.commit()
 
 
@@ -822,9 +872,19 @@ def update_database(config):
 
     try:
         update_lastfm(config)
-    except LastfmError as err:
+    except LastfmError as exc:
         logger.error('Could not contact LastFM server during database update')
-        logger.debug(err)
+        logger.debug('Encountered exception', exc_info=exc)
+
+
+def reinitialize_scrobbles(config):
+    """
+    Delete all existing database scrobbles and re-initialize from LastFM
+    """
+    with session_scope(config) as session:
+        session.query(Scrobble).delete()
+        session.query(ScrobbleInfo).delete()
+        _update_lastfm(config, session)
 
 
 def load_scrobble_batch(session, lastfm, conf, batch):
@@ -857,15 +917,14 @@ def get_db_track(conf, track_id):
 def lastfm_love(lastfm, track, loved):
     method = lastfm.love_track if loved else lastfm.unlove_track
     success = method(track.artist.name, track.name)
-    logger.info("Marking '{} - {}' {}... {}".format(
-        track.artist.name,
-        track.name,
-        'loved' if loved else 'unloved',
-        'successful' if success else 'failed'))
+    logger.info("Marking '%s - %s' %s... %s",
+                track.artist.name,
+                track.name,
+                'loved' if loved else 'unloved',
+                'successful' if success else 'failed')
 
     if not success:
-        logger.warning('Unable to mark track {}'.format(
-            'loved' if loved else 'unloved'))
+        logger.warning('Unable to mark track %s', 'loved' if loved else 'unloved')
 
 
 def db_track_love(conf, track, loved=True):

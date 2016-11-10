@@ -13,10 +13,7 @@ import sys
 import gzip
 
 from suggestive.db.session import initialize as initialize_session
-import suggestive.widget as widget
-import suggestive.signals as signals
-import suggestive.mstat as mstat
-import suggestive.migrate as migrate
+from suggestive import widget, signals, mstat, migrate
 from suggestive.threads import (
     MpdObserver, EventDispatcher, DatabaseUpdater, ScrobbleInitializeThread)
 from suggestive.config import Config
@@ -192,9 +189,6 @@ class Application(Commandable):
 
     def __init__(self, args, conf):
         self._conf = conf
-
-        # Initialize db
-        initialize_session(conf)
 
         self._mpd = mstat.initialize_mpd(conf)
         self.quit_event = threading.Event()
@@ -533,10 +527,13 @@ def run(args):
         print(msg)
         sys.exit(1)
 
-    if not os.path.exists(conf.database()):
+    first_time = not os.path.exists(conf.database())
+    if first_time:
         print('Music database not found; initializing...')
         migrate.initialize_database(conf)
         mstat.update_mpd(conf)
+    else:
+        initialize_session(conf)
 
     # Migrate to latest database configuration
     migrate.migrate(conf)
@@ -545,6 +542,10 @@ def run(args):
     session_file = conf.lastfm_session_file
     if conf.lastfm_secret_key and not os.path.exists(session_file):
         mstat.initialize_lastfm(conf)
+
+    if args.reinitialize_scrobbles and not first_time:
+        print('Reinitialize scrobbles from LastFM...')
+        mstat.reinitialize_scrobbles(conf)
 
     try:
         logger.debug('Starting event loop')
@@ -567,6 +568,8 @@ def main():
                         action='store_true')
     parser.add_argument('--no_update', '-U', help='Do not update database',
                         action='store_true')
+    parser.add_argument('--reinitialize-scrobbles', action='store_true',
+                        help='Re-initialize scrobbles from LastFM')
 
     run(parser.parse_args())
 

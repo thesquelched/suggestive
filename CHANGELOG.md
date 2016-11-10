@@ -1,8 +1,18 @@
+Version 0.6.0
+=============
+
+Improvements
+------------
+- Do better matching between scrobbles and database tracks
+- Add `--reinitialize-scrobbles` CLI option
+
+
 Version 0.5.1
 =============
 - Require python3.5 and asyncio
 - Add ability to ignore tracks
 - Fix various bugs
+
 
 Version 0.4.3
 =============
@@ -12,12 +22,14 @@ Bug Fixes
 - Fix KeyError caused by MPD playlist containing items that are not yet in the
   suggestive database
 
+
 Version 0.4.2
 =============
 
 Bug Fixes
 ---------
 - Fix pylastfm APIError typo
+
 
 Version 0.4.1
 =============
@@ -31,6 +43,7 @@ Bug Fixes
 ---------
 - Add mpd connection retries to MPD loader
 - Fix error when log directory doesn't exist
+
 
 Version 0.4.0
 =============

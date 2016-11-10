@@ -25,7 +25,8 @@ Usage
 
 ```bash
 $ suggestive -h
-usage: suggestive [-h] [--log LOG] [--config CONFIG]
+usage: suggestive [-h] [--log LOG] [--config CONFIG] [--update] [--no_update]
+                  [--reinitialize-scrobbles]
 
 Suggestive
 
@@ -36,6 +37,8 @@ optional arguments:
                         Config file path
   --update, -u          Update database
   --no_update, -U       Do not update database
+  --reinitialize-scrobbles
+                        Re-initialize scrobbles from LastFM
 ```
 
 Configuration
