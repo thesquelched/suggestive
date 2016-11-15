@@ -2,9 +2,11 @@ from configparser import ConfigParser
 from os.path import expanduser, expandvars
 import re
 import logging
+from figgis import Config as FiggisConfig, Field, ValidationError
 
 
-# TODO: Use properties
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 SECONDS_IN_DAY = 24 * 3600
@@ -12,6 +14,18 @@ CONFIG_PATHS = [
     '$HOME/.suggestive.conf',
     '/etc/suggestive.conf',
 ]
+VALID_BUFFERS = frozenset(('library', 'playlist', 'scrobbles'))
+VALID_ORIENTATIONS = frozenset(('horizontal', 'vertical'))
+
+
+def interpolate(value, config):
+    if not isinstance(value, str):
+        return value
+
+    # Convert to python3 format syntax
+    converted = re.sub(r'%\((\w+)\)[a-z]', r'{\1}', value)
+
+    return converted.format(**config)
 
 
 def expand(path):
@@ -19,178 +33,120 @@ def expand(path):
     return expanduser(expandvars(path))
 
 
-class Config(object):
+def CSV(value):
+    if isinstance(value, list):
+        return value
 
-    """Suggestive configuration object"""
+    return re.split(r'\s*,\s*', value) if value else []
 
-    DEFAULTS = dict(
-        general=dict(
-            conf_dir='$HOME/.suggestive',
-            database='%(conf_dir)s/music.db',
-            highcolor=True,
-            default_buffers='library,playlist',
-            orientation='horizontal',
-            log='%(conf_dir)s/log.txt',
-            verbose=False,
-            log_sql_queries=False,
-            session_file='%(conf_dir)s/session',
-            update_on_startup=False,
-        ),
-        mpd=dict(
-            host='localhost',
-            port=6600,
-        ),
-        lastfm=dict(
-            scrobble_days=180,
-            user='',
-            api_key='',
-            api_secret='',
-            log_responses=False,
-            url='http://ws.audioscrobbler.com/2.0',
-        ),
-        appearance=dict(
-            album_fg='#000',
-            album_bg='#fff',
-            album_focus_fg='#000',
-            album_focus_bg='#0ff',
 
-            playlist_fg='#000',
-            playlist_bg='#fff',
-            playlist_focus_fg='#000',
-            playlist_focus_bg='#0ff',
+def valid_buffers(buffers):
+    valid = []
 
-            scrobble_fg='#000',
-            scrobble_bg='#fff',
-            scrobble_focus_fg='#000',
-            scrobble_focus_bg='#0ff',
-            scrobble_date_fg='#222',
-            scrobble_date_bg='#ff0',
+    for buf in (item.lower() for item in buffers):
+        if buf in VALID_BUFFERS:
+            valid.append(buf)
+        else:
+            logger.warn('{} is not a valid buffer', buf)
 
-            bumper_fg='#ded',
-            bumper_bg='#777',
+    return valid
 
-            track_fg='#000',
-            track_bg='#ccc',
-            track_focus_fg='#000',
-            track_focus_bg='#0ff',
 
-            footer_fg='#000',
-            footer_bg='#00f',
-            footer_error_fg='#000',
-            footer_error_bg='#f00',
+def non_negative(value):
+    return max(value, 0)
 
-            status_fg='#000',
-            status_bg='#08f',
-        ),
-        playlist=dict(
-            status_format='{status}: {artist} - {title} '
-                          '[{time_elapsed}/{time_total}]',
-            save_playlist_on_close=False,
-            playlist_save_name='suggestive.state',
-        ),
-        library=dict(
-            ignore_artist_the=True,
-            default_order='loved; playcount',
-            show_score=False,
-            esc_resets_orderers=True,
-        ),
-        scrobbles=dict(
-            initial_load=50,
-        ),
-        custom_orderers=dict(
-        ),
-    )
 
-    def __init__(self, args=None):
-        parser = ConfigParser()
-        parser.read_dict(self.DEFAULTS)
+def color(raw):
+    value = str(raw)
+    if re.match(r'^#[0-9a-f]{3,6}$', value, re.I) is None:
+        raise ValidationError('Invalid color: {}'.format(value))
 
-        paths = CONFIG_PATHS
-        if args and args.config:
-            paths = [args.config] + CONFIG_PATHS
+    return value
 
-        parser.read(map(expand, paths))
-        self.parser = self.override_config(parser, args) if args else parser
 
-    def check_config(self):
-        conf_url = 'https://github.com/thesquelched/suggestive#configuration'
-        if not self.lastfm_apikey:
-            return 'Could not determine LastFM API key; see {}'.format(
-                conf_url)
-        if not self.lastfm_user:
-            return 'Could not determine LastFM user; see {}'.format(
-                conf_url)
+def commands(value):
+    if not value:
+        return []
+    elif isinstance(value, list):
+        return value
 
-        return None
+    return re.split(r'\s*;\s*', value)
 
-    @classmethod
-    def override_config(cls, parser, args):
-        if args.log:
-            parser['general']['log'] = args.log
 
-        return parser
+def parse_custom_orders(value):
+    return {name: commands(value) for name, value in value.items()}
 
-    def mpd(self):
-        """Return (host, port)"""
-        mpd = self.parser['mpd']
-        return (
-            mpd['host'],
-            mpd.getint('port'),
-        )
+
+class GeneralConfig(FiggisConfig):
+
+    conf_dir = Field(expand, default='$HOME/.suggestive')
+    database = Field(expand, default='{conf_dir}/music.db')
+    highcolor = Field(bool, default=True)
+    default_buffers = Field(CSV, valid_buffers, default=['library', 'playlist'])
+    orientation = Field(default='horizontal', choices=VALID_ORIENTATIONS)
+    log = Field(expand, default='{conf_dir}/log.txt')
+    verbose = Field(bool, default=False)
+    log_sql_queries = Field(bool, default=False)
+    session_file = Field(expand, default='{conf_dir}/session')
+    update_on_startup = Field(bool, default=False)
 
     @property
-    def lastfm_user(self):
-        """Return LastFM user name"""
-        return self.parser['lastfm']['user']
+    def colormode(self):
+        return 256 if self.highcolor else 88
 
     @property
-    def lastfm_apikey(self):
-        """Return LastFM API key"""
-        return self.parser['lastfm']['api_key']
+    def log_level(self):
+        return logging.DEBUG if self.verbose else logging.INFO
 
     @property
-    def lastfm_secret_key(self):
-        """Return LastFM secret key"""
-        return self.parser['lastfm'].get('api_secret', None)
+    def sqlalchemy_url(self):
+        return 'sqlite:///{}'.format(self.database)
 
-    @property
-    def lastfm_session_file(self):
-        """Return LastFM session file"""
-        return expand(self.parser['general']['session_file'])
 
-    @property
-    def lastfm_log_responses(self):
-        """Return True if responses from LastFM should be logged"""
-        return self.parser['lastfm'].getboolean('log_responses')
+class MpdConfig(FiggisConfig):
 
-    @property
-    def lastfm_url(self):
-        url = self.parser['lastfm']['url']
+    host = Field(default='localhost')
+    port = Field(int, default=6600)
 
-        # Ensure only one trailing slash
-        return url.rstrip('/') + '/'
 
-    def scrobble_retention(self):
-        """Return seconds to keep LastFM scrobbles"""
-        return self.parser['lastfm'].getint('scrobble_days')
+class LastfmConfig(FiggisConfig):
 
-    def database(self):
-        """Return the path to the database file"""
-        return expand(self.parser['general']['database'])
+    scrobble_days = Field(int, non_negative, default=180)
+    user = Field(default='')
+    api_key = Field(default='')
+    api_secret = Field(default='')
+    log_responses = Field(bool, default=False)
+    url = Field(default='http://ws.audioscrobbler.com/2.0')
 
-    def use_256_colors(self):
-        """Return True if the terminal should be set to 256 colors"""
-        return self.parser.getboolean('general', 'highcolor')
 
-    def default_buffers(self):
-        """Return a list of the default screens to display"""
-        raw = self.parser['general']['default_buffers']
-        screens = set(re.split(r'\s*,\s*', raw))
+class AppearanceConfig(FiggisConfig):
 
-        # Always have library
-        screens.add('library')
-
-        return screens
+    album_fg = Field(color, default='#000')
+    album_bg = Field(color, default='#fff')
+    album_focus_fg = Field(color, default='#000')
+    album_focus_bg = Field(color, default='#0ff')
+    playlist_fg = Field(color, default='#000')
+    playlist_bg = Field(color, default='#fff')
+    playlist_focus_fg = Field(color, default='#000')
+    playlist_focus_bg = Field(color, default='#0ff')
+    scrobble_fg = Field(color, default='#000')
+    scrobble_bg = Field(color, default='#fff')
+    scrobble_focus_fg = Field(color, default='#000')
+    scrobble_focus_bg = Field(color, default='#0ff')
+    scrobble_date_fg = Field(color, default='#222')
+    scrobble_date_bg = Field(color, default='#ff0')
+    bumper_fg = Field(color, default='#ded')
+    bumper_bg = Field(color, default='#777')
+    track_fg = Field(color, default='#000')
+    track_bg = Field(color, default='#ccc')
+    track_focus_fg = Field(color, default='#000')
+    track_focus_bg = Field(color, default='#0ff')
+    footer_fg = Field(color, default='#000')
+    footer_bg = Field(color, default='#00f')
+    footer_error_fg = Field(color, default='#000')
+    footer_error_bg = Field(color, default='#f00')
+    status_fg = Field(color, default='#000')
+    status_bg = Field(color, default='#08f')
 
     def _palette(self, name, color, bold=False, invert=False):
         if invert:
@@ -201,38 +157,32 @@ class Config(object):
         if bold:
             fg = 'bold,' + fg
 
-        if self.use_256_colors():
+        if self.parent.general.highcolor:
             return (name, '', '', '', fg, bg)
         else:
-            return (name, 'default', 'default')
+            (name, 'default', 'default')
 
+    @property
     def palette(self):
         """Return the terminal color palette"""
-        colors = self.parser['appearance']
+        album = (self.album_fg, self.album_bg)
+        album_focus = (self.album_focus_fg, self.album_focus_bg)
 
-        album = (colors['album_fg'], colors['album_bg'])
-        album_focus = (colors['album_focus_fg'], colors['album_focus_bg'])
+        playlist = (self.playlist_fg, self.playlist_bg)
+        playlist_focus = (self.playlist_focus_fg, self.playlist_focus_bg)
 
-        playlist = (colors['playlist_fg'], colors['playlist_bg'])
-        playlist_focus = (colors['playlist_focus_fg'],
-                          colors['playlist_focus_bg'])
+        scrobble = (self.scrobble_fg, self.scrobble_bg)
+        scrobble_focus = (self.scrobble_focus_fg, self.scrobble_focus_bg)
+        scrobble_date = (self.scrobble_date_fg, self.scrobble_date_bg)
 
-        scrobble = (colors['scrobble_fg'], colors['scrobble_bg'])
-        scrobble_focus = (
-            colors['scrobble_focus_fg'],
-            colors['scrobble_focus_bg'])
-        scrobble_date = (
-            colors['scrobble_date_fg'],
-            colors['scrobble_date_bg'])
+        track = (self.track_fg, self.track_bg)
+        track_focus = (self.track_focus_fg, self.track_focus_bg)
+        status = (self.status_fg, self.status_bg)
 
-        track = (colors['track_fg'], colors['track_bg'])
-        track_focus = (colors['track_focus_fg'], colors['track_focus_bg'])
-        status = (colors['status_fg'], colors['status_bg'])
+        footer = (self.footer_fg, self.footer_bg)
+        error = (self.footer_error_fg, self.footer_error_bg)
 
-        footer = (colors['footer_fg'], colors['footer_bg'])
-        error = (colors['footer_error_fg'], colors['footer_error_bg'])
-
-        bumper = (colors['bumper_fg'], colors['bumper_bg'])
+        bumper = (self.bumper_fg, self.bumper_bg)
 
         return [
             self._palette(None, ('white', 'white')),
@@ -247,8 +197,7 @@ class Config(object):
             self._palette('playlist', playlist),
             self._palette('focus playlist', playlist_focus),
             self._palette('playing', playlist, bold=True),
-            self._palette('focus playing', playlist_focus, bold=True,
-                          invert=True),
+            self._palette('focus playing', playlist_focus, bold=True, invert=True),
 
             self._palette('track', track),
             self._palette('focus track', track_focus),
@@ -261,67 +210,74 @@ class Config(object):
             self._palette('bumper', bumper)
         ]
 
-    def orientation(self):
-        """Return buffer split orientation"""
-        return self.parser['general']['orientation']
 
-    def playlist_status_format(self):
-        """Return the format for the playlist status bar"""
-        return self.parser['playlist']['status_format']
+class PlaylistConfig(FiggisConfig):
 
-    def save_playlist_on_close(self):
-        """Return true if the playlist should be saved on close"""
-        return self.parser.getboolean('playlist', 'save_playlist_on_close')
+    __nointerpolate__ = {'status_format'}
 
-    def playlist_save_name(self):
-        """Return the name of the state save playlist"""
-        return self.parser['playlist']['playlist_save_name']
+    status_format = Field(default='{status}: {artist} - {title} [{time_elapsed}/{time_total}]')
+    save_playlist_on_close = Field(bool, default=False)
+    playlist_save_name = Field(default='suggestive.state')
 
-    def ignore_artist_the(self):
-        """Return True if sorting albums should ignore the word 'The' in the
-        artist name"""
-        return self.parser.getboolean('library', 'ignore_artist_the')
 
-    def log_file(self):
-        """Return the log file path"""
-        return expand(self.parser['general']['log'])
+class LibraryConfig(FiggisConfig):
 
-    def log_level(self):
-        """Return the log level"""
-        if self.parser.getboolean('general', 'verbose'):
-            return logging.DEBUG
-        else:
-            return logging.INFO
+    ignore_artist_the = Field(bool, default=True)
+    default_order = Field(commands, default=['loved', 'playcount'])
+    show_score = Field(bool, default=False, read_only=False)
+    esc_resets_orderers = Field(bool, default=True)
 
-    def log_sql_queries(self):
-        return self.parser.getboolean('general', 'log_sql_queries')
 
-    def default_orderers(self):
-        """Return the default orderers"""
-        raw = self.parser['library']['default_order']
-        return [cmd.strip() for cmd in re.split(r'\s*;\s*', raw)]
+class ScrobblesConfig(FiggisConfig):
+    initial_load = Field(int, non_negative, default=50)
 
-    def show_score(self):
-        """Return True if the library should show album order scores"""
-        return self.parser.getboolean('library', 'show_score')
 
-    def esc_resets_orderers(self):
-        """Return True if the escape key should clear library orderers"""
-        return self.parser.getboolean('library', 'esc_resets_orderers')
+class Config(FiggisConfig):
 
-    def custom_orderers(self):
-        """Return a dict of custom orderer combinations"""
-        orderers = {}
-        for name, raw in self.parser['custom_orderers'].items():
-            orderer = [cmd.strip() for cmd in re.split(r'\s*;\s*', raw)]
-            orderers[name] = orderer
+    general = Field(GeneralConfig)
+    mpd = Field(MpdConfig)
+    lastfm = Field(LastfmConfig)
+    appearance = Field(AppearanceConfig)
+    playlist = Field(PlaylistConfig)
+    library = Field(LibraryConfig)
+    scrobbles = Field(ScrobblesConfig)
+    custom_orderers = Field(parse_custom_orders, default={})
 
-        return orderers
+    def __init__(self, args=None, configuration=None):
+        if configuration:
+            super().__init__(configuration)
+            return
 
-    def initial_scrobbles(self):
-        """Return the initial number of scrobbles to load"""
-        return self.parser.getint('scrobbles', 'initial_load')
+        parser = ConfigParser()
+        paths = CONFIG_PATHS
+        if args and args.config:
+            paths = [args.config] + CONFIG_PATHS
 
-    def update_on_startup(self):
-        """Return True if we should do a DB update on startup"""
-        return self.parser.getboolean('general', 'update_on_startup')
+        # Make sure all sections are present
+        parser.read([expand(path) for path in paths])
+        for section in self._fields:
+            if not parser.has_section(section):
+                parser.add_section(section)
+
+        # Override from CLI
+        data = self._override_config(parser, args)
+
+        # Parse config without interpolation first, then do interpolation afterward.  This prevents
+        # fields with defaults from not being interpolated properly
+        first_pass_conf = Config(configuration=data)
+        first_pass = first_pass_conf.to_dict()
+
+        # Do string interpolation
+        for section, settings in first_pass.items():
+            nointerpolate = getattr(getattr(first_pass_conf, section), '__nointerpolate__', [])
+            for key, value in settings.items():
+                settings[key] = value if key in nointerpolate else interpolate(value, settings)
+
+        super().__init__(first_pass)
+
+    def _override_config(self, parser, args):
+        if args:
+            if args.log:
+                parser['general']['log'] = args.log
+
+        return parser._sections

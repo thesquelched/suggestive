@@ -361,7 +361,7 @@ class ScrobbleBuffer(Buffer):
         super(ScrobbleBuffer, self).__init__(self.view)
 
         self.update_status('Scrobbles')
-        self.controller.load_more_scrobbles(conf.initial_scrobbles())
+        self.controller.load_more_scrobbles(conf.scrobbles.initial_load)
 
     @property
     def body(self):

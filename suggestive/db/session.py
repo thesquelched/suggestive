@@ -8,20 +8,12 @@ from suggestive.db.model import Base
 Session = scoped_session(sessionmaker())
 
 
-def sqlalchemy_url(config):
-    """
-    Return the SQLAlchemy query string corresponding to the suggestive database
-    """
-    return 'sqlite:///{}'.format(config.database())
-
-
 def initialize(config, echo=False):
     """
     Return a SQLAlchemy session object. Also create database if it doesn't
     already exist
     """
-    path = sqlalchemy_url(config)
-    engine = create_engine(path, echo=bool(echo))
+    engine = create_engine(config.general.sqlalchemy_url, echo=bool(echo))
     Session.configure(bind=engine)
 
     Base.metadata.create_all(engine)

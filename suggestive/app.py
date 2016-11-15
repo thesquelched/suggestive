@@ -9,7 +9,6 @@ import logging
 from logging.handlers import RotatingFileHandler
 import threading
 import os
-import sys
 import gzip
 
 from suggestive.db.session import initialize as initialize_session
@@ -80,7 +79,7 @@ class MainView(urwid.Frame):
         return iter(self._buffer_list)
 
     def initialize_buffers(self, loop):
-        default = set(self.conf.default_buffers())
+        default = set(self.conf.general.default_buffers)
         logger.debug('Default buffers: {}'.format(default))
 
         buffers = {
@@ -203,7 +202,7 @@ class Application(Commandable):
         self.update_footer_text('suggestive')
         self.continuously_update_playlist_status()
 
-        if not args.no_update and (args.update or conf.update_on_startup()):
+        if not args.no_update and (args.update or conf.general.update_on_startup):
             self.start_mpd_update()
 
     @property
@@ -297,8 +296,8 @@ class Application(Commandable):
             return False
 
     def exit(self):
-        if self.conf.save_playlist_on_close():
-            playlist = self.conf.playlist_save_name()
+        if self.conf.playlist.save_playlist_on_close:
+            playlist = self.conf.playlist.playlist_save_name
             try:
                 self.top.playlist.save_playlist(playlist)
             except Exception as ex:
@@ -349,11 +348,7 @@ class Application(Commandable):
 
     @typed(show=bool)
     def toggle_show_score(self, show=None):
-        current = self.conf.show_score()
-        self.conf.parser.set(
-            'library',
-            'show_score',
-            'false' if current else 'true')
+        self.conf.library.show_score = not self.conf.library.show_score
         self.update_library_event()
 
     def pause(self):
@@ -445,11 +440,10 @@ class Application(Commandable):
                 self.update_footer_text(ex.message, error=True)
 
     def setup_palette(self):
-        return self.conf.palette()
+        return self.conf.appearance.palette
 
     def setup_term(self, screen):
-        colormode = 256 if self.conf.use_256_colors() else 88
-        screen.set_terminal_properties(colors=colormode)
+        screen.set_terminal_properties(colors=self.conf.general.colormode)
 
     def continuously_update_playlist_status(self, *args):
         text = self.top.playlist.status_text()
@@ -486,12 +480,12 @@ def initialize_logging(conf):
         os.remove(source)
 
     try:
-        os.makedirs(os.path.dirname(conf.log_file()))
+        os.makedirs(os.path.dirname(conf.general.log))
     except IOError:
         pass
 
     handler = RotatingFileHandler(
-        conf.log_file(),
+        conf.general.log,
         mode='a',
         backupCount=3,
         maxBytes=10 * MEGABYTE,
@@ -503,18 +497,18 @@ def initialize_logging(conf):
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     handler.setFormatter(fmt)
-    handler.setLevel(conf.log_level())
+    handler.setLevel(conf.general.log_level)
 
     root = logging.getLogger()
     root.addHandler(handler)
-    root.setLevel(conf.log_level())
+    root.setLevel(conf.general.log_level)
 
     # Disable other loggers
     logging.getLogger('mpd').setLevel(logging.ERROR)
     logging.getLogger('requests').setLevel(logging.ERROR)
 
     # SQLAlchemy query logging
-    if conf.log_sql_queries():
+    if conf.general.log_sql_queries:
         logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 
@@ -522,12 +516,7 @@ def run(args):
     conf = Config(args)
     initialize_logging(conf)
 
-    msg = conf.check_config()
-    if msg is not None:
-        print(msg)
-        sys.exit(1)
-
-    first_time = not os.path.exists(conf.database())
+    first_time = not os.path.exists(conf.general.database)
     if first_time:
         print('Music database not found; initializing...')
         migrate.initialize_database(conf)
@@ -539,8 +528,8 @@ def run(args):
     migrate.migrate(conf)
 
     # Request API write access from user
-    session_file = conf.lastfm_session_file
-    if conf.lastfm_secret_key and not os.path.exists(session_file):
+    session_file = conf.general.session_file
+    if conf.lastfm.api_secret and not os.path.exists(session_file):
         mstat.initialize_lastfm(conf)
 
     if args.reinitialize_scrobbles and not first_time:

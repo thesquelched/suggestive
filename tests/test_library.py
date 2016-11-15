@@ -16,7 +16,7 @@ def model():
 
 
 def test_with_score(model):
-    conf = Mock(show_score=Mock(return_value=True))
+    conf = Mock(library=Mock(show_score=True))
 
     v = library.AlbumView(model, conf)
 
@@ -25,7 +25,7 @@ def test_with_score(model):
 
 
 def test_without_score(model):
-    conf = Mock(show_score=Mock(return_value=False))
+    conf = Mock(library=Mock(show_score=False))
 
     v = library.AlbumView(model, conf)
 
@@ -35,7 +35,7 @@ def test_without_score(model):
 
 def test_ignored(model):
     model.db_album.ignored = True
-    conf = Mock(show_score=Mock(return_value=False))
+    conf = Mock(library=Mock(show_score=False))
 
     v = library.AlbumView(model, conf)
 

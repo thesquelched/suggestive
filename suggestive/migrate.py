@@ -1,4 +1,4 @@
-from suggestive.db.session import initialize, session_scope, sqlalchemy_url
+from suggestive.db.session import initialize, session_scope
 from alembic.config import Config
 from alembic import command
 
@@ -6,7 +6,7 @@ from alembic import command
 def alembic_conf(conf):
     a_conf = Config()
     a_conf.set_main_option('script_location', 'suggestive:alembic')
-    a_conf.set_main_option('url', sqlalchemy_url(conf))
+    a_conf.set_main_option('url', conf.general.sqlalchemy_url)
 
     return a_conf
 

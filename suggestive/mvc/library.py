@@ -309,7 +309,7 @@ class AlbumView(urwid.WidgetWrap, View, widget.Searchable):
         self.content = model.db_album
         self._expanded = False
 
-        self._show_score = conf.show_score()
+        self._show_score = conf.library.show_score
         self._icon = urwid.SelectableIcon(self.text)
 
         super(AlbumView, self).__init__(
@@ -517,14 +517,14 @@ class LibraryBuffer(Buffer):
         return add_func
 
     def init_default_orderers(self, conf):
-        order_commands = conf.default_orderers()
+        order_commands = conf.library.default_order
         logger.debug('Initializing default orders: {}'.format(order_commands))
         for cmd in order_commands:
             self.execute_command(cmd)
 
     def init_custom_orderers(self, conf):
         orderers = {}
-        for name, cmds in conf.custom_orderers().items():
+        for name, cmds in conf.custom_orderers.items():
             def orderer_cmd(cmds=cmds):
                 for cmd in cmds:
                     logger.debug('order: {}'.format(cmd))
@@ -538,7 +538,7 @@ class LibraryBuffer(Buffer):
             ('artist', 'ar'): (analytics.ArtistFilter, None),
             ('album', 'al'): (analytics.AlbumFilter, None),
             ('sort',): (analytics.SortOrder, {
-                'ignore_artist_the': self.conf.ignore_artist_the()
+                'ignore_artist_the': self.conf.library.ignore_artist_the
             }),
             ('loved', 'lo'): (analytics.FractionLovedOrder, None),
             ('pc', 'playcount'): (analytics.PlaycountOrder, None),
@@ -572,7 +572,7 @@ class LibraryBuffer(Buffer):
     def setup_bindings(self):
         keybinds = super(LibraryBuffer, self).setup_bindings()
 
-        if self.conf.esc_resets_orderers():
+        if self.conf.library.esc_resets_orderers:
             keybinds.update({
                 'esc': lambda: self.controller.reset_orderers(),
             })

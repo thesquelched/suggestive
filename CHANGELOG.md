@@ -5,6 +5,8 @@ Improvements
 ------------
 - Do better matching between scrobbles and database tracks
 - Add `--reinitialize-scrobbles` CLI option
+- Configuration file can now use format-style interpolation (i.e. `'{foo}')
+  instead of old-style interpolation (i.e. `'%(foo)s`)
 
 
 Version 0.5.1

@@ -39,7 +39,7 @@ class LastFM(object):
         display a message in the console asking user to manually open URL"""
 
         url = 'http://www.last.fm/api/auth/?api_key={0}&token={1}'.format(
-            self.config.lastfm_apikey, token)
+            self.config.lastfm.api_key, token)
 
         try:
             webbrowser.open_new_tab(url)
@@ -59,7 +59,7 @@ class LastFM(object):
     def _save_session(self, session_key):
         """Save session key (in plaintext) to a file"""
         logger.info('Saving session key to file')
-        with open(self.config.lastfm_session_file, 'w') as handle:
+        with open(self.config.general.session_file, 'w') as handle:
             handle.write(session_key)
 
     def _authorize_application(self, client):
@@ -81,12 +81,12 @@ class LastFM(object):
     def _initialize_client(self):
         config = self.config
 
-        client = pylastfm.LastFM(config.lastfm_apikey,
-                                 config.lastfm_secret_key,
-                                 username=config.lastfm_user,
-                                 url=config.lastfm_url,
+        client = pylastfm.LastFM(config.lastfm.api_key,
+                                 config.lastfm.api_secret,
+                                 username=config.lastfm.user,
+                                 url=config.lastfm.url,
                                  auth_method='session_key_file',
-                                 session_key=config.lastfm_session_file)
+                                 session_key=config.general.session_file)
 
         try:
             client.authenticate()

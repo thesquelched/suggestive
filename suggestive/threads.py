@@ -216,7 +216,7 @@ class ScrobbleInitializeThread(AppThread):
 
         try:
             batches = partition(
-                lastfm.scrobbles(conf.lastfm_user, end=earliest),
+                lastfm.scrobbles(conf.lastfm.user, end=earliest),
                 200)
         except LastfmError as exc:
             logger.error('Could not contact LastFM server', exc_info=exc)

@@ -484,7 +484,7 @@ class PlaylistBuffer(Buffer):
                              self.controller.previous_track)
 
         self.current_track = None
-        self.status_format = conf.playlist_status_format()
+        self.status_format = conf.playlist.status_format
 
         super(PlaylistBuffer, self).__init__(self.view)
 

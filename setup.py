@@ -59,5 +59,6 @@ if __name__ == '__main__':
             'SQLAlchemy>=0.9.6',
             'urwid>=1.1.1',
             'unidecode',
+            'figgis>=1.8.1',
         ],
     )

@@ -204,8 +204,8 @@ class ScrobbleLoader(object):
 
     def __init__(self, lastfm, config):
         self.lastfm = lastfm
-        self.user = config.lastfm_user
-        self.retention = config.scrobble_retention()
+        self.user = config.lastfm.user
+        self.retention = config.lastfm.scrobble_days
         self._track_mapping = {}
 
     @classmethod
@@ -618,7 +618,7 @@ class TrackInfoLoader(object):
 
     def __init__(self, lastfm, config):
         self.lastfm = lastfm
-        self.user = config.lastfm_user
+        self.user = config.lastfm.user
 
     def update_track_info(self, session, db_track, loved):
         """
@@ -768,10 +768,8 @@ def initialize_mpd(config):
     """
     Return a MPD client connection
     """
-    host, port = config.mpd()
-
     client = MPDClient()
-    client.connect(host, port)
+    client.connect(config.mpd.host, config.mpd.port)
 
     return client
 
