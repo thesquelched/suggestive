@@ -478,7 +478,7 @@ class MpdLoader(object):
                 logger.error('No artist found')
                 continue
 
-            logger.debug("Loading %d albums from artist 's'", len(albums), artist)
+            logger.debug("Loading %d albums from artist '%s'", len(albums), artist)
 
             db_artist = session.query(Artist).filter_by(
                 name_insensitive=artist).first()
@@ -567,7 +567,7 @@ class MpdLoader(object):
             for album, tracks in by_album.items():
                 track_txt = 'Tracks:\n  {}'.format(
                     '\n  '.join(info['file'] for info in tracks))
-                logger.debug('Tracks for %s - %s:\n  ', artist, album, track_txt)
+                logger.debug('Tracks for %s - %s:\n  %s', artist, album, track_txt)
 
         return by_artist_album
 
